@@ -74,9 +74,7 @@ void Device::CreateDevice()
 	ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
 				  IID_PPV_ARGS(m_CommandAllocator.GetAddressOf())));
 
-	m_Device.Get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(m_CommandList.GetAddressOf()));
-
-	ThrowIfFailed(m_CommandList.Get()->Close());
+	//ThrowIfFailed(m_CommandList.Get()->Close());
 	
 	CreateCommandQueue();
 	CreateFences();
@@ -137,6 +135,12 @@ void Device::CreateSwapChain(HWND hWnd)
 	
 }
 
+void Device::CreateCommandList(ID3D12PipelineState* pPipelineState)
+{
+	m_Device.Get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), pPipelineState, IID_PPV_ARGS(m_CommandList.GetAddressOf()));
+	ThrowIfFailed(m_CommandList.Get()->Close());
+}
+
 void Device::CreateCommandQueue()
 {
 	D3D12_COMMAND_QUEUE_DESC desc{};
@@ -193,6 +197,8 @@ void Device::SetViewport()
 
 void Device::Release()
 {
+	//SafeRelease(m_PipelineState);
+	SafeRelease(m_RootSignature);
 	SafeRelease(m_CommandQueue);
 	SafeRelease(m_CommandList);
 	//for (auto& allocator : m_CommandAllocators)
@@ -211,5 +217,5 @@ void Device::Release()
 	SafeRelease(m_Device);
 	SafeRelease(m_Factory);
 
-	//OutputDebugStringA("Device destroyed.\n");
+	CloseHandle(m_FenceEvent);
 }

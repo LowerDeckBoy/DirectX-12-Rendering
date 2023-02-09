@@ -28,6 +28,7 @@ public:
 	void CreateDevice();
 	void CreateSwapChain(HWND hWnd);
 
+	void CreateCommandList(ID3D12PipelineState* pPipelineState);
 	void CreateCommandQueue();
 	void CreateFences(D3D12_FENCE_FLAGS Flags = D3D12_FENCE_FLAG_NONE);
 	
@@ -42,7 +43,7 @@ public:
 	ID3D12Device4* GetDevice() const { return m_Device.Get(); }
 	IDXGISwapChain3* GetSwapChain() { return m_SwapChain.Get(); }
 
-	//ID3D12CommandAllocator* GetCommandAllocators() { return m_CommandAllocators; }
+	ID3D12CommandAllocator* GetCommandAllocator() const { return m_CommandAllocator.Get(); }
 	ID3D12CommandQueue* GetCommandQueue() const { return m_CommandQueue.Get(); }
 	ID3D12GraphicsCommandList1* GetCommandList() { return m_CommandList.Get(); }
 
@@ -66,15 +67,12 @@ public:
 	ComPtr<ID3D12Device4> m_Device;
 	ComPtr<ID3D12DebugDevice> m_DebugDevice;
 
-	//std::array<ComPtr<ID3D12CommandAllocator>, FrameCount> m_CommandAllocators;
 	ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
 	ComPtr<ID3D12GraphicsCommandList1> m_CommandList;
 
-	uint32_t m_FrameIndex{ 0 };
-	ComPtr<ID3D12Fence1> m_Fence;
-	HANDLE m_FenceEvent;
-	uint64_t m_FenceValue{ 1 };
+	ComPtr<ID3D12RootSignature> m_RootSignature;
+	//ComPtr<ID3D12PipelineState> m_PipelineState;
 
 	// SwapChain
 	ComPtr<IDXGISwapChain3> m_SwapChain;
@@ -82,11 +80,12 @@ public:
 	ComPtr<ID3D12Resource> m_RenderTargets[FrameCount];
 	uint32_t m_DescriptorSize{ 0 };
 
+	uint32_t m_FrameIndex{ 0 };
+	ComPtr<ID3D12Fence1> m_Fence;
+	HANDLE m_FenceEvent;
+	uint64_t m_FenceValue{ 1 };
+
 	D3D12_VIEWPORT m_Viewport{};
 	D3D12_RECT m_ViewportRect{};
-	
-	ComPtr<ID3D12RootSignature> m_RootSignature;
-
 
 };
-
