@@ -23,8 +23,13 @@ public:
 	~Window();
 
 	bool Initialize();
-	int Run();
-	void Destroy();
+	void Show();
+
+	// void ShowCursor();
+	// void HideCursor();
+	
+	//int Run();
+	//void Destroy();
 
 	static LRESULT WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

@@ -76,10 +76,15 @@ bool Window::Initialize()
     BOOL bDarkMode = TRUE;
     ::DwmSetWindowAttribute(m_hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &bDarkMode, sizeof(bDarkMode));
 
+    bIsInitialized = true;
+    return true;
+}
+
+void Window::Show()
+{
+    if (!bIsInitialized)
+        throw std::exception();
     //SendMessage(m_hWnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
     ShowWindow(m_hWnd, SW_SHOW);
     UpdateWindow(m_hWnd);
-
-    bIsInitialized = true;
-    return true;
 }
