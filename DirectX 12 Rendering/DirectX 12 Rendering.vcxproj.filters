@@ -52,10 +52,12 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
     <FxCompile Include="Assets\Shaders\VS_Triangle.hlsl" />
     <FxCompile Include="Assets\Shaders\PS_Triangle.hlsl" />
+    <FxCompile Include="Assets\Shaders\PS_Texture.hlsl" />
+    <FxCompile Include="Assets\Shaders\VS_Texture.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
