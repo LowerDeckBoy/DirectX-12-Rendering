@@ -17,6 +17,9 @@ void App::Initialize()
 
 int App::Run()
 {
+	m_Renderer->GetWindow()->Show();
+
+
 	MSG msg{};
 
 	while (msg.message != WM_QUIT)

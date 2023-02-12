@@ -11,6 +11,7 @@ bool Device::Initialize(HWND hWnd)
 {
 	CreateDevice();
 	CreateSwapChain(hWnd);
+	CreateDescriptorHeaps();
  
 	return true;
 }
@@ -66,19 +67,12 @@ void Device::CreateDevice()
 	m_DebugDevice.Get()->ReportLiveDeviceObjects(D3D12_RLDO_NONE);
 #endif
 
-	//for (uint32_t i = 0; i < Device::FrameCount; i++)
-	//{
-	//	ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-	//				  IID_PPV_ARGS(m_CommandAllocators.at(i).GetAddressOf())));
-	//}
+
 	ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
 				  IID_PPV_ARGS(m_CommandAllocator.GetAddressOf())));
-
-	//ThrowIfFailed(m_CommandList.Get()->Close());
 	
 	CreateCommandQueue();
 	CreateFences();
-
 }
 
 void Device::CreateSwapChain(HWND hWnd)
@@ -111,14 +105,18 @@ void Device::CreateSwapChain(HWND hWnd)
 	ThrowIfFailed(m_Factory.Get()->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
 
 	ThrowIfFailed(swapchain.As(&m_SwapChain));
-	m_CurrentBuffer = m_SwapChain.Get()->GetCurrentBackBufferIndex();
+	m_FrameIndex = m_SwapChain.Get()->GetCurrentBackBufferIndex();
+}
 
+void Device::CreateDescriptorHeaps()
+{
+	// RTV HEAP
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	heapDesc.NumDescriptors = Device::FrameCount;
 
-	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_rtvHeap.GetAddressOf())), 
+	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_rtvHeap.GetAddressOf())),
 				  "Failed to create Descriptor Heap!");
 
 	m_DescriptorSize = m_Device.Get()->GetDescriptorHandleIncrementSize(heapDesc.Type);
@@ -132,13 +130,21 @@ void Device::CreateSwapChain(HWND hWnd)
 		rtvHandle.Offset(1, m_DescriptorSize);
 	}
 
-	
+	// SRV HEAP
+	D3D12_DESCRIPTOR_HEAP_DESC srvDesc{};
+	srvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	srvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	srvDesc.NumDescriptors = 1;
+
+	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
+	//Objectset()
+	m_srvHeap->SetName(L"SRV_HEAP");
 }
 
 void Device::CreateCommandList(ID3D12PipelineState* pPipelineState)
 {
 	m_Device.Get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), pPipelineState, IID_PPV_ARGS(m_CommandList.GetAddressOf()));
-	ThrowIfFailed(m_CommandList.Get()->Close());
+	//ThrowIfFailed(m_CommandList.Get()->Close());
 }
 
 void Device::CreateCommandQueue()
@@ -201,16 +207,13 @@ void Device::Release()
 	SafeRelease(m_RootSignature);
 	SafeRelease(m_CommandQueue);
 	SafeRelease(m_CommandList);
-	//for (auto& allocator : m_CommandAllocators)
 	SafeRelease(m_CommandAllocator);
-
-	//for (auto& fence : m_Fences)
 	SafeRelease(m_Fence);
 
 	for (auto& buffer : m_RenderTargets)
 		SafeRelease(buffer);
 
-
+	SafeRelease(m_srvHeap);
 	SafeRelease(m_rtvHeap);
 	SafeRelease(m_SwapChain);
 	SafeRelease(m_DebugDevice);

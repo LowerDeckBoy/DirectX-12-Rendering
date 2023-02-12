@@ -28,6 +28,7 @@ public:
 	void CreateDevice();
 	void CreateSwapChain(HWND hWnd);
 
+	void CreateDescriptorHeaps();
 	void CreateCommandList(ID3D12PipelineState* pPipelineState);
 	void CreateCommandQueue();
 	void CreateFences(D3D12_FENCE_FLAGS Flags = D3D12_FENCE_FLAG_NONE);
@@ -39,26 +40,27 @@ public:
 
 public:
 	// Getters
-	IDXGIFactory4* GetFactory() const { return m_Factory.Get(); }
-	ID3D12Device4* GetDevice() const { return m_Device.Get(); }
-	IDXGISwapChain3* GetSwapChain() { return m_SwapChain.Get(); }
+	inline IDXGIFactory4* GetFactory() const { return m_Factory.Get(); }
+	inline ID3D12Device4* GetDevice() const { return m_Device.Get(); }
+	inline IDXGISwapChain3* GetSwapChain() { return m_SwapChain.Get(); }
 
-	ID3D12CommandAllocator* GetCommandAllocator() const { return m_CommandAllocator.Get(); }
-	ID3D12CommandQueue* GetCommandQueue() const { return m_CommandQueue.Get(); }
-	ID3D12GraphicsCommandList1* GetCommandList() { return m_CommandList.Get(); }
+	// Command getters
+	inline ID3D12CommandAllocator* GetCommandAllocator() const { return m_CommandAllocator.Get(); }
+	inline ID3D12CommandQueue* GetCommandQueue() const { return m_CommandQueue.Get(); }
+	inline ID3D12GraphicsCommandList1* GetCommandList() { return m_CommandList.Get(); }
 
-	//uint32_t GetFrameIndex() { return m_FrameIndex; }
-	uint32_t GetFrameIndex() { return m_SwapChain.Get()->GetCurrentBackBufferIndex(); }
-	void SetFrameIndex(uint32_t NewFrame) { m_FrameIndex = NewFrame; }
-	ID3D12Fence1* GetFence() const { return m_Fence.Get(); }
-	HANDLE& GetFenceEvent() { return m_FenceEvent; }
+	// Frame/Fence getters
+	inline uint32_t GetFrameIndex() { return m_SwapChain.Get()->GetCurrentBackBufferIndex(); }
+	inline void SetFrameIndex(uint32_t NewFrame) { m_FrameIndex = NewFrame; }
+	inline ID3D12Fence1* GetFence() const { return m_Fence.Get(); }
+	inline HANDLE& GetFenceEvent() { return m_FenceEvent; }
 
-	ID3D12DescriptorHeap* GetDescriptorHeap() const { return m_rtvHeap.Get(); }
-	uint32_t GetDescriptorSize() const { return m_DescriptorSize; }
+	// Heap getters
+	inline ID3D12DescriptorHeap* GetDescriptorHeap() const { return m_rtvHeap.Get(); }
+	inline uint32_t GetDescriptorSize() const { return m_DescriptorSize; }
+	inline ID3D12DescriptorHeap* GetSRVHeap() const { return m_srvHeap.Get(); }
 
-	ID3D12Resource* GetRenderTargets() { return m_RenderTargets->Get(); }
-
-	uint32_t m_CurrentBuffer{};
+	inline ID3D12Resource* GetRenderTargets() { return m_RenderTargets->Get(); }
 
 public:
 	// Device
@@ -77,6 +79,7 @@ public:
 	// SwapChain
 	ComPtr<IDXGISwapChain3> m_SwapChain;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_srvHeap;
 	ComPtr<ID3D12Resource> m_RenderTargets[FrameCount];
 	uint32_t m_DescriptorSize{ 0 };
 
