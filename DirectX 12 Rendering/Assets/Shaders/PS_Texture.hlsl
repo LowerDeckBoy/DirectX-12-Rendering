@@ -10,5 +10,5 @@ SamplerState samplerState : register(s0);
 
 float4 PS(PS_Input pin) : SV_TARGET
 {
-    return tex.Sample(samplerState, pin.UV);
+    return float4(tex.Sample(samplerState, pin.UV).rgb, 1.0f);
 }
