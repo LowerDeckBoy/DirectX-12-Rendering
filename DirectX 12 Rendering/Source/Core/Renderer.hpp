@@ -4,11 +4,13 @@
 #include <memory>
 #include <DirectXMath.h>
 #include <d3dcompiler.h>
+#include "../Graphics/Shader.hpp"
+#include "../Graphics/Buffer.hpp"
 
 
 using namespace DirectX;
-
-class Renderer : public Device
+//: public Device
+class Renderer 
 {
 public:
 	explicit Renderer(HINSTANCE hInstance);
@@ -23,32 +25,46 @@ public:
 
 	void RecordCommandLists();
 	void WaitForPreviousFrame();
+	void WaitforGPU();
 
 	void OnDestroy();
 
 	inline Window* GetWindow() const { return m_Window.get(); }
 private:
 	std::unique_ptr<Window> m_Window;
+	std::unique_ptr<Device> m_Device;
 
 private:
 	// Triangle resources
 	ComPtr<ID3D12PipelineState> m_PipelineState;
 	void InitTriangle();
-	ComPtr<ID3D12Resource> m_VertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW m_VertexView;
-	//struct TriangleVertex
-	//{
-	//	XMFLOAT3 Position;
-	//	XMFLOAT4 Color;
-	//};
+
 	struct VertexUV
 	{
 		XMFLOAT3 Position;
 		XMFLOAT2 TexCoord;
 	};
 
-	//https://alextardif.com/D3D11To12P3.html
+	//test
+	VertexBuffer<VertexUV> m_VertexBuffer;
+	IndexBuffer m_IndexBuffer;
+	
+
+	//struct TriangleVertex
+	//{
+	//	XMFLOAT3 Position;
+	//	XMFLOAT4 Color;
+	//};
+
 	void LoadAssets(const std::string& TexturePath);
 	ComPtr<ID3D12Resource> m_TriangleTexture;
+
+	// Shaders
+	std::unique_ptr<VertexShader> m_VertexShader{ std::make_unique<VertexShader>() };
+	std::unique_ptr<PixelShader> m_PixelShader{ std::make_unique<PixelShader>() };
+
+	//
+
+
 };
 

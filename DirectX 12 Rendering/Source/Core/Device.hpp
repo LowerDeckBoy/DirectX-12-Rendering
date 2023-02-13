@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <array>
 
-// https://alain.xyz/blog/raw-directx12
 
 class Window;
 
@@ -51,7 +50,7 @@ public:
 
 	// Frame/Fence getters
 	inline uint32_t GetFrameIndex() { return m_SwapChain.Get()->GetCurrentBackBufferIndex(); }
-	inline void SetFrameIndex(uint32_t NewFrame) { m_FrameIndex = NewFrame; }
+	void SetFrameIndex(uint32_t NewFrame) { m_FrameIndex = NewFrame; }
 	inline ID3D12Fence1* GetFence() const { return m_Fence.Get(); }
 	inline HANDLE& GetFenceEvent() { return m_FenceEvent; }
 

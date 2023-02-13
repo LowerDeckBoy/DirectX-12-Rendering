@@ -21,7 +21,6 @@ void Device::CreateDevice()
 	UINT dxgiFactoryFlags = 0;
 
 #if defined (DEBUG) || (_DEBUG)
-	//IID_PPV_ARGS
 	ComPtr<ID3D12Debug1> debugController;
 	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)), "Failed to create Debug Interface!");
 	debugController->EnableDebugLayer();
@@ -66,7 +65,6 @@ void Device::CreateDevice()
 #else
 	m_DebugDevice.Get()->ReportLiveDeviceObjects(D3D12_RLDO_NONE);
 #endif
-
 
 	ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
 				  IID_PPV_ARGS(m_CommandAllocator.GetAddressOf())));

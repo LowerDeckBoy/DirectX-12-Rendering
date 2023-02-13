@@ -52,7 +52,10 @@ bool Window::Initialize()
     wcex.hbrBackground = static_cast<HBRUSH>(CreateSolidBrush(RGB(20, 20, 20)));
 
     if (!RegisterClassEx(&wcex))
+    {
+        MessageBoxA(nullptr, "Failed to register Window!", "Error", MB_OK);
         return false;
+    }
     
     m_WindowRect = { 0, 0, static_cast<LONG>(GetDisplay().Width), static_cast<LONG>(GetDisplay().Height)};
     AdjustWindowRect(&m_WindowRect, WS_OVERLAPPEDWINDOW, false);
@@ -84,7 +87,9 @@ void Window::Show()
 {
     if (!bIsInitialized)
         throw std::exception();
+
     //SendMessage(m_hWnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
     ShowWindow(m_hWnd, SW_SHOW);
+    SetFocus(m_hWnd);
     UpdateWindow(m_hWnd);
 }
