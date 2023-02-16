@@ -1,18 +1,22 @@
 #include "Device.hpp"
 #include "../Utils/Utils.hpp"
 #include "Window.hpp"
+//#include <dxgidebug.h>
 
 Device::~Device()
 {
 	Release();
 }
 
-bool Device::Initialize(HWND hWnd)
+bool Device::Initialize()
 {
 	CreateDevice();
-	CreateSwapChain(hWnd);
+	CreateCommandQueue();
+	CreateFences();
+	CreateSwapChain();
+	CreateBackbuffer();
 	CreateDescriptorHeaps();
- 
+
 	return true;
 }
 
@@ -23,9 +27,7 @@ void Device::CreateDevice()
 #if defined (DEBUG) || (_DEBUG)
 	ComPtr<ID3D12Debug1> debugController;
 	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)), "Failed to create Debug Interface!");
-	debugController->EnableDebugLayer();
-	// Requires extra performence
-	//debugController->SetEnableGPUBasedValidation(true);
+	debugController.Get()->EnableDebugLayer();
 
 	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 
@@ -66,17 +68,21 @@ void Device::CreateDevice()
 	m_DebugDevice.Get()->ReportLiveDeviceObjects(D3D12_RLDO_NONE);
 #endif
 
-	ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-				  IID_PPV_ARGS(m_CommandAllocator.GetAddressOf())));
+	for (uint32_t i = 0; i < FrameCount; i++)
+	{
+		ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+					  IID_PPV_ARGS(m_CommandAllocators[i].GetAddressOf())));
+		std::wstring nm{ L"Alloc" + std::to_wstring(i) };
+		LPCWSTR name{ nm.c_str() };
+		m_CommandAllocators[i]->SetName(name);
+	}
 	
-	CreateCommandQueue();
-	CreateFences();
+
+
 }
 
-void Device::CreateSwapChain(HWND hWnd)
+void Device::CreateSwapChain()
 {
-	assert(hWnd);
-
 	SetViewport();
 
 	DXGI_SWAP_CHAIN_DESC1 desc{};
@@ -98,15 +104,17 @@ void Device::CreateSwapChain(HWND hWnd)
 	fullscreenDesc.RefreshRate.Denominator = 0;
 
 	ComPtr<IDXGISwapChain1> swapchain;
-	ThrowIfFailed(m_Factory.Get()->CreateSwapChainForHwnd(m_CommandQueue.Get(), hWnd, &desc, &fullscreenDesc, nullptr, swapchain.GetAddressOf()), "Failed to create SwapChain!");
+	ThrowIfFailed(m_Factory.Get()->CreateSwapChainForHwnd(m_CommandQueue.Get(), Window::GetHWND(), &desc, &fullscreenDesc, nullptr, swapchain.GetAddressOf()), "Failed to create SwapChain!");
 
-	ThrowIfFailed(m_Factory.Get()->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
+	ThrowIfFailed(m_Factory.Get()->MakeWindowAssociation(Window::GetHWND(), DXGI_MWA_NO_ALT_ENTER));
 
 	ThrowIfFailed(swapchain.As(&m_SwapChain));
 	m_FrameIndex = m_SwapChain.Get()->GetCurrentBackBufferIndex();
+	//m_SwapChain.Get()->SetMaximumFrameLatency(FrameCount);
+	//m_SwapChain.Get()->GetFrameLatencyWaitableObject();
 }
 
-void Device::CreateDescriptorHeaps()
+void Device::CreateBackbuffer()
 {
 	// RTV HEAP
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
@@ -127,7 +135,10 @@ void Device::CreateDescriptorHeaps()
 		m_Device.Get()->CreateRenderTargetView(m_RenderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_DescriptorSize);
 	}
+}
 
+void Device::CreateDescriptorHeaps()
+{
 	// SRV HEAP
 	D3D12_DESCRIPTOR_HEAP_DESC srvDesc{};
 	srvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -135,14 +146,14 @@ void Device::CreateDescriptorHeaps()
 	srvDesc.NumDescriptors = 1;
 
 	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
-	//Objectset()
 	m_srvHeap->SetName(L"SRV_HEAP");
+	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(m_guiAllocator.GetAddressOf())));
+	m_guiAllocator->SetName(L"GUI_HEAP");
 }
 
 void Device::CreateCommandList(ID3D12PipelineState* pPipelineState)
 {
-	m_Device.Get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), pPipelineState, IID_PPV_ARGS(m_CommandList.GetAddressOf()));
-	//ThrowIfFailed(m_CommandList.Get()->Close());
+	m_Device.Get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocators[m_FrameIndex].Get(), pPipelineState, IID_PPV_ARGS(m_CommandList.GetAddressOf()));
 }
 
 void Device::CreateCommandQueue()
@@ -156,31 +167,11 @@ void Device::CreateCommandQueue()
 
 void Device::CreateFences(D3D12_FENCE_FLAGS Flags)
 {
-
 	ThrowIfFailed(m_Device.Get()->CreateFence(0, Flags, IID_PPV_ARGS(m_Fence.GetAddressOf())));
-	m_FenceValue = 1;
+	m_FenceValues[m_FrameIndex]++;
 
 	m_FenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	assert(m_FenceEvent != nullptr);
-}
-
-void Device::ResizeBackBuffer()
-{
-	for (auto& buffer : m_RenderTargets)
-		buffer->Release();
-
-
-	m_DescriptorSize = m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle{ m_rtvHeap.Get()->GetCPUDescriptorHandleForHeapStart() };
-	
-	for (uint32_t i = 0; i < Device::FrameCount; i++)
-	{
-		ThrowIfFailed(m_SwapChain.Get()->GetBuffer(i, IID_PPV_ARGS(m_RenderTargets[i].GetAddressOf())));
-		m_Device.Get()->CreateRenderTargetView(m_RenderTargets[i].Get(), nullptr, rtvHandle);
-		rtvHandle.ptr += static_cast<size_t>(1 * m_DescriptorSize);
-	}
-	
 }
 
 void Device::SetViewport()
@@ -196,7 +187,6 @@ void Device::SetViewport()
 	m_Viewport.Height = static_cast<float>(Window::GetDisplay().Height);
 	m_Viewport.MinDepth = 0.1f;
 	m_Viewport.MaxDepth = 1000.f;
-
 }
 
 void Device::Release()
@@ -205,7 +195,10 @@ void Device::Release()
 	SafeRelease(m_RootSignature);
 	SafeRelease(m_CommandQueue);
 	SafeRelease(m_CommandList);
-	SafeRelease(m_CommandAllocator);
+
+	for (auto& allocator : m_CommandAllocators)
+		SafeRelease(allocator);
+
 	SafeRelease(m_Fence);
 
 	for (auto& buffer : m_RenderTargets)

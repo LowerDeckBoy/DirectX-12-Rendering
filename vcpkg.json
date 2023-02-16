@@ -6,6 +6,11 @@
         {
             "name": "directxtex",
             "features": [ "dx12" ]
-        }
+        },
+        {
+            "name": "imgui",
+            "features": [ "dx12-binding", "win32-binding"]
+        },
+        "tinygltf"
     ]
 }

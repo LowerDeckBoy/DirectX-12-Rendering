@@ -1,15 +1,20 @@
 #include "Renderer.hpp"
 #include "../Utils/Utils.hpp"
+#include "../Core/Window.hpp"
 #include <array>
 
 #include <DirectXTex.h>
 
+/*
 Renderer::Renderer(HINSTANCE hInstance)
 {
-	m_Window = std::make_unique<Window>(hInstance);
+	//m_Window = std::make_unique<Window>(hInstance);
+	m_Timer = std::make_unique<Timer>();
+	m_GUI = std::make_unique<GUI>();
 	m_Device = std::make_unique<Device>();
-}
 
+}
+*/
 Renderer::~Renderer()
 {
 	OnDestroy();
@@ -17,17 +22,21 @@ Renderer::~Renderer()
 
 void Renderer::Initialize()
 {
-	m_Window->Initialize();
-	auto hwnd = m_Window->GetHWND();
-	m_Device->Initialize(hwnd);
+	m_GUI = std::make_unique<GUI>();
+	m_Device = std::make_unique<Device>();
+
+	m_Device->Initialize();
+
+	m_GUI->Initialize(m_Device.get());
+
+	CreateDepthStencil();
 
 	InitTriangle();
 
-	LoadAssets("Assets/Textures/jak_tam.jpg");
-	//LoadAssets("Assets/Textures/shrek.jpg");
+	//LoadAssets("Assets/Textures/jak_tam.jpg");
+	LoadAssets("Assets/Textures/shrek.jpg");
 	//LoadAssets("Assets/Textures/pointers.jpg");
-
-
+	
 }
 
 void Renderer::InitPipelineState()
@@ -40,23 +49,30 @@ void Renderer::Update()
 
 void Renderer::Draw()
 {
-	//https://www.braynzarsoft.net/viewtutorial/q16390-03-initializing-directx-12
-
 	RecordCommandLists();
 
 	ID3D12CommandList* commandLists[]{ m_Device->GetCommandList() };
 	m_Device->GetCommandQueue()->ExecuteCommandLists(_countof(commandLists), commandLists);
 
-	ThrowIfFailed(m_Device->GetSwapChain()->Present(1, 0));
+	//ThrowIfFailed(m_Device->GetSwapChain()->Present(1, 0));
+	HRESULT hResult{ m_Device->GetSwapChain()->Present(1, 0) };
+	if (hResult == DXGI_ERROR_DEVICE_REMOVED || hResult == DXGI_ERROR_DEVICE_RESET)
+	{
+		OutputDebugStringA("PRESENT FAIL!\n");
+	}
 
-	WaitForPreviousFrame();
+	MoveToNextFrame();
+	//WaitForGPU();
+	//WaitForPreviousFrame();
 }
 
 void Renderer::RecordCommandLists()
 {
-	ThrowIfFailed(m_Device->GetCommandAllocator()->Reset());
-	ThrowIfFailed(m_Device->GetCommandList()->Reset(m_Device->GetCommandAllocator(), m_PipelineState.Get()));
+	ThrowIfFailed(m_Device->m_CommandAllocators[m_Device->m_FrameIndex]->Reset());
+	ThrowIfFailed(m_Device->GetCommandList()->Reset(m_Device->m_CommandAllocators[m_Device->m_FrameIndex].Get(), m_PipelineState.Get()));
 	
+	m_GUI->Begin();
+
 	m_Device->GetCommandList()->SetGraphicsRootSignature(m_Device->m_RootSignature.Get());
 
 	ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_srvHeap.Get() };
@@ -69,31 +85,37 @@ void Renderer::RecordCommandLists()
 	auto presentToRender = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->m_RenderTargets[m_Device->m_FrameIndex].Get(),
 														 D3D12_RESOURCE_STATE_PRESENT,
 														 D3D12_RESOURCE_STATE_RENDER_TARGET);
-	m_Device->m_CommandList.Get()->ResourceBarrier(1, &presentToRender);
+	m_Device->GetCommandList()->ResourceBarrier(1, &presentToRender);
 
+	// RTV and Depth
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_Device->GetDescriptorHeap()->GetCPUDescriptorHandleForHeapStart(), m_Device->m_FrameIndex, m_Device->GetDescriptorSize());
-	m_Device->m_CommandList.Get()->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle{ GetDepthHeap()->GetCPUDescriptorHandleForHeapStart() };
+	m_Device->GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, &depthHandle);
 
-	std::array<const float, 4> clearColor{ 0.5f, 0.5f, 1.0f, 1.0f };
-	m_Device->m_CommandList.Get()->ClearRenderTargetView(rtvHandle, clearColor.data(), 0, nullptr);
+	m_Device->GetCommandList()->ClearRenderTargetView(rtvHandle, m_ClearColor.data(), 0, nullptr);
+	m_Device->GetCommandList()->ClearDepthStencilView(GetDepthHeap()->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	// Begin Render Triangle 
 	m_Device->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	//GetCommandList()->IASetVertexBuffers(0, 1, &m_VertexView);
 	m_Device->GetCommandList()->IASetVertexBuffers(0, 1, &m_VertexBuffer.GetBufferView());
 	m_Device->GetCommandList()->IASetIndexBuffer(&m_IndexBuffer.GetBufferView());
-	//GetCommandList()->DrawInstanced(3, 1, 0, 0);
 	m_Device->GetCommandList()->DrawIndexedInstanced(m_IndexBuffer.GetSize(), 1, 0, 0, 0);
 	// End Render Triangle
+
+	m_GUI->End(m_Device->GetCommandList());
 
 	auto renderToPresent = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->m_RenderTargets[m_Device->m_FrameIndex].Get(),
 														 D3D12_RESOURCE_STATE_RENDER_TARGET,
 														 D3D12_RESOURCE_STATE_PRESENT);
 	m_Device->GetCommandList()->ResourceBarrier(1, &renderToPresent);
 
+	//m_GUI->Draw(m_Device->GetCommandList());
+
 	ThrowIfFailed(m_Device->GetCommandList()->Close());
+
 }
 
+/*
 void Renderer::WaitForPreviousFrame()
 {
 	const uint64_t currentValue = m_Device->m_FenceValue;
@@ -109,10 +131,111 @@ void Renderer::WaitForPreviousFrame()
 
 	m_Device->m_FrameIndex = m_Device->GetSwapChain()->GetCurrentBackBufferIndex();
 }
+*/
+
+void Renderer::OnResize()
+{
+	ResizeBackbuffers();
+	// TODO: Investigate
+	// For some reason Idle needs to be done twice
+	// 
+	WaitForGPU();
+}
+
+void Renderer::ResizeBackbuffers()
+{
+	if (!m_Device->GetDevice() || !m_Device->GetSwapChain() || !m_Device->m_CommandAllocators[m_Device->m_FrameIndex])
+		throw std::exception();
+
+	WaitForGPU();
+	FlushGPU();
+
+	m_Device->m_CommandAllocators[m_Device->m_FrameIndex]->Reset();
+	m_Device->GetCommandList()->Reset(m_Device->m_CommandAllocators[m_Device->m_FrameIndex].Get(), nullptr);
+
+	//m_Device->GetCommandList()->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
+
+	for (uint32_t i = 0; i < Device::FrameCount; i++)
+	{
+		m_Device->m_RenderTargets[i]->Release();
+	}
+
+	m_DepthStencil->Release();
+
+	HRESULT hResult{ m_Device->GetSwapChain()->ResizeBuffers(Device::FrameCount,
+											static_cast<uint32_t>(Window::GetDisplay().Width),
+											static_cast<uint32_t>(Window::GetDisplay().Height),
+											DXGI_FORMAT_R8G8B8A8_UNORM, 0) };
+	if (hResult == DXGI_ERROR_DEVICE_REMOVED || hResult == DXGI_ERROR_DEVICE_RESET)
+	{
+		OutputDebugStringA("Device removed!\n");
+	}
+
+	m_Device->m_FrameIndex = 0;
+
+	m_Device->SetViewport();
+	m_Device->CreateBackbuffer();
+	CreateDepthStencil();
+
+	m_Device->m_CommandList->Close();
+	ID3D12CommandList* ppCmdLists[]{ m_Device->m_CommandList.Get() };
+	m_Device->m_CommandQueue.Get()->ExecuteCommandLists(_countof(ppCmdLists), ppCmdLists);
+
+	WaitForGPU();
+}
+
+void Renderer::FlushGPU()
+{
+	for (uint32_t i = 0; i < Device::FrameCount; i++)
+	{
+		const uint64_t currentValue = m_Device->m_FenceValues[i];
+
+		ThrowIfFailed(m_Device->GetCommandQueue()->Signal(m_Device->GetFence(), currentValue));
+		m_Device->m_FenceValues[i]++;
+
+		if (m_Device->GetFence()->GetCompletedValue() < currentValue)
+		{
+			ThrowIfFailed(m_Device->GetFence()->SetEventOnCompletion(currentValue, m_Device->m_FenceEvent));
+
+			WaitForSingleObject(m_Device->m_FenceEvent, INFINITE);
+		}
+	}
+
+	m_Device->m_FrameIndex = 0;
+}
+
+void Renderer::MoveToNextFrame()
+{
+	const UINT64 currentFenceValue = m_Device->m_FenceValues[m_Device->m_FrameIndex];
+	ThrowIfFailed(m_Device->m_CommandQueue->Signal(m_Device->m_Fence.Get(), currentFenceValue));
+
+	// Update the frame index.
+	m_Device->m_FrameIndex = m_Device->m_SwapChain->GetCurrentBackBufferIndex();
+
+	// If the next frame is not ready to be rendered yet, wait until it is ready.
+	if (m_Device->m_Fence->GetCompletedValue() < m_Device->m_FenceValues[m_Device->m_FrameIndex])
+	{
+		ThrowIfFailed(m_Device->m_Fence->SetEventOnCompletion(m_Device->m_FenceValues[m_Device->m_FrameIndex], m_Device->m_FenceEvent));
+		WaitForSingleObjectEx(m_Device->m_FenceEvent, INFINITE, FALSE);
+	}
+
+	m_Device->m_FenceValues[m_Device->m_FrameIndex] = currentFenceValue + 1;
+}
+
+void Renderer::WaitForGPU()
+{
+	ThrowIfFailed(m_Device->GetCommandQueue()->Signal(m_Device->GetFence(), m_Device->m_FenceValues[m_Device->m_FrameIndex]));
+
+	ThrowIfFailed(m_Device->m_Fence->SetEventOnCompletion(m_Device->m_FenceValues[m_Device->m_FrameIndex], m_Device->m_FenceEvent));
+	::WaitForSingleObjectEx(m_Device->m_FenceEvent, INFINITE, FALSE);
+
+	m_Device->m_FenceValues[m_Device->m_FrameIndex]++;
+}
 
 void Renderer::OnDestroy()
 {
-	WaitForPreviousFrame();
+	WaitForGPU();
+	//WaitForPreviousFrame();
 
 	SafeRelease(m_PipelineState);
 	//SafeRelease(m_VertexBuffer);
@@ -178,8 +301,14 @@ void Renderer::InitTriangle()
 
 	ComPtr<ID3DBlob> signature;
 	ComPtr<ID3DBlob> error;
-	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_1, signature.GetAddressOf(), error.GetAddressOf()));
-	ThrowIfFailed(m_Device->GetDevice()->CreateRootSignature(0, signature.Get()->GetBufferPointer(), signature.Get()->GetBufferSize(), IID_PPV_ARGS(m_Device->m_RootSignature.GetAddressOf())));
+	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, 
+				  D3D_ROOT_SIGNATURE_VERSION_1_1, 
+				  signature.GetAddressOf(), error.GetAddressOf()));
+
+	ThrowIfFailed(m_Device->GetDevice()->CreateRootSignature(0, 
+				  signature.Get()->GetBufferPointer(), 
+				  signature.Get()->GetBufferSize(), 
+				  IID_PPV_ARGS(m_Device->m_RootSignature.GetAddressOf())));
 
 	SafeRelease(signature);
 	SafeRelease(error);
@@ -242,10 +371,6 @@ void Renderer::InitTriangle()
 
 void Renderer::LoadAssets(const std::string& TexturePath)
 {
-	//https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12HelloWorld/src/HelloTexture/D3D12HelloTexture.cpp
-	//https://www.3dgep.com/learning-directx-12-4/
-
-
 	std::wstring wpath = std::wstring(TexturePath.begin(), TexturePath.end());
 	const wchar_t* path = wpath.c_str();
 
@@ -256,7 +381,6 @@ void Renderer::LoadAssets(const std::string& TexturePath)
 							 scratchImage);
 	DirectX::TexMetadata metadata{ scratchImage.GetMetadata() };
 
-	
 	D3D12_RESOURCE_DESC textureDesc{};
 	textureDesc.Format = metadata.format;
 	textureDesc.Width = static_cast<uint32_t>(metadata.width);
@@ -315,8 +439,72 @@ void Renderer::LoadAssets(const std::string& TexturePath)
 	// GPU pre-execution
 	// required to ensure that texture data is inside GPU memory
 	// before ComPtr is released, therefore destroyed
+
+	//WaitForGPU();
 	ThrowIfFailed(m_Device->GetCommandList()->Close());
 	ID3D12CommandList* ppCommandLists[] = { m_Device->GetCommandList() };
 	m_Device->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-	WaitForPreviousFrame();
+
+	//WaitForPreviousFrame();
+	WaitForGPU();
+
+}
+
+void Renderer::CreateDepthStencil()
+{
+	/*
+	D3D12_DEPTH_STENCIL_DESC dsDesc{};
+	dsDesc.DepthEnable = true;
+	dsDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	dsDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	dsDesc.StencilEnable = true;
+	dsDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+	dsDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+
+	dsDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	dsDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	dsDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	dsDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	dsDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	dsDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	dsDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	dsDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	*/
+	D3D12_DESCRIPTOR_HEAP_DESC dsHeap{};
+	dsHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	dsHeap.NumDescriptors = 1;
+	ThrowIfFailed(m_Device->GetDevice()->CreateDescriptorHeap(&dsHeap, IID_PPV_ARGS(m_DepthHeap.GetAddressOf())));
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsView{};
+	dsView.Flags = D3D12_DSV_FLAG_NONE;
+	dsView.Format = DXGI_FORMAT_D32_FLOAT;
+	dsView.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+
+	D3D12_CLEAR_VALUE clearValue{};
+	clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+	clearValue.DepthStencil.Depth = 1.0f;
+	clearValue.DepthStencil.Stencil = 0;
+	//clearValue.Color[0] = m_ClearColor.at(0);
+	//clearValue.Color[1] = m_ClearColor.at(1);
+	//clearValue.Color[2] = m_ClearColor.at(2);
+	//clearValue.Color[3] = m_ClearColor.at(3);
+
+	auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
+	auto heapDesc{ CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT,
+												static_cast<uint64_t>(m_Device->GetViewport().Width),
+												static_cast<uint32_t>(m_Device->GetViewport().Height),
+												1, 0, 1, 0,
+												D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) };
+	ThrowIfFailed(m_Device->GetDevice()->CreateCommittedResource(&heapProperties,
+				  D3D12_HEAP_FLAG_NONE,
+				  &heapDesc,
+				  D3D12_RESOURCE_STATE_DEPTH_WRITE,
+				  &clearValue,
+				  IID_PPV_ARGS(m_DepthStencil.GetAddressOf())));
+	m_DepthHeap.Get()->SetName(L"DepthBuffer");
+
+	auto cpuHandle{ m_DepthHeap.Get()->GetCPUDescriptorHandleForHeapStart() };
+	m_Device->GetDevice()->CreateDepthStencilView(m_DepthStencil.Get(), &dsView, cpuHandle);
+
 }
