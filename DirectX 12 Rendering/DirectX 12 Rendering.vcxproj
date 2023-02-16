@@ -152,21 +152,28 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source\Core\App.cpp" />
+    <ClCompile Include="Source\Engine\Engine.cpp" />
+    <ClCompile Include="Source\Editor\GUI.cpp" />
+    <ClCompile Include="Source\Rendering\Camera.cpp" />
     <ClCompile Include="Source\Core\Device.cpp" />
     <ClCompile Include="Source\main.cpp" />
     <ClCompile Include="Source\Core\Window.cpp" />
     <ClCompile Include="Source\Core\Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Source\Core\App.hpp" />
+    <ClInclude Include="Source\Engine\Engine.hpp" />
+    <ClInclude Include="Source\Editor\GUI.hpp" />
+    <ClInclude Include="Source\Rendering\Camera.hpp" />
     <ClInclude Include="Source\Core\Window.hpp" />
     <ClInclude Include="Source\Core\Device.hpp" />
     <ClInclude Include="Source\Core\Renderer.hpp" />
     <ClInclude Include="3rd-party\d3dx12.h" />
     <ClInclude Include="Source\Graphics\Buffer.hpp" />
+    <ClInclude Include="Source\Graphics\Descriptors.hpp" />
     <ClInclude Include="Source\Graphics\Shader.hpp" />
+    <ClInclude Include="Source\Graphics\Texture.hpp" />
     <ClInclude Include="Source\Graphics\Vertex.hpp" />
+    <ClInclude Include="Source\Utils\Timer.hpp" />
     <ClInclude Include="Source\Utils\Utils.hpp" />
   </ItemGroup>
   <ItemGroup>

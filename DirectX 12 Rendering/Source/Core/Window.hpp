@@ -6,51 +6,52 @@
 #include <Windows.h>
 #include <iostream>
 
-static struct Display
-{
-	float Width{ 1280.0f };
-	float Height{ 800.0f };
-	float AspectRatio{ Width / Height };
-} m_Display;
-
 
 class Window
 {
 public:
-	explicit Window(HINSTANCE hInstance);
+	Window(HINSTANCE hInstance);
+	//explicit Window(HINSTANCE hInstance);
 	Window(const Window&) = delete;
-	Window operator=(const Window&) = delete;
-	~Window();
+	//Window operator=(const Window&) = delete;
+	virtual ~Window();
 
 	bool Initialize();
 	void Show();
-
-	// void ShowCursor();
-	// void HideCursor();
+	// For GUI usage
+	//static void ShowCursor();
+	//static void HideCursor();
 	
-	//int Run();
-	//void Destroy();
+	void Destroy();
 
-	static LRESULT WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	virtual LRESULT WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) = 0;
+	virtual void OnResize() = 0;
 
+	inline static struct Display
+	{
+		float Width{ 1280.0f };
+		float Height{ 800.0f };
+		float AspectRatio{ Width / Height };
+	} m_Display;
 
 	[[nodiscard]]
-	HINSTANCE GetHInstance() const { return m_hInstance;  }
+	static HINSTANCE GetHInstance() { return m_hInstance;  }
 	[[nodiscard]]
-	HWND GetHWND() const { return m_hWnd; }
+	static HWND GetHWND() { return m_hWnd; }
 	[[nodiscard]]
 	static inline Display GetDisplay() { return m_Display; }
 
+	inline static bool bShouldResize{ false };
+
+	inline static HWND m_hWnd{ nullptr };
 private:
-	HINSTANCE m_hInstance{ nullptr };
-	HWND m_hWnd{ nullptr };
-	RECT m_WindowRect{};
+	inline static HINSTANCE m_hInstance{ nullptr };
+	inline static RECT m_WindowRect{ };
 
-	LPCWSTR m_WindowName{ L"Main Window" };
-	LPCWSTR m_WindowClass{ L"Window" };
+	inline static LPCWSTR m_WindowName{ L"Main Window" };
+	inline static LPCWSTR m_WindowClass{ L"Window" };
 
-	bool bIsInitialized{ false };
-
+	inline static bool bIsInitialized{ false };
 
 };
 
