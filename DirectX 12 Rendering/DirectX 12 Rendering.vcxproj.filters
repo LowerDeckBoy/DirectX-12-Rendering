@@ -36,6 +36,9 @@
     <ClCompile Include="Source\Engine\Engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="3rd-party\D3D12MA\D3D12MemAlloc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Core\Window.hpp">
@@ -80,12 +83,21 @@
     <ClInclude Include="Source\Engine\Engine.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Graphics\ConstantBuffer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="3rd-party\D3D12MA\D3D12MemAlloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\VS_Triangle.hlsl" />
     <FxCompile Include="Assets\Shaders\PS_Triangle.hlsl" />
     <FxCompile Include="Assets\Shaders\PS_Texture.hlsl" />
     <FxCompile Include="Assets\Shaders\VS_Texture.hlsl" />
+    <FxCompile Include="Assets\Shaders\VS_CB.hlsl" />
+    <FxCompile Include="Assets\Shaders\PS_CB.hlsl" />
+    <FxCompile Include="Assets\Shaders\TEST.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

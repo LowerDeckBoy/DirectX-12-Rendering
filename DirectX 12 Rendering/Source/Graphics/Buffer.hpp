@@ -4,36 +4,62 @@
 
 //#include "../Core/Device.hpp"
 
+// Temporal
 /*
-enum class EBufferType : uint8_t
-{
-	VERTEX = 0,
-	INDEX,
-};
-
-struct BufferDesc
-{
-	EBufferType Usage;
-	uint32_t Size;
-	// Count of either vertices or indices
-	uint32_t Count;
-	uint32_t Stride{ 0 };
-	D3D12_HEAP_TYPE HeapType;
-
-};
-
 class Buffer
 {
+private:
+	enum class EBufferType : uint8_t
+	{
+		VERTEX = 0,
+		INDEX,
+	};
+
+	struct BufferInputData
+	{
+		EBufferType Usage;
+		// Count of either vertices or indices
+		uint32_t Count{};
+		uint32_t Size{};
+		uint32_t Stride{ 0 };
+		D3D12_HEAP_TYPE HeapType;
+		void* pData;
+	};
+
+
 public:
-	void Create()
+	void Create(Device* pDevice, BufferInputData* pInputData)
 	{
 
 	}
 
+private:
+	void CreateVertex(Device* pDevice, BufferInputData* pInputData)
+	{
+		auto heapProperties{ CD3DX12_HEAP_PROPERTIES(pInputData->HeapType) };
+		size_t bufferSize{ sizeof(pInputData->Size) * pInputData->Count };
+		auto heapDesc{ CD3DX12_RESOURCE_DESC::Buffer(bufferSize) };
 
+
+	}
+
+	void CreateIndex(Device* pDevice, BufferInputData* pInputData)
+	{
+
+	}
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> Buffer;
+	uint32_t BufferSize{ 0 };
+
+	union
+	{
+		D3D12_VERTEX_BUFFER_VIEW VertexView;
+		D3D12_INDEX_BUFFER_VIEW IndexView;
+	} BufferView;
 
 };
 */
+
 
 template<typename T>
 class VertexBuffer
@@ -50,7 +76,7 @@ public:
 					  D3D12_HEAP_FLAG_NONE, &heapDesc, 
 					  D3D12_RESOURCE_STATE_GENERIC_READ,
 					  nullptr,
-					  IID_PPV_ARGS(&Buffer)));
+					  IID_PPV_ARGS(Buffer.GetAddressOf())));
 
 		uint8_t* pDataBegin{};
 		CD3DX12_RANGE readRange(0, 0);

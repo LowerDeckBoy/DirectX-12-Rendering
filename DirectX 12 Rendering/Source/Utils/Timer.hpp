@@ -3,19 +3,7 @@
 class Timer
 {
 public:
-	Timer() :
-		m_SecondsPerCount(0.0),
-		m_DeltaTime(0.0),
-		m_BaseTime(0),
-		m_PausedTime(0),
-		m_StopTime(0),
-		m_PreviousTime(0),
-		m_CurrentTime(0),
-		bIsStopped(false),
-		m_FrameCount(0),
-		m_TimeElapsed(0.0f),
-		m_FPS(0),
-		m_Miliseconds(0.0f)
+	Timer()
 	{
 		__int64 countsPerSec{};
 		QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
@@ -115,20 +103,20 @@ public:
 
 
 private:
-	double m_SecondsPerCount;
-	double m_DeltaTime;
+	double m_SecondsPerCount{};
+	double m_DeltaTime{};
 
-	__int64 m_BaseTime;
-	__int64 m_PausedTime;
-	__int64 m_StopTime;
-	__int64 m_PreviousTime;
-	__int64 m_CurrentTime;
+	int64_t m_BaseTime{};
+	int64_t m_PausedTime{};
+	int64_t m_StopTime{};
+	int64_t m_PreviousTime{};
+	int64_t m_CurrentTime{};
 
-	bool bIsStopped;
+	bool bIsStopped{ false };
 
 public:
-	int m_FrameCount;
-	float m_TimeElapsed;
-	int m_FPS;
-	float m_Miliseconds;
+	int m_FrameCount{};
+	float m_TimeElapsed{};
+	int m_FPS{};
+	float m_Miliseconds{};
 };
