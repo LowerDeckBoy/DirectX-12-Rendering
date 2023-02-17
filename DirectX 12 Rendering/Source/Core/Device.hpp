@@ -60,6 +60,7 @@ public:
 	inline ID3D12DescriptorHeap* GetDescriptorHeap() const { return m_rtvHeap.Get(); }
 	inline uint32_t GetDescriptorSize() const { return m_DescriptorSize; }
 	inline ID3D12DescriptorHeap* GetSRVHeap() const { return m_srvHeap.Get(); }
+	inline ID3D12DescriptorHeap* GetCBVHeap() const { return m_cbvHeap.Get(); }
 
 	inline ID3D12Resource* GetRenderTargets() { return m_RenderTargets->Get(); }
 	inline D3D12_VIEWPORT& GetViewport() { return m_Viewport; }
@@ -83,6 +84,7 @@ public:
 	ComPtr<IDXGISwapChain3> m_SwapChain;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
 	ComPtr<ID3D12Resource> m_RenderTargets[FrameCount];
 	uint32_t m_DescriptorSize{ 0 };
 

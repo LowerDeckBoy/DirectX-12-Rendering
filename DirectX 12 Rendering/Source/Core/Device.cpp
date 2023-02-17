@@ -1,7 +1,7 @@
 #include "Device.hpp"
 #include "../Utils/Utils.hpp"
 #include "Window.hpp"
-//#include <dxgidebug.h>
+#include <dxgidebug.h>
 
 Device::~Device()
 {
@@ -26,8 +26,10 @@ void Device::CreateDevice()
 
 #if defined (DEBUG) || (_DEBUG)
 	ComPtr<ID3D12Debug1> debugController;
+
 	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)), "Failed to create Debug Interface!");
 	debugController.Get()->EnableDebugLayer();
+	debugController.Get()->SetEnableSynchronizedCommandQueueValidation(TRUE);
 
 	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 
@@ -62,8 +64,16 @@ void Device::CreateDevice()
 	ThrowIfFailed(device.As(&m_Device));
 
 	ThrowIfFailed(m_Device.Get()->QueryInterface(m_DebugDevice.GetAddressOf()));
+
 #if defined (_DEBUG) | (DEBUG)
-	m_DebugDevice.Get()->ReportLiveDeviceObjects(D3D12_RLDO_IGNORE_INTERNAL);
+	//m_DebugDevice.Get()->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL);
+
+	ComPtr<IDXGIDebug1> dxgiDebug;
+	ThrowIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug)));
+	dxgiDebug.Get()->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_IGNORE_INTERNAL);
+	//dxgiDebug->EnableLeakTrackingForThread();
+
+	SafeRelease(dxgiDebug);
 #else
 	m_DebugDevice.Get()->ReportLiveDeviceObjects(D3D12_RLDO_NONE);
 #endif
@@ -76,9 +86,6 @@ void Device::CreateDevice()
 		LPCWSTR name{ nm.c_str() };
 		m_CommandAllocators[i]->SetName(name);
 	}
-	
-
-
 }
 
 void Device::CreateSwapChain()
@@ -134,6 +141,9 @@ void Device::CreateBackbuffer()
 		ThrowIfFailed(m_SwapChain.Get()->GetBuffer(i, IID_PPV_ARGS(m_RenderTargets[i].GetAddressOf())));
 		m_Device.Get()->CreateRenderTargetView(m_RenderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_DescriptorSize);
+		std::wstring nm{ L"RTV" + std::to_wstring(i) };
+		LPCWSTR name{ nm.c_str() };
+		m_RenderTargets[i]->SetName(name);
 	}
 }
 
@@ -149,6 +159,13 @@ void Device::CreateDescriptorHeaps()
 	m_srvHeap->SetName(L"SRV_HEAP");
 	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(m_guiAllocator.GetAddressOf())));
 	m_guiAllocator->SetName(L"GUI_HEAP");
+
+	//D3D12_DESCRIPTOR_HEAP_DESC cbvDesc{};
+	//cbvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	//cbvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	//cbvDesc.NumDescriptors = 1;
+	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(m_cbvHeap.GetAddressOf())));
+	m_cbvHeap->SetName(L"CBV_HEAP");
 }
 
 void Device::CreateCommandList(ID3D12PipelineState* pPipelineState)

@@ -1,33 +1,25 @@
 #include "Renderer.hpp"
 #include "../Utils/Utils.hpp"
 #include "../Core/Window.hpp"
+#include "../Rendering/Camera.hpp"
 #include <array>
 
 #include <DirectXTex.h>
 
-/*
-Renderer::Renderer(HINSTANCE hInstance)
-{
-	//m_Window = std::make_unique<Window>(hInstance);
-	m_Timer = std::make_unique<Timer>();
-	m_GUI = std::make_unique<GUI>();
-	m_Device = std::make_unique<Device>();
 
-}
-*/
 Renderer::~Renderer()
 {
 	OnDestroy();
 }
 
-void Renderer::Initialize()
+void Renderer::Initialize(Camera& refCamera)
 {
 	m_GUI = std::make_unique<GUI>();
 	m_Device = std::make_unique<Device>();
 
 	m_Device->Initialize();
 
-	m_GUI->Initialize(m_Device.get());
+	m_GUI->Initialize(m_Device.get(), refCamera);
 
 	CreateDepthStencil();
 
@@ -43,8 +35,24 @@ void Renderer::InitPipelineState()
 {
 }
 
-void Renderer::Update()
+void Renderer::Update(const XMMATRIX ViewProj)
 {
+	// Updating const buffer
+	//const float speed{ 0.1f };
+	//const float offsetBounds{ 1.25f };
+	//
+	//m_cbData.Offset.x += speed;
+	//if (m_cbData.Offset.x > offsetBounds)
+	//{
+	//	m_cbData.Offset.x = -offsetBounds;
+	//}
+	//std::memcpy(m_ConstBuffer.pDataBegin, &m_cbData, sizeof(m_cbData));
+
+	const XMMATRIX world{ XMMatrixIdentity() };
+	m_cbPerObject.WVP = world * ViewProj;
+	//m_cbPerObject.WVP *= ViewProj;
+	std::memcpy(m_ConstBuffer.pDataBegin, &m_cbPerObject, sizeof(m_cbPerObject));
+
 }
 
 void Renderer::Draw()
@@ -74,14 +82,18 @@ void Renderer::RecordCommandLists()
 	m_GUI->Begin();
 
 	m_Device->GetCommandList()->SetGraphicsRootSignature(m_Device->m_RootSignature.Get());
-
-	ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_srvHeap.Get() };
+	//, 
+	// 
+	ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_cbvHeap.Get() };
 	m_Device->GetCommandList()->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(0, m_Device->m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+	//m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(0, m_Device->m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+	//m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(1, m_Device->m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 	m_Device->GetCommandList()->RSSetViewports(1, &m_Device->m_Viewport);
 	m_Device->GetCommandList()->RSSetScissorRects(1, &m_Device->m_ViewportRect);
-	
+
+	m_Device->GetCommandList()->SetGraphicsRoot32BitConstants(0, sizeof(XMMATRIX) / 4, &m_cbPerObject.WVP, 0);
+
 	auto presentToRender = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->m_RenderTargets[m_Device->m_FrameIndex].Get(),
 														 D3D12_RESOURCE_STATE_PRESENT,
 														 D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -109,7 +121,6 @@ void Renderer::RecordCommandLists()
 														 D3D12_RESOURCE_STATE_PRESENT);
 	m_Device->GetCommandList()->ResourceBarrier(1, &renderToPresent);
 
-	//m_GUI->Draw(m_Device->GetCommandList());
 
 	ThrowIfFailed(m_Device->GetCommandList()->Close());
 
@@ -135,6 +146,8 @@ void Renderer::WaitForPreviousFrame()
 
 void Renderer::OnResize()
 {
+	WaitForGPU();
+	FlushGPU();
 	ResizeBackbuffers();
 	// TODO: Investigate
 	// For some reason Idle needs to be done twice
@@ -146,9 +159,6 @@ void Renderer::ResizeBackbuffers()
 {
 	if (!m_Device->GetDevice() || !m_Device->GetSwapChain() || !m_Device->m_CommandAllocators[m_Device->m_FrameIndex])
 		throw std::exception();
-
-	WaitForGPU();
-	FlushGPU();
 
 	m_Device->m_CommandAllocators[m_Device->m_FrameIndex]->Reset();
 	m_Device->GetCommandList()->Reset(m_Device->m_CommandAllocators[m_Device->m_FrameIndex].Get(), nullptr);
@@ -258,13 +268,18 @@ void Renderer::InitTriangle()
 	*/
 
 	// Triangle Shaders
-	m_VertexShader->Create(L"Assets/Shaders/VS_Texture.hlsl");
-	m_PixelShader->Create(L"Assets/Shaders/PS_Texture.hlsl");
+	//m_VertexShader->Create(L"Assets/Shaders/VS_Texture.hlsl");
+	//m_PixelShader->Create(L"Assets/Shaders/PS_Texture.hlsl");
 
-	
+	//m_VertexShader->Create(L"Assets/Shaders/VS_CB.hlsl");
+	//m_PixelShader->Create(L"Assets/Shaders/PS_CB.hlsl");
+	m_VertexShader->Create(L"Assets/Shaders/TEST.hlsl");
+	m_PixelShader->Create(L"Assets/Shaders/TEST.hlsl");
+
+	//D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	std::array<D3D12_INPUT_ELEMENT_DESC, 2> layout{
 		D3D12_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA , 0},
-		D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		D3D12_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA , 0},
 	};
 
 	// Root Signature
@@ -274,11 +289,27 @@ void Renderer::InitTriangle()
 	{
 		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 	}
-	std::array<CD3DX12_DESCRIPTOR_RANGE1, 1> ranges{};
-	ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags{};
+	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
+	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
+
+
+	//std::array<CD3DX12_DESCRIPTOR_RANGE1, 1> ranges{};
+	//ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+	std::array<CD3DX12_DESCRIPTOR_RANGE1, 1> ranges{};
+	//ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+	ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+	//std::array<CD3DX12_ROOT_PARAMETER1, 1> rootParameters{};
+	//rootParameters.at(0).InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
 	std::array<CD3DX12_ROOT_PARAMETER1, 1> rootParameters{};
-	rootParameters.at(0).InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+	//rootParameters.at(0).InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParameters.at(0).InitAsConstants(sizeof(XMMATRIX) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+	//rootParameters.at(1).InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_VERTEX);
 
 	// Sampler
 	D3D12_STATIC_SAMPLER_DESC samplerDesc{};
@@ -297,7 +328,7 @@ void Renderer::InitTriangle()
 	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc{};
-	rootSignatureDesc.Init_1_1(static_cast<uint32_t>(rootParameters.size()), rootParameters.data(), 1, &samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	rootSignatureDesc.Init_1_1(static_cast<uint32_t>(rootParameters.size()), rootParameters.data(), 1, &samplerDesc, rootSignatureFlags);
 
 	ComPtr<ID3DBlob> signature;
 	ComPtr<ID3DBlob> error;
@@ -351,21 +382,58 @@ void Renderer::InitTriangle()
 		{ XMFLOAT3(-0.5f, -0.5f, 0.0f),  XMFLOAT2(0.0f, 1.0f) }
 	};*/
 
+	// Buffers begin
+	/*
 	std::vector<VertexUV> vertices{
 		{ XMFLOAT3( 0.5f,  0.5f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
 		{ XMFLOAT3( 0.5f, -0.5f, 0.0f), XMFLOAT2(1.0f, 1.0f) },
 		{ XMFLOAT3(-0.5f, -0.5f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
 		{ XMFLOAT3(-0.5f,  0.5f, 0.0f), XMFLOAT2(0.0f, 0.0f) }
+	};*/
+
+	std::vector<CubeVertex> vertices{
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) }, 
+		{ XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3( 1.0f,  1.0f, -1.0f),  XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3( 1.0f, -1.0f, -1.0f),  XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f,  1.0f,  1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
+		{ XMFLOAT3( 1.0f,  1.0f,  1.0f),  XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+		{ XMFLOAT3( 1.0f, -1.0f,  1.0f),  XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) }
 	};
 
 	m_VertexBuffer.Create(m_Device.get(), vertices);
 
+	/*
 	std::vector<uint32_t> indices{
 		0, 1, 2,
-		2, 3, 0
+		2, 3, 0,
+	};
+	*/
+	std::vector<uint32_t> indices{
+
+	0, 1, 2, 0, 2, 3,
+
+	4, 6, 5, 4, 7, 6,
+
+	4, 5, 1, 4, 1, 0,
+
+	3, 2, 6, 3, 6, 7,
+
+	1, 5, 6, 1, 6, 2,
+
+	4, 0, 3, 4, 3, 7
 	};
 
 	m_IndexBuffer.Create(m_Device.get(), indices);
+
+
+	// Const buffer
+	m_ConstBuffer.Create(m_Device.get(), &m_cbPerObject);
+	//m_ConstBuffer.Create(m_Device.get(), &m_cbData);
+	
+
+	// Buffers end
 
 }
 

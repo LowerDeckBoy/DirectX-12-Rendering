@@ -90,6 +90,6 @@ void Window::Show()
 
 void Window::Destroy()
 {
-    ::UnregisterClass(m_WindowClass, m_hInstance);
     ::DestroyWindow(m_hWnd);
+    ::UnregisterClass(m_WindowClass, m_hInstance);
 }

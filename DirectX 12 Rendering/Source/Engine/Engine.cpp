@@ -19,9 +19,9 @@ Engine::~Engine()
 void Engine::Initialize()
 {
 	Window::Initialize();
-	m_Renderer->Initialize();
-	Window::Show();
 	m_Camera->Initialize(Window::GetDisplay().AspectRatio);
+	m_Renderer->Initialize(*m_Camera);
+
 }
 
 void Engine::Run()
@@ -29,7 +29,7 @@ void Engine::Run()
 	// If app is ready to render show actual window
 	// otherwise window would be blank until 
 	// resources are ready to render
-	
+	Window::Show();
 
 	// Stop timer on Resize event 
 	// so Backbuffer resizing can't be done
@@ -48,20 +48,18 @@ void Engine::Run()
 			::TranslateMessage(&msg);
 			::DispatchMessage(&msg);
 		}
-		//else
-		//{
-		//}
 
 		m_Timer->Tick();
 		m_Timer->GetFrameStats();
 
 		if (!bAppPaused)
 		{
-			//m_Renderer->Update();
+			m_Renderer->Update(m_Camera->GetViewProjection());
 			m_Renderer->Draw();
+			m_Camera->Update();
 		}
 		else
-			Sleep(100);
+			::Sleep(100);
 	}
 }
 
@@ -82,28 +80,26 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
 		return true;
 
+	// For debug purposes uncomment OutputDebugStringA
 	switch (msg)
 	{
 	case WM_ACTIVATE:
 	{
 		if (LOWORD(wParam) == WA_INACTIVE)
 		{
-			OutputDebugStringA("WA_INACTIVE\n");
+			//OutputDebugStringA("WA_INACTIVE\n");
 			bAppPaused = true;
 			m_Timer->Stop();
-			OutputDebugStringA("Timer stopped\n");
+			//OutputDebugStringA("Timer stopped\n");
 		}
 		else
 		{
 			bAppPaused = false;
 			m_Timer->Start();
-			OutputDebugStringA("Timer started\n");
+			//OutputDebugStringA("Timer started\n");
 		}
 		return 0;
 	}
-	case WM_DISPLAYCHANGE:
-		OutputDebugStringA("DisplayChange event\n");
-		return 0;
 	case WM_SIZE:
 	{
 		m_Display.Width = static_cast<float>(LOWORD(lParam));
@@ -112,12 +108,12 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		if (!m_Renderer)
 		{
-			OutputDebugStringA("Failed to get Renderer on resize event!\n");
+			//OutputDebugStringA("Failed to get Renderer on resize event!\n");
 			return 0;
 		}
 		if (wParam == SIZE_MINIMIZED)
 		{
-			OutputDebugStringA("SIZE_MINIMIZED\n");
+			//OutputDebugStringA("SIZE_MINIMIZED\n");
 			bAppPaused = true;
 			bMinimized = true;
 			bMaximized = false;
@@ -125,7 +121,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 		else if (wParam == SIZE_MAXIMIZED)
 		{
-			OutputDebugStringA("SIZE_MAXIMIZED\n");
+			//OutputDebugStringA("SIZE_MAXIMIZED\n");
 			bAppPaused = false;
 			bMinimized = false;
 			bMaximized = true;
@@ -133,7 +129,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 		else if (wParam == SIZE_RESTORED)
 		{
-			OutputDebugStringA("SIZE_RESTORED\n");
+			//OutputDebugStringA("SIZE_RESTORED\n");
 			if (bMinimized)
 			{
 				bAppPaused = false;
@@ -161,22 +157,22 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	case WM_ENTERSIZEMOVE:
 	{
-		OutputDebugStringA("WM_ENTERSIZEMOVE\n");
+		//OutputDebugStringA("WM_ENTERSIZEMOVE\n");
 		bAppPaused = true;
 		bIsResizing = true;
 		m_Timer->Stop();
-		OutputDebugStringA("Timer stopped\n");
+		//OutputDebugStringA("Timer stopped\n");
 
 		return 0;
 	}
 
 	case WM_EXITSIZEMOVE:
 	{
-		OutputDebugStringA("WM_EXITSIZEMOVE\n");
+		//OutputDebugStringA("WM_EXITSIZEMOVE\n");
 		bAppPaused = false;
 		bIsResizing = false;
 		m_Timer->Start();
-		OutputDebugStringA("Timer started\n");
+		//OutputDebugStringA("Timer started\n");
 
 		OnResize();
 

@@ -6,10 +6,26 @@
 #include "../Graphics/Descriptors.hpp"
 #include "../Graphics/Shader.hpp"
 #include "../Graphics/Buffer.hpp"
+#include "../Graphics/ConstantBuffer.hpp"
 
 #include "../Editor/GUI.hpp"
 
+class Camera;
+
 using namespace DirectX;
+
+struct cBuffer
+{
+	DirectX::XMFLOAT4 Offset;
+	float padding[60];
+};
+
+struct cbPerObject
+{
+	XMMATRIX WVP = XMMatrixIdentity();
+	float padding[48];
+};
+
 //: public Device
 class Renderer 
 {
@@ -17,11 +33,11 @@ public:
 	//explicit Renderer(HINSTANCE hInstance);
 	~Renderer();
 
-	void Initialize();
+	void Initialize(Camera& refCamera);
 	
 	void InitPipelineState();
 
-	void Update();
+	void Update(const XMMATRIX ViewProj);
 	void Draw();
 
 	void RecordCommandLists();
@@ -39,7 +55,6 @@ public:
 
 private:
 	std::unique_ptr<Device> m_Device;
-
 	//test
 	std::unique_ptr<GUI> m_GUI;
 
@@ -55,17 +70,18 @@ private:
 		XMFLOAT3 Position;
 		XMFLOAT2 TexCoord;
 	};
+	struct CubeVertex
+	{
+		XMFLOAT3 Position;
+		XMFLOAT4 Color;
+	};
 
 	//test
-	VertexBuffer<VertexUV> m_VertexBuffer;
+	//VertexBuffer<VertexUV> m_VertexBuffer;
+	VertexBuffer<CubeVertex> m_VertexBuffer;
 	IndexBuffer m_IndexBuffer;
 	
 
-	//struct TriangleVertex
-	//{
-	//	XMFLOAT3 Position;
-	//	XMFLOAT4 Color;
-	//};
 
 	void LoadAssets(const std::string& TexturePath);
 	ComPtr<ID3D12Resource> m_TriangleTexture;
@@ -80,5 +96,9 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_DepthHeap;
 	void CreateDepthStencil();
 
+	// TEST
+	cBuffer m_cbData{};
+	cbPerObject m_cbPerObject{};
+	ConstantBuffer<cbPerObject> m_ConstBuffer;
 };
 
