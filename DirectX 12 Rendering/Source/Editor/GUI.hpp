@@ -5,13 +5,15 @@
 #include <wrl.h>
 
 class Device;
+class Camera;
+//class Timer;
 
 class GUI
 {
 public:
 	~GUI();
 
-	void Initialize(Device* pDevice);
+	void Initialize(Device* pDevice, Camera& refCamera);
 	void Begin();
 	// Goes before making Barrier Resource Transition
 	void End(ID3D12GraphicsCommandList* pCommandList);
@@ -21,6 +23,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_Heap;
 	// Can't be unique_ptr
 	ImFont* m_MainFont;
-
+	// { nullptr }
+	Camera* m_Camera;
 };
 

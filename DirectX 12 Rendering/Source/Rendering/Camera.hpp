@@ -11,7 +11,7 @@ public:
 	void Update();
 
 	void SetPosition(const DirectX::XMVECTOR NewPosition);
-	void SetPosition(const std::array<float, 4> NewPosition);
+	void SetPosition(const std::array<float, 3> NewPosition);
 
 	void ResetPitch();
 	void ResetYaw();
@@ -26,10 +26,10 @@ public:
 	const DirectX::XMVECTOR& GetTarget() const { return m_Target; }
 	const DirectX::XMVECTOR& GetUp() const { return m_Up; }
 
-	//void DrawGUI();
+	void DrawGUI();
 
 	// Required when window is resizing
-	// thus Render Targets change their aspect
+	// thus Render Targets change their aspect ratio
 	void OnAspectRatioChange(float NewAspectRatio);
 
 private:
@@ -49,8 +49,8 @@ private:
 	DirectX::XMVECTOR m_Right{ DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f) };
 	DirectX::XMVECTOR m_Upward{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
 
-	DirectX::XMVECTOR const m_DefaultPosition{ DirectX::XMVectorSet(0.0f, 10.0f, -25.0f, 0.0f) };
-	DirectX::XMVECTOR const m_DefaultTarget{ DirectX::XMVectorSet(0.0f, 10.0f, 0.0f, 0.0f) };
+	DirectX::XMVECTOR const m_DefaultPosition{ DirectX::XMVectorSet(0.0f, 5.0f, -10.0f, 0.0f) };
+	DirectX::XMVECTOR const m_DefaultTarget{ DirectX::XMVectorSet(0.0f, 5.0f, 0.0f, 0.0f) };
 	DirectX::XMVECTOR const m_DefaultUp{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
 
 	DirectX::XMVECTOR const m_DefaultForward{ DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f) };
