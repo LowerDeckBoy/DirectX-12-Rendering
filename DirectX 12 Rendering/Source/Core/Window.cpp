@@ -84,12 +84,27 @@ void Window::Show()
     //::SendMessage(m_hWnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
     ::ShowWindow(m_hWnd, SW_SHOW);
     ::SetForegroundWindow(m_hWnd);
-    //::SetFocus(m_hWnd);
+    ::SetFocus(m_hWnd);
     ::UpdateWindow(m_hWnd);
+}
+
+void Window::ShowCursor()
+{
+    while (::ShowCursor(true) < 0)
+        bCursorVisible = true;
+}
+
+void Window::HideCursor()
+{
+    while (::ShowCursor(false) >= 0)
+        bCursorVisible = false;
 }
 
 void Window::Destroy()
 {
-    ::DestroyWindow(m_hWnd);
     ::UnregisterClass(m_WindowClass, m_hInstance);
+    //::DestroyWindow(m_hWnd);
+
+    if (::window)
+        window = nullptr;
 }

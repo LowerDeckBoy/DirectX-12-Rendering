@@ -153,6 +153,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="3rd-party\D3D12MA\D3D12MemAlloc.cpp" />
+    <ClCompile Include="CommonStates.cpp" />
+    <ClCompile Include="Source\Graphics\Cube.cpp" />
+    <ClCompile Include="Source\Graphics\Texture.cpp" />
+    <ClCompile Include="Source\Inputs\Inputs.cpp" />
     <ClCompile Include="Source\Engine\Engine.cpp" />
     <ClCompile Include="Source\Editor\GUI.cpp" />
     <ClCompile Include="Source\Rendering\Camera.cpp" />
@@ -163,6 +167,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd-party\D3D12MA\D3D12MemAlloc.h" />
+    <ClInclude Include="CommonStates.hpp" />
+    <ClInclude Include="Source\Graphics\Cube.hpp" />
+    <ClInclude Include="Source\Inputs\Inputs.hpp" />
     <ClInclude Include="Source\Graphics\ConstantBuffer.hpp" />
     <ClInclude Include="Source\Engine\Engine.hpp" />
     <ClInclude Include="Source\Editor\GUI.hpp" />

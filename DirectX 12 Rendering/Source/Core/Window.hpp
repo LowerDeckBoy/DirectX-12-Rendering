@@ -10,17 +10,16 @@
 class Window
 {
 public:
-	Window(HINSTANCE hInstance);
-	//explicit Window(HINSTANCE hInstance);
+	explicit Window(HINSTANCE hInstance);
 	Window(const Window&) = delete;
-	//Window operator=(const Window&) = delete;
 	virtual ~Window();
 
 	bool Initialize();
 	void Show();
+
 	// For GUI usage
-	//static void ShowCursor();
-	//static void HideCursor();
+	static void ShowCursor();
+	static void HideCursor();
 	
 	void Destroy();
 
@@ -50,6 +49,8 @@ private:
 
 	inline static LPCWSTR m_WindowName{ L"Main Window" };
 	inline static LPCWSTR m_WindowClass{ L"Window" };
+
+	inline static bool bCursorVisible{ true };
 
 	inline static bool bIsInitialized{ false };
 
