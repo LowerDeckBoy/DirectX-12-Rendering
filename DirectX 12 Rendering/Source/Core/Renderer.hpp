@@ -7,8 +7,11 @@
 #include "../Graphics/Shader.hpp"
 #include "../Graphics/Buffer.hpp"
 #include "../Graphics/ConstantBuffer.hpp"
+#include "../Graphics/Cube.hpp"
+#include "../Graphics/Texture.hpp"
 
 #include "../Editor/GUI.hpp"
+
 
 class Camera;
 
@@ -20,11 +23,6 @@ struct cBuffer
 	float padding[60];
 };
 
-struct cbPerObject
-{
-	XMMATRIX WVP = XMMatrixIdentity();
-	float padding[48];
-};
 
 //: public Device
 class Renderer 
@@ -41,10 +39,12 @@ public:
 	void Draw();
 
 	void RecordCommandLists();
+
 	//void WaitForPreviousFrame();
 
 	void OnResize();
 	void ResizeBackbuffers();
+
 	// Temporal
 	void FlushGPU();
 
@@ -52,6 +52,13 @@ public:
 	void WaitForGPU();
 
 	void OnDestroy();
+
+protected:
+	void SetRenderTarget();
+	void ClearRenderTarget(CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle);
+
+	void TransitToRender();
+	void TransitToPresent();
 
 private:
 	std::unique_ptr<Device> m_Device;
@@ -100,5 +107,8 @@ private:
 	cBuffer m_cbData{};
 	cbPerObject m_cbPerObject{};
 	ConstantBuffer<cbPerObject> m_ConstBuffer;
-};
 
+	// TEST
+	Cube m_Cube;
+	Texture m_Texture;
+};

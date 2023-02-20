@@ -1,12 +1,18 @@
 #pragma once
 //#include <d3d12.h>
-//#include <DirectXMath.h>
+#include <DirectXMath.h>
 //#include <wrl.h>
 
 #include "../Utils/Utils.hpp"
 //#include "../Core/Device.hpp"
 
 //class Device;
+
+struct cbPerObject
+{
+	DirectX::XMMATRIX WVP = DirectX::XMMatrixIdentity();
+	float padding[48];
+};
 
 template<typename T>
 class ConstantBuffer

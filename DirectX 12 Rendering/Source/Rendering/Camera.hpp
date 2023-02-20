@@ -61,6 +61,7 @@ private:
 	float m_zFar{ 5000.0f };
 
 public:
+	// For calling camera movement from keyboard inputs
 	float MoveForwardBack{};
 	float MoveRightLeft{};
 	float MoveUpDown{};
@@ -79,7 +80,7 @@ public:
 	// For GUI usage
 	std::array<float, 3> m_CameraSlider;
 
+	inline static float m_CameraSpeed{ 25.0f };
 private:
-	float m_CameraSpeed{ 25.0f };
 
 };

@@ -22,7 +22,7 @@ private:
 	void OnDestroy();
 
 private:
-	std::unique_ptr<Timer> m_Timer;
+	//std::unique_ptr<Timer> m_Timer;
 	std::unique_ptr<Renderer> m_Renderer;
 	std::unique_ptr<Camera> m_Camera;
 

@@ -1,16 +1,17 @@
 #pragma once
 
+
 class Timer
 {
 public:
-	Timer()
+	static void Initialize()
 	{
 		__int64 countsPerSec{};
 		QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
 		m_SecondsPerCount = 1.0 / (double)countsPerSec;
 	}
 
-	float TotalTime()
+	static float TotalTime()
 	{
 		if (bIsStopped)
 		{
@@ -20,12 +21,12 @@ public:
 		return static_cast<float>(((m_CurrentTime - m_PausedTime) - m_BaseTime) * m_SecondsPerCount);
 	}
 
-	float DeltaTime()
+	static float DeltaTime()
 	{
 		return static_cast<float>(m_DeltaTime);
 	}
 
-	void Reset()
+	static void Reset()
 	{
 		__int64 currentTime{};
 		QueryPerformanceCounter((LARGE_INTEGER*)&currentTime);
@@ -36,7 +37,7 @@ public:
 		bIsStopped = false;
 	}
 
-	void Start()
+	static void Start()
 	{
 		__int64 startTime{};
 		QueryPerformanceCounter((LARGE_INTEGER*)&startTime);
@@ -51,7 +52,7 @@ public:
 		}
 	}
 
-	void Stop()
+	static void Stop()
 	{
 		if (!bIsStopped)
 		{
@@ -63,7 +64,7 @@ public:
 		}
 	}
 
-	void Tick()
+	static void Tick()
 	{
 		if (bIsStopped)
 		{
@@ -85,7 +86,7 @@ public:
 
 	}
 
-	void GetFrameStats()
+	static void GetFrameStats()
 	{
 		//m_FrameCount = 0;
 		//m_TimeElapsed = 0.0f;
@@ -103,20 +104,20 @@ public:
 
 
 private:
-	double m_SecondsPerCount{};
-	double m_DeltaTime{};
+	inline static double m_SecondsPerCount{};
+	inline static double m_DeltaTime{};
 
-	int64_t m_BaseTime{};
-	int64_t m_PausedTime{};
-	int64_t m_StopTime{};
-	int64_t m_PreviousTime{};
-	int64_t m_CurrentTime{};
+	inline static int64_t m_BaseTime{};
+	inline static int64_t m_PausedTime{};
+	inline static int64_t m_StopTime{};
+	inline static int64_t m_PreviousTime{};
+	inline static int64_t m_CurrentTime{};
 
-	bool bIsStopped{ false };
+	inline static bool bIsStopped{ false };
 
 public:
-	int m_FrameCount{};
-	float m_TimeElapsed{};
-	int m_FPS{};
-	float m_Miliseconds{};
+	inline static int m_FrameCount{};
+	inline static float m_TimeElapsed{};
+	inline static int m_FPS{};
+	inline static float m_Miliseconds{};
 };

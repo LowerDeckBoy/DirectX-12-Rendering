@@ -2,6 +2,7 @@
 #include "../Utils/Utils.hpp"
 #include "../Core/Window.hpp"
 #include "../Rendering/Camera.hpp"
+
 #include <array>
 
 #include <DirectXTex.h>
@@ -23,12 +24,17 @@ void Renderer::Initialize(Camera& refCamera)
 
 	CreateDepthStencil();
 
+	// change to creating pipeline state and compiling shaders
 	InitTriangle();
 
+	m_Device->CreateCommandList(m_PipelineState.Get());
 	//LoadAssets("Assets/Textures/jak_tam.jpg");
 	LoadAssets("Assets/Textures/shrek.jpg");
 	//LoadAssets("Assets/Textures/pointers.jpg");
-	
+
+
+	//m_Cube.Initialize(m_Device.get());
+
 }
 
 void Renderer::InitPipelineState()
@@ -37,20 +43,9 @@ void Renderer::InitPipelineState()
 
 void Renderer::Update(const XMMATRIX ViewProj)
 {
-	// Updating const buffer
-	//const float speed{ 0.1f };
-	//const float offsetBounds{ 1.25f };
-	//
-	//m_cbData.Offset.x += speed;
-	//if (m_cbData.Offset.x > offsetBounds)
-	//{
-	//	m_cbData.Offset.x = -offsetBounds;
-	//}
-	//std::memcpy(m_ConstBuffer.pDataBegin, &m_cbData, sizeof(m_cbData));
 
 	const XMMATRIX world{ XMMatrixIdentity() };
 	m_cbPerObject.WVP = world * ViewProj;
-	//m_cbPerObject.WVP *= ViewProj;
 	std::memcpy(m_ConstBuffer.pDataBegin, &m_cbPerObject, sizeof(m_cbPerObject));
 
 }
@@ -62,16 +57,14 @@ void Renderer::Draw()
 	ID3D12CommandList* commandLists[]{ m_Device->GetCommandList() };
 	m_Device->GetCommandQueue()->ExecuteCommandLists(_countof(commandLists), commandLists);
 
-	//ThrowIfFailed(m_Device->GetSwapChain()->Present(1, 0));
-	HRESULT hResult{ m_Device->GetSwapChain()->Present(1, 0) };
+	HRESULT hResult{ m_Device->GetSwapChain()->Present(0, 0) };
 	if (hResult == DXGI_ERROR_DEVICE_REMOVED || hResult == DXGI_ERROR_DEVICE_RESET)
 	{
-		OutputDebugStringA("PRESENT FAIL!\n");
+		::MessageBox(Window::GetHWND(), L"Device removed or Device reset", L"DXGI Error", MB_OK);
+		throw std::exception();
 	}
 
 	MoveToNextFrame();
-	//WaitForGPU();
-	//WaitForPreviousFrame();
 }
 
 void Renderer::RecordCommandLists()
@@ -82,8 +75,7 @@ void Renderer::RecordCommandLists()
 	m_GUI->Begin();
 
 	m_Device->GetCommandList()->SetGraphicsRootSignature(m_Device->m_RootSignature.Get());
-	//, 
-	// 
+	
 	ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_cbvHeap.Get() };
 	m_Device->GetCommandList()->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
@@ -94,33 +86,18 @@ void Renderer::RecordCommandLists()
 
 	m_Device->GetCommandList()->SetGraphicsRoot32BitConstants(0, sizeof(XMMATRIX) / 4, &m_cbPerObject.WVP, 0);
 
-	auto presentToRender = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->m_RenderTargets[m_Device->m_FrameIndex].Get(),
-														 D3D12_RESOURCE_STATE_PRESENT,
-														 D3D12_RESOURCE_STATE_RENDER_TARGET);
-	m_Device->GetCommandList()->ResourceBarrier(1, &presentToRender);
+	TransitToRender();
 
 	// RTV and Depth
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_Device->GetDescriptorHeap()->GetCPUDescriptorHandleForHeapStart(), m_Device->m_FrameIndex, m_Device->GetDescriptorSize());
-	CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle{ GetDepthHeap()->GetCPUDescriptorHandleForHeapStart() };
-	m_Device->GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, &depthHandle);
+	SetRenderTarget();
 
-	m_Device->GetCommandList()->ClearRenderTargetView(rtvHandle, m_ClearColor.data(), 0, nullptr);
-	m_Device->GetCommandList()->ClearDepthStencilView(GetDepthHeap()->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-	// Begin Render Triangle 
-	m_Device->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_Device->GetCommandList()->IASetVertexBuffers(0, 1, &m_VertexBuffer.GetBufferView());
-	m_Device->GetCommandList()->IASetIndexBuffer(&m_IndexBuffer.GetBufferView());
-	m_Device->GetCommandList()->DrawIndexedInstanced(m_IndexBuffer.GetSize(), 1, 0, 0, 0);
-	// End Render Triangle
+	
+	// Model draw call
+	m_Cube.Draw();
 
 	m_GUI->End(m_Device->GetCommandList());
 
-	auto renderToPresent = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->m_RenderTargets[m_Device->m_FrameIndex].Get(),
-														 D3D12_RESOURCE_STATE_RENDER_TARGET,
-														 D3D12_RESOURCE_STATE_PRESENT);
-	m_Device->GetCommandList()->ResourceBarrier(1, &renderToPresent);
-
+	TransitToPresent();
 
 	ThrowIfFailed(m_Device->GetCommandList()->Close());
 
@@ -251,6 +228,38 @@ void Renderer::OnDestroy()
 	//SafeRelease(m_VertexBuffer);
 }
 
+void Renderer::SetRenderTarget()
+{
+	//CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_Device->GetDescriptorHeap()->GetCPUDescriptorHandleForHeapStart(), m_Device->m_FrameIndex, m_Device->GetDescriptorSize());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle{ GetDepthHeap()->GetCPUDescriptorHandleForHeapStart() };
+	m_Device->GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, &depthHandle);
+
+	ClearRenderTarget(rtvHandle, depthHandle);
+}
+
+void Renderer::ClearRenderTarget(CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle)
+{
+	m_Device->GetCommandList()->ClearRenderTargetView(rtvHandle, m_ClearColor.data(), 0, nullptr);
+	m_Device->GetCommandList()->ClearDepthStencilView(GetDepthHeap()->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+}
+
+void Renderer::TransitToRender()
+{
+	auto presentToRender = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->m_RenderTargets[m_Device->m_FrameIndex].Get(),
+																D3D12_RESOURCE_STATE_PRESENT,
+																D3D12_RESOURCE_STATE_RENDER_TARGET);
+	m_Device->GetCommandList()->ResourceBarrier(1, &presentToRender);
+}
+
+void Renderer::TransitToPresent()
+{
+	auto renderToPresent = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->m_RenderTargets[m_Device->m_FrameIndex].Get(),
+																D3D12_RESOURCE_STATE_RENDER_TARGET,
+																D3D12_RESOURCE_STATE_PRESENT);
+	m_Device->GetCommandList()->ResourceBarrier(1, &renderToPresent);
+}
+
 void Renderer::InitTriangle()
 {
 	/*
@@ -351,7 +360,7 @@ void Renderer::InitTriangle()
 	psoDesc.VS = CD3DX12_SHADER_BYTECODE(m_VertexShader->GetData());
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(m_PixelShader->GetData());
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState.DepthEnable = FALSE;
@@ -364,7 +373,7 @@ void Renderer::InitTriangle()
 	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_PipelineState.GetAddressOf())));
 
 	// CommandList for PipelineState
-	m_Device->CreateCommandList(m_PipelineState.Get());
+	//m_Device->CreateCommandList(m_PipelineState.Get());
 
 	//----
 	/*
@@ -391,54 +400,30 @@ void Renderer::InitTriangle()
 		{ XMFLOAT3(-0.5f,  0.5f, 0.0f), XMFLOAT2(0.0f, 0.0f) }
 	};*/
 
-	std::vector<CubeVertex> vertices{
-		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) }, 
-		{ XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3( 1.0f,  1.0f, -1.0f),  XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3( 1.0f, -1.0f, -1.0f),  XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(-1.0f,  1.0f,  1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3( 1.0f,  1.0f,  1.0f),  XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3( 1.0f, -1.0f,  1.0f),  XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) }
-	};
-
-	m_VertexBuffer.Create(m_Device.get(), vertices);
-
 	/*
 	std::vector<uint32_t> indices{
 		0, 1, 2,
 		2, 3, 0,
 	};
 	*/
-	std::vector<uint32_t> indices{
 
-	0, 1, 2, 0, 2, 3,
-
-	4, 6, 5, 4, 7, 6,
-
-	4, 5, 1, 4, 1, 0,
-
-	3, 2, 6, 3, 6, 7,
-
-	1, 5, 6, 1, 6, 2,
-
-	4, 0, 3, 4, 3, 7
-	};
-
-	m_IndexBuffer.Create(m_Device.get(), indices);
+	//m_VertexBuffer.Create(m_Device.get(), vertices);
+	//m_IndexBuffer.Create(m_Device.get(), indices);
 
 
 	// Const buffer
 	m_ConstBuffer.Create(m_Device.get(), &m_cbPerObject);
 	//m_ConstBuffer.Create(m_Device.get(), &m_cbData);
 	
-
 	// Buffers end
+
+	//m_Cube.Initialize(m_Device.get());
 
 }
 
 void Renderer::LoadAssets(const std::string& TexturePath)
 {
+	/*
 	std::wstring wpath = std::wstring(TexturePath.begin(), TexturePath.end());
 	const wchar_t* path = wpath.c_str();
 
@@ -471,7 +456,6 @@ void Renderer::LoadAssets(const std::string& TexturePath)
 
 	const uint64_t bufferSize{ GetRequiredIntermediateSize(m_TriangleTexture.Get(), 0, 1) };
 
-	
 	// GPU upload
 	auto heapUploadProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD) };
 	auto bufferDesc{ CD3DX12_RESOURCE_DESC::Buffer(bufferSize) };
@@ -499,6 +483,7 @@ void Renderer::LoadAssets(const std::string& TexturePath)
 	
 	auto srvCPUHandle{ m_Device->m_srvHeap.Get()->GetCPUDescriptorHandleForHeapStart() };
 	m_Device->GetDevice()->CreateShaderResourceView(m_TriangleTexture.Get(), &srvDesc, srvCPUHandle);
+	*/
 
 	// Due to ComPtrs being used on CPU 
 	// ComPtr objects need to be uploaded to GPU BEFORE
@@ -507,6 +492,11 @@ void Renderer::LoadAssets(const std::string& TexturePath)
 	// GPU pre-execution
 	// required to ensure that texture data is inside GPU memory
 	// before ComPtr is released, therefore destroyed
+
+	m_Cube.Initialize(m_Device.get());
+
+	m_Texture.Initialize(m_Device.get(), TexturePath);
+
 
 	//WaitForGPU();
 	ThrowIfFailed(m_Device->GetCommandList()->Close());

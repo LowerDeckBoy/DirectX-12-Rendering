@@ -1,11 +1,12 @@
 #include "Engine.hpp"
 #include <imgui.h>
-#include <imgui_impl_win32.h>
-#include <imgui_impl_dx12.h>
+//#include <imgui_impl_win32.h>
+//#include <imgui_impl_dx12.h>
+#include "../Inputs/Inputs.hpp"
 
 Engine::Engine(HINSTANCE hInstance) : Window(hInstance)
 {
-	m_Timer = std::make_unique<Timer>();
+	//m_Timer = std::make_unique<Timer>();
 	m_Renderer = std::make_unique<Renderer>();
 	m_Camera = std::make_unique<Camera>();
 
@@ -21,7 +22,7 @@ void Engine::Initialize()
 	Window::Initialize();
 	m_Camera->Initialize(Window::GetDisplay().AspectRatio);
 	m_Renderer->Initialize(*m_Camera);
-
+	Timer::Initialize();
 }
 
 void Engine::Run()
@@ -39,7 +40,9 @@ void Engine::Run()
 	MSG msg{};
 
 	// Ensure Timer clean start
-	m_Timer->Reset();
+	Inputs::Initialize();
+	Timer::Reset();
+	//m_Timer->Reset();
 
 	while (msg.message != WM_QUIT)
 	{
@@ -49,14 +52,15 @@ void Engine::Run()
 			::DispatchMessage(&msg);
 		}
 
-		m_Timer->Tick();
-		m_Timer->GetFrameStats();
+		Timer::Tick();
+		Timer::GetFrameStats();
 
 		if (!bAppPaused)
 		{
+			Inputs::CameraInputs(m_Camera.get(), Timer::DeltaTime());
+			m_Camera->Update();
 			m_Renderer->Update(m_Camera->GetViewProjection());
 			m_Renderer->Draw();
-			m_Camera->Update();
 		}
 		else
 			::Sleep(100);
@@ -72,6 +76,7 @@ void Engine::OnResize()
 
 void Engine::OnDestroy()
 {
+	Inputs::Release();
 }
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -89,13 +94,13 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 			//OutputDebugStringA("WA_INACTIVE\n");
 			bAppPaused = true;
-			m_Timer->Stop();
+			Timer::Stop();
 			//OutputDebugStringA("Timer stopped\n");
 		}
 		else
 		{
 			bAppPaused = false;
-			m_Timer->Start();
+			Timer::Start();
 			//OutputDebugStringA("Timer started\n");
 		}
 		return 0;
@@ -160,7 +165,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		//OutputDebugStringA("WM_ENTERSIZEMOVE\n");
 		bAppPaused = true;
 		bIsResizing = true;
-		m_Timer->Stop();
+		Timer::Stop();
 		//OutputDebugStringA("Timer stopped\n");
 
 		return 0;
@@ -171,7 +176,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		//OutputDebugStringA("WM_EXITSIZEMOVE\n");
 		bAppPaused = false;
 		bIsResizing = false;
-		m_Timer->Start();
+		Timer::Start();
 		//OutputDebugStringA("Timer started\n");
 
 		OnResize();
@@ -179,7 +184,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		return 0;
 	}
 	
-	case WM_QUIT:
+	case WM_CLOSE:
 	case WM_DESTROY:
 	{
 		::PostQuitMessage(0);

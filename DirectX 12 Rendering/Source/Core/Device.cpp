@@ -113,9 +113,12 @@ void Device::CreateSwapChain()
 	ComPtr<IDXGISwapChain1> swapchain;
 	ThrowIfFailed(m_Factory.Get()->CreateSwapChainForHwnd(m_CommandQueue.Get(), Window::GetHWND(), &desc, &fullscreenDesc, nullptr, swapchain.GetAddressOf()), "Failed to create SwapChain!");
 
+	//swapchain.Get()->SetFullscreenState(TRUE, NULL);
+	
 	ThrowIfFailed(m_Factory.Get()->MakeWindowAssociation(Window::GetHWND(), DXGI_MWA_NO_ALT_ENTER));
 
 	ThrowIfFailed(swapchain.As(&m_SwapChain));
+
 	m_FrameIndex = m_SwapChain.Get()->GetCurrentBackBufferIndex();
 	//m_SwapChain.Get()->SetMaximumFrameLatency(FrameCount);
 	//m_SwapChain.Get()->GetFrameLatencyWaitableObject();
