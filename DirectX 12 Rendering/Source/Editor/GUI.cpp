@@ -3,7 +3,7 @@
 #include "../Core/Window.hpp"
 #include "../Core/Device.hpp"
 
-//#include "../Utils/Timer.hpp"
+#include "../Utils/Timer.hpp"
 #include "../Rendering/Camera.hpp"
 
 GUI::~GUI()
@@ -62,22 +62,14 @@ void GUI::End(ID3D12GraphicsCommandList* pCommandList)
 {
 	{
 		ImGui::Begin("Performence");
-		//ImGui::Text("FPS: %.2f", Timer::m_FrameCount)
+		ImGui::Text("FPS: %.2d ms: %.2f", Timer::m_FPS, Timer::m_Miliseconds);
+		ImGui::Text("Time elapsed: %.2f", Timer::m_TimeElapsed);
 		ImGui::Text("Resolution: %.0fx%.0f", Window::GetDisplay().Width, Window::GetDisplay().Height);
 		ImGui::Text("Aspect Ratio: %.2f", Window::GetDisplay().AspectRatio);
 		ImGui::End();
 	}
 
 	m_Camera->DrawGUI();
-	//{
-	//	ImGui::Begin("Camera");;
-	//	if (ImGui::DragFloat3("Position", m_Camera->m_CameraSlider.data()))
-	//	{
-	//		m_Camera->SetPosition(m_Camera->m_CameraSlider);
-	//		m_Camera->Update();
-	//	}
-	//	ImGui::End();
-	//}
 
 	ImGui::PopFont();
 	ImGui::Render();
