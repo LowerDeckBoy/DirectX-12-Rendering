@@ -15,23 +15,40 @@ Renderer::~Renderer()
 
 void Renderer::Initialize(Camera& refCamera)
 {
+
 	m_GUI = std::make_unique<GUI>();
 	m_Device = std::make_unique<Device>();
-
 	m_Device->Initialize();
-
 	m_GUI->Initialize(m_Device.get(), refCamera);
 
+	//D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
+	//heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	
 	CreateDepthStencil();
 
 	// change to creating pipeline state and compiling shaders
-	InitTriangle();
+	//InitTriangle();
+	InitModelPipeline();
 
-	m_Device->CreateCommandList(m_PipelineState.Get());
-	//LoadAssets("Assets/Textures/jak_tam.jpg");
-	LoadAssets("Assets/Textures/shrek.jpg");
-	//LoadAssets("Assets/Textures/pointers.jpg");
 
+	//m_Device->CreateCommandList(m_PipelineState.Get());
+	m_Device->CreateCommandList(m_ModelPipelineState.Get());
+	m_Device->GetCommandList()->SetPipelineState(m_ModelPipelineState.Get());
+	//LoadAssets("Assets/Textures/shrek.jpg");
+
+	//m_Cube.Initialize(m_Device.get());
+
+	//m_Model.Initialize(m_Device.get(), "Assets/glTF/cube/Cube.gltf");
+	//m_Model.Initialize(m_Device.get(), "Assets/glTF/psyduck/scene.gltf");
+	//m_Model.Initialize(m_Device.get(), "Assets/glTF/mathilda/scene.gltf");
+	m_Model.Initialize(m_Device.get(), "Assets/glTF/fallout_ranger/scene.gltf");
+
+
+	ThrowIfFailed(m_Device->GetCommandList()->Close());
+	ID3D12CommandList* ppCommandLists[] = { m_Device->GetCommandList() };
+	m_Device->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	WaitForGPU();
 
 	//m_Cube.Initialize(m_Device.get());
 
@@ -41,18 +58,21 @@ void Renderer::InitPipelineState()
 {
 }
 
-void Renderer::Update(const XMMATRIX ViewProj)
+void Renderer::Update(XMMATRIX ViewProj)
 {
 
-	const XMMATRIX world{ XMMatrixIdentity() };
-	m_cbPerObject.WVP = world * ViewProj;
-	std::memcpy(m_ConstBuffer.pDataBegin, &m_cbPerObject, sizeof(m_cbPerObject));
+	//const XMMATRIX world{ XMMatrixIdentity() };
+	////const XMMATRIX world{ m_Model. };
+	//m_cbPerObject.WVP = world * ViewProj;
+	//std::memcpy(m_ConstBuffer.pDataBegin, &m_cbPerObject, sizeof(m_cbPerObject));
+
+	//m_Model.m_cbData.WVP = m_Model.
 
 }
 
-void Renderer::Draw()
+void Renderer::Draw(Camera* pCamera)
 {
-	RecordCommandLists();
+	RecordCommandLists(pCamera);
 
 	ID3D12CommandList* commandLists[]{ m_Device->GetCommandList() };
 	m_Device->GetCommandQueue()->ExecuteCommandLists(_countof(commandLists), commandLists);
@@ -67,34 +87,33 @@ void Renderer::Draw()
 	MoveToNextFrame();
 }
 
-void Renderer::RecordCommandLists()
+void Renderer::RecordCommandLists(Camera* pCamera)
 {
 	ThrowIfFailed(m_Device->m_CommandAllocators[m_Device->m_FrameIndex]->Reset());
-	ThrowIfFailed(m_Device->GetCommandList()->Reset(m_Device->m_CommandAllocators[m_Device->m_FrameIndex].Get(), m_PipelineState.Get()));
-	
+	ThrowIfFailed(m_Device->GetCommandList()->Reset(
+		m_Device->m_CommandAllocators[m_Device->m_FrameIndex].Get(), 
+		m_ModelPipelineState.Get()));
+
 	m_GUI->Begin();
 
-	m_Device->GetCommandList()->SetGraphicsRootSignature(m_Device->m_RootSignature.Get());
-	
-	ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_cbvHeap.Get() };
-	m_Device->GetCommandList()->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-
-	//m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(0, m_Device->m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-	//m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(1, m_Device->m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 	m_Device->GetCommandList()->RSSetViewports(1, &m_Device->m_Viewport);
 	m_Device->GetCommandList()->RSSetScissorRects(1, &m_Device->m_ViewportRect);
 
-	m_Device->GetCommandList()->SetGraphicsRoot32BitConstants(0, sizeof(XMMATRIX) / 4, &m_cbPerObject.WVP, 0);
+	ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_cbvDescriptorHeap.m_Heap.Get(), m_Device->m_SamplerHeap.Get() };
+	//ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_cbvDescriptorHeaps.at(m_Device->m_FrameIndex).m_Heap.Get(), m_Device->m_SamplerHeap.Get()};
+	m_Device->GetCommandList()->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	TransitToRender();
 
 	// RTV and Depth
 	SetRenderTarget();
-
 	
-	// Model draw call
-	m_Cube.Draw();
+	m_Device->GetCommandList()->SetGraphicsRootSignature(m_ModelRootSignature.Get());
+	//m_Cube.Draw();
+	//m_Model.Draw(pCamera);
+	m_Model.DrawMeshes(pCamera);
 
+	m_Model.DrawGUI();
 	m_GUI->End(m_Device->GetCommandList());
 
 	TransitToPresent();
@@ -102,24 +121,6 @@ void Renderer::RecordCommandLists()
 	ThrowIfFailed(m_Device->GetCommandList()->Close());
 
 }
-
-/*
-void Renderer::WaitForPreviousFrame()
-{
-	const uint64_t currentValue = m_Device->m_FenceValue;
-	ThrowIfFailed(m_Device->GetCommandQueue()->Signal(m_Device->GetFence(), currentValue));
-	m_Device->m_FenceValue++;
-
-	if (m_Device->GetFence()->GetCompletedValue() < currentValue)
-	{
-		ThrowIfFailed(m_Device->GetFence()->SetEventOnCompletion(currentValue, m_Device->m_FenceEvent));
-
-		WaitForSingleObject(m_Device->m_FenceEvent, INFINITE);
-	}
-
-	m_Device->m_FrameIndex = m_Device->GetSwapChain()->GetCurrentBackBufferIndex();
-}
-*/
 
 void Renderer::OnResize()
 {
@@ -138,7 +139,8 @@ void Renderer::ResizeBackbuffers()
 		throw std::exception();
 
 	m_Device->m_CommandAllocators[m_Device->m_FrameIndex]->Reset();
-	m_Device->GetCommandList()->Reset(m_Device->m_CommandAllocators[m_Device->m_FrameIndex].Get(), nullptr);
+	//m_Device->GetCommandList()->Reset(m_Device->m_CommandAllocators[m_Device->m_FrameIndex].Get(), nullptr);
+	m_Device->GetCommandList()->Reset(m_Device->m_CommandAllocators[m_Device->m_FrameIndex].Get(), m_ModelPipelineState.Get());
 
 	//m_Device->GetCommandList()->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
 
@@ -224,16 +226,16 @@ void Renderer::OnDestroy()
 	WaitForGPU();
 	//WaitForPreviousFrame();
 
-	SafeRelease(m_PipelineState);
+	//SafeRelease(m_PipelineState);
 	//SafeRelease(m_VertexBuffer);
 }
 
 void Renderer::SetRenderTarget()
 {
-	//CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_Device->GetDescriptorHeap()->GetCPUDescriptorHandleForHeapStart(), m_Device->m_FrameIndex, m_Device->GetDescriptorSize());
-	CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle{ GetDepthHeap()->GetCPUDescriptorHandleForHeapStart() };
+	CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle(m_DepthHeap.Get()->GetCPUDescriptorHandleForHeapStart());
 	m_Device->GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, &depthHandle);
+	//m_Device->GetCommandList()->depth
 
 	ClearRenderTarget(rtvHandle, depthHandle);
 }
@@ -241,7 +243,7 @@ void Renderer::SetRenderTarget()
 void Renderer::ClearRenderTarget(CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle)
 {
 	m_Device->GetCommandList()->ClearRenderTargetView(rtvHandle, m_ClearColor.data(), 0, nullptr);
-	m_Device->GetCommandList()->ClearDepthStencilView(GetDepthHeap()->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	m_Device->GetCommandList()->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 
 void Renderer::TransitToRender()
@@ -260,293 +262,34 @@ void Renderer::TransitToPresent()
 	m_Device->GetCommandList()->ResourceBarrier(1, &renderToPresent);
 }
 
-void Renderer::InitTriangle()
-{
-	/*
-	D3D12_ROOT_SIGNATURE_DESC desc{};
-	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	desc.NumParameters = 0;
-	desc.NumStaticSamplers = 0;
-	desc.pParameters = nullptr;
-	desc.pStaticSamplers = nullptr;
-
-	ComPtr<ID3DBlob> signature;
-	ComPtr<ID3DBlob> error;
-	ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, signature.GetAddressOf(), error.GetAddressOf()));
-	ThrowIfFailed(GetDevice()->CreateRootSignature(0, signature.Get()->GetBufferPointer(), signature.Get()->GetBufferSize(), IID_PPV_ARGS(m_RootSignature.GetAddressOf())));
-	*/
-
-	// Triangle Shaders
-	//m_VertexShader->Create(L"Assets/Shaders/VS_Texture.hlsl");
-	//m_PixelShader->Create(L"Assets/Shaders/PS_Texture.hlsl");
-
-	//m_VertexShader->Create(L"Assets/Shaders/VS_CB.hlsl");
-	//m_PixelShader->Create(L"Assets/Shaders/PS_CB.hlsl");
-	m_VertexShader->Create(L"Assets/Shaders/TEST.hlsl");
-	m_PixelShader->Create(L"Assets/Shaders/TEST.hlsl");
-
-	//D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	std::array<D3D12_INPUT_ELEMENT_DESC, 2> layout{
-		D3D12_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA , 0},
-		D3D12_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA , 0},
-	};
-
-	// Root Signature
-	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData{ D3D_ROOT_SIGNATURE_VERSION_1_1 };
-	// If VERSION_1_1 is not supported rollback to 1_0
-	if (FAILED(m_Device->GetDevice()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-	{
-		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-	}
-
-	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags{};
-	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
-	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
-	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-	rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
-
-
-	//std::array<CD3DX12_DESCRIPTOR_RANGE1, 1> ranges{};
-	//ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-	std::array<CD3DX12_DESCRIPTOR_RANGE1, 1> ranges{};
-	//ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-	ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-
-	//std::array<CD3DX12_ROOT_PARAMETER1, 1> rootParameters{};
-	//rootParameters.at(0).InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-	std::array<CD3DX12_ROOT_PARAMETER1, 1> rootParameters{};
-	//rootParameters.at(0).InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParameters.at(0).InitAsConstants(sizeof(XMMATRIX) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-	//rootParameters.at(1).InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_VERTEX);
-
-	// Sampler
-	D3D12_STATIC_SAMPLER_DESC samplerDesc{};
-	samplerDesc.Filter = D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_POINT;
-	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	samplerDesc.MipLODBias = 0;
-	samplerDesc.MaxAnisotropy = 0;
-	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-	samplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-	samplerDesc.MinLOD = 0;
-	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
-	samplerDesc.ShaderRegister = 0;
-	samplerDesc.RegisterSpace = 0;
-	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc{};
-	rootSignatureDesc.Init_1_1(static_cast<uint32_t>(rootParameters.size()), rootParameters.data(), 1, &samplerDesc, rootSignatureFlags);
-
-	ComPtr<ID3DBlob> signature;
-	ComPtr<ID3DBlob> error;
-	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, 
-				  D3D_ROOT_SIGNATURE_VERSION_1_1, 
-				  signature.GetAddressOf(), error.GetAddressOf()));
-
-	ThrowIfFailed(m_Device->GetDevice()->CreateRootSignature(0, 
-				  signature.Get()->GetBufferPointer(), 
-				  signature.Get()->GetBufferSize(), 
-				  IID_PPV_ARGS(m_Device->m_RootSignature.GetAddressOf())));
-
-	SafeRelease(signature);
-	SafeRelease(error);
-
-	// PSO
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
-	psoDesc.InputLayout = { layout.data(), static_cast<uint32_t>(layout.size()) };
-	psoDesc.pRootSignature = m_Device->m_RootSignature.Get();
-	psoDesc.VS = CD3DX12_SHADER_BYTECODE(m_VertexShader->GetData());
-	psoDesc.PS = CD3DX12_SHADER_BYTECODE(m_PixelShader->GetData());
-	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	psoDesc.DepthStencilState.DepthEnable = FALSE;
-	psoDesc.DepthStencilState.StencilEnable = FALSE;
-	psoDesc.SampleMask = UINT_MAX;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	psoDesc.SampleDesc.Count = 1;
-	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_PipelineState.GetAddressOf())));
-
-	// CommandList for PipelineState
-	//m_Device->CreateCommandList(m_PipelineState.Get());
-
-	//----
-	/*
-	std::array<TriangleVertex, 3 > vertices{
-		TriangleVertex{ XMFLOAT3( 0.0f,  0.5f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-		TriangleVertex{ XMFLOAT3( 0.5f, -0.5f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-		TriangleVertex{ XMFLOAT3(-0.5f, -0.5f, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) }
-	};
-	*/
-
-	/*
-	std::vector<VertexUV> vertices{
-		{ XMFLOAT3(0.0f,  0.5f, 0.0f),   XMFLOAT2(0.5f, 0.0f) },
-		{ XMFLOAT3(0.5f, -0.5f, 0.0f),   XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT3(-0.5f, -0.5f, 0.0f),  XMFLOAT2(0.0f, 1.0f) }
-	};*/
-
-	// Buffers begin
-	/*
-	std::vector<VertexUV> vertices{
-		{ XMFLOAT3( 0.5f,  0.5f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT3( 0.5f, -0.5f, 0.0f), XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT3(-0.5f, -0.5f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT3(-0.5f,  0.5f, 0.0f), XMFLOAT2(0.0f, 0.0f) }
-	};*/
-
-	/*
-	std::vector<uint32_t> indices{
-		0, 1, 2,
-		2, 3, 0,
-	};
-	*/
-
-	//m_VertexBuffer.Create(m_Device.get(), vertices);
-	//m_IndexBuffer.Create(m_Device.get(), indices);
-
-
-	// Const buffer
-	m_ConstBuffer.Create(m_Device.get(), &m_cbPerObject);
-	//m_ConstBuffer.Create(m_Device.get(), &m_cbData);
-	
-	// Buffers end
-
-	//m_Cube.Initialize(m_Device.get());
-
-}
-
-void Renderer::LoadAssets(const std::string& TexturePath)
-{
-	/*
-	std::wstring wpath = std::wstring(TexturePath.begin(), TexturePath.end());
-	const wchar_t* path = wpath.c_str();
-
-	// Getting texture info
-	DirectX::ScratchImage scratchImage{};
-	DirectX::LoadFromWICFile(path, WIC_FLAGS_FORCE_RGB, 
-							 nullptr, 
-							 scratchImage);
-	DirectX::TexMetadata metadata{ scratchImage.GetMetadata() };
-
-	D3D12_RESOURCE_DESC textureDesc{};
-	textureDesc.Format = metadata.format;
-	textureDesc.Width = static_cast<uint32_t>(metadata.width);
-	textureDesc.Height = static_cast<uint32_t>(metadata.height);
-	textureDesc.MipLevels = 1;
-	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	textureDesc.SampleDesc.Count = 1;
-	textureDesc.SampleDesc.Quality = 0;
-	textureDesc.DepthOrArraySize = 1;
-	textureDesc.Alignment = 0;
-	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-
-	//D3D12_RESOURCE_STATE_COPY_DEST
-	ComPtr<ID3D12Resource> texture;
-	auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
-	ThrowIfFailed(m_Device->GetDevice()->CreateCommittedResource(&heapProperties,
-				  D3D12_HEAP_FLAG_NONE, &textureDesc, 
-				  D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
-				  IID_PPV_ARGS(m_TriangleTexture.GetAddressOf())));
-
-	const uint64_t bufferSize{ GetRequiredIntermediateSize(m_TriangleTexture.Get(), 0, 1) };
-
-	// GPU upload
-	auto heapUploadProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD) };
-	auto bufferDesc{ CD3DX12_RESOURCE_DESC::Buffer(bufferSize) };
-	ThrowIfFailed(m_Device->GetDevice()->CreateCommittedResource(&heapUploadProperties, D3D12_HEAP_FLAG_NONE,
-				  &bufferDesc,
-				  D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-				  IID_PPV_ARGS(&texture)));
-
-	D3D12_SUBRESOURCE_DATA subresource{};
-	subresource.pData = scratchImage.GetPixels();
-	subresource.RowPitch = scratchImage.GetImages()->rowPitch;
-	subresource.SlicePitch = scratchImage.GetImages()->slicePitch;
-
-	UpdateSubresources(m_Device->GetCommandList(), m_TriangleTexture.Get(), texture.Get(), 0, 0, 1, &subresource);
-	auto copyToResource{ CD3DX12_RESOURCE_BARRIER::Transition(m_TriangleTexture.Get(), 
-															  D3D12_RESOURCE_STATE_COPY_DEST, 
-															  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) };
-	m_Device->GetCommandList()->ResourceBarrier(1, &copyToResource);
-	
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = metadata.format;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = 1;
-	
-	auto srvCPUHandle{ m_Device->m_srvHeap.Get()->GetCPUDescriptorHandleForHeapStart() };
-	m_Device->GetDevice()->CreateShaderResourceView(m_TriangleTexture.Get(), &srvDesc, srvCPUHandle);
-	*/
-
-	// Due to ComPtrs being used on CPU 
-	// ComPtr objects need to be uploaded to GPU BEFORE
-	// going out of scope
-
-	// GPU pre-execution
-	// required to ensure that texture data is inside GPU memory
-	// before ComPtr is released, therefore destroyed
-
-	m_Cube.Initialize(m_Device.get());
-
-	m_Texture.Initialize(m_Device.get(), TexturePath);
-
-
-	//WaitForGPU();
-	ThrowIfFailed(m_Device->GetCommandList()->Close());
-	ID3D12CommandList* ppCommandLists[] = { m_Device->GetCommandList() };
-	m_Device->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-	//WaitForPreviousFrame();
-	WaitForGPU();
-
-}
-
 void Renderer::CreateDepthStencil()
 {
-	/*
-	D3D12_DEPTH_STENCIL_DESC dsDesc{};
-	dsDesc.DepthEnable = true;
-	dsDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-	dsDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-	dsDesc.StencilEnable = true;
-	dsDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
-	dsDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
 
-	dsDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	dsDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
-	dsDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-	dsDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	dsDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	dsDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
-	dsDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-	dsDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	*/
 	D3D12_DESCRIPTOR_HEAP_DESC dsHeap{};
 	dsHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	dsHeap.NumDescriptors = 1;
 	ThrowIfFailed(m_Device->GetDevice()->CreateDescriptorHeap(&dsHeap, IID_PPV_ARGS(m_DepthHeap.GetAddressOf())));
 
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsView{};
-	dsView.Flags = D3D12_DSV_FLAG_NONE;
-	dsView.Format = DXGI_FORMAT_D32_FLOAT;
-	dsView.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 
 	D3D12_CLEAR_VALUE clearValue{};
 	clearValue.Format = DXGI_FORMAT_D32_FLOAT;
 	clearValue.DepthStencil.Depth = 1.0f;
 	clearValue.DepthStencil.Stencil = 0;
-	//clearValue.Color[0] = m_ClearColor.at(0);
-	//clearValue.Color[1] = m_ClearColor.at(1);
-	//clearValue.Color[2] = m_ClearColor.at(2);
-	//clearValue.Color[3] = m_ClearColor.at(3);
+
+	D3D12_RESOURCE_DESC depthDesc{};
+	depthDesc.Width = static_cast<uint64_t>(m_Device->GetViewport().Width);
+	depthDesc.Height = static_cast<uint32_t>(m_Device->GetViewport().Height);
+	depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	depthDesc.MipLevels = 1;
+	depthDesc.SampleDesc.Count = 1;
+	depthDesc.SampleDesc.Quality = 0;
+	depthDesc.DepthOrArraySize = 1;
+	depthDesc.Alignment = 0;
+	depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	depthDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	//depthDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	
 
 	auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
 	auto heapDesc{ CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT,
@@ -554,15 +297,117 @@ void Renderer::CreateDepthStencil()
 												static_cast<uint32_t>(m_Device->GetViewport().Height),
 												1, 0, 1, 0,
 												D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) };
+
 	ThrowIfFailed(m_Device->GetDevice()->CreateCommittedResource(&heapProperties,
 				  D3D12_HEAP_FLAG_NONE,
 				  &heapDesc,
 				  D3D12_RESOURCE_STATE_DEPTH_WRITE,
 				  &clearValue,
 				  IID_PPV_ARGS(m_DepthStencil.GetAddressOf())));
-	m_DepthHeap.Get()->SetName(L"DepthBuffer");
+	m_DepthHeap.Get()->SetName(L"Depth Heap");
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsView{};
+	dsView.Flags = D3D12_DSV_FLAG_NONE;
+	dsView.Format = DXGI_FORMAT_D32_FLOAT;
+	dsView.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsView.Texture2D.MipSlice = 0;
 
 	auto cpuHandle{ m_DepthHeap.Get()->GetCPUDescriptorHandleForHeapStart() };
 	m_Device->GetDevice()->CreateDepthStencilView(m_DepthStencil.Get(), &dsView, cpuHandle);
+	m_DepthStencil.Get()->SetName(L"Depth Stencil");
+	
+}
+
+void Renderer::InitModelPipeline()
+{
+	m_VertexShader->Create(L"Assets/Shaders/VS_GLTF.hlsl");
+	m_PixelShader->Create(L"Assets/Shaders/PS_GLTF.hlsl");
+
+	// TODO: Move input layouts to separate class
+	std::array<D3D12_INPUT_ELEMENT_DESC, 5> layout{
+		D3D12_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA , 0},
+		D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA , 0},
+		D3D12_INPUT_ELEMENT_DESC{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		D3D12_INPUT_ELEMENT_DESC{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		D3D12_INPUT_ELEMENT_DESC{ "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+	};
+
+	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData{ D3D_ROOT_SIGNATURE_VERSION_1_1 };
+	if (FAILED(m_Device->GetDevice()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+	{
+		// Rollback to 1_0
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+	}
+
+	D3D12_ROOT_SIGNATURE_FLAGS rootFlags{};
+	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
+	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
+
+	std::array<CD3DX12_DESCRIPTOR_RANGE1, 3> ranges{};
+	ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, 0);
+	// Textures
+	ranges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(2).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	// Sampler
+	//ranges.at(3).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	
+	std::array<CD3DX12_ROOT_PARAMETER1, 3> params{};
+	params.at(0).InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	params.at(1).InitAsDescriptorTable(1, &ranges.at(1), D3D12_SHADER_VISIBILITY_PIXEL);
+	params.at(2).InitAsDescriptorTable(1, &ranges.at(2), D3D12_SHADER_VISIBILITY_PIXEL);
+	//params.at(3).InitAsDescriptorTable(1, &ranges.at(3), D3D12_SHADER_VISIBILITY_PIXEL);
+
+	//D3D12_SAMPLER_DESC samplerDesc{};
+	D3D12_STATIC_SAMPLER_DESC samplerDesc{};
+	samplerDesc.Filter = D3D12_FILTER_ANISOTROPIC;
+	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.MipLODBias = 0;
+	samplerDesc.MaxAnisotropy = 0;
+	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	samplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	samplerDesc.MinLOD = 0;
+	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+	samplerDesc.ShaderRegister = 0;
+	samplerDesc.RegisterSpace = 0;
+	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	//m_Device->GetDevice()->CreateSampler(&samplerDesc, )
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
+	rootDesc.Init_1_1(static_cast<uint32_t>(params.size()), params.data(), 1, &samplerDesc, rootFlags);
+
+	ComPtr<ID3DBlob> signature;
+	ComPtr<ID3DBlob> error;
+
+	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1_1, signature.GetAddressOf(), error.GetAddressOf()));
+	
+	ThrowIfFailed(m_Device->GetDevice()->CreateRootSignature(0,
+				  signature.Get()->GetBufferPointer(), signature.Get()->GetBufferSize(),
+				  IID_PPV_ARGS(m_ModelRootSignature.GetAddressOf())));
+	m_ModelRootSignature.Get()->SetName(L"ModelRootSignature");
+
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+	psoDesc.pRootSignature = m_ModelRootSignature.Get();
+	psoDesc.InputLayout = { layout.data(), static_cast<uint32_t>(layout.size()) };
+	psoDesc.VS = CD3DX12_SHADER_BYTECODE(m_VertexShader->GetData());
+	psoDesc.PS = CD3DX12_SHADER_BYTECODE(m_PixelShader->GetData());
+	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	psoDesc.SampleMask = UINT_MAX;
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	psoDesc.NumRenderTargets = 1;
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	psoDesc.SampleDesc.Count = 1;
+
+	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_ModelPipelineState.GetAddressOf())));
+	m_ModelPipelineState.Get()->SetName(L"ModelPipelineState");
 
 }

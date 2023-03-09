@@ -17,6 +17,8 @@ bool Device::Initialize()
 	CreateBackbuffer();
 	CreateDescriptorHeaps();
 
+
+
 	return true;
 }
 
@@ -30,6 +32,8 @@ void Device::CreateDevice()
 	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)), "Failed to create Debug Interface!");
 	debugController.Get()->EnableDebugLayer();
 	debugController.Get()->SetEnableSynchronizedCommandQueueValidation(TRUE);
+
+	debugController.Get()->SetEnableGPUBasedValidation(TRUE);
 
 	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 
@@ -86,6 +90,14 @@ void Device::CreateDevice()
 		LPCWSTR name{ nm.c_str() };
 		m_CommandAllocators[i]->SetName(name);
 	}
+
+
+	// Allocator
+	D3D12MA::ALLOCATOR_DESC allocatorDesc{};
+	allocatorDesc.pDevice = m_Device.Get();
+	allocatorDesc.pAdapter = adapter.Get();
+	D3D12MA::CreateAllocator(&allocatorDesc, &m_Allocator);
+
 }
 
 void Device::CreateSwapChain()
@@ -163,17 +175,38 @@ void Device::CreateDescriptorHeaps()
 	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(m_guiAllocator.GetAddressOf())));
 	m_guiAllocator->SetName(L"GUI_HEAP");
 
-	//D3D12_DESCRIPTOR_HEAP_DESC cbvDesc{};
-	//cbvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	//cbvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	//cbvDesc.NumDescriptors = 1;
+	srvDesc.NumDescriptors = 512;
 	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(m_cbvHeap.GetAddressOf())));
+	m_cbvIncrementSize = m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	m_cbvHandle = m_cbvHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+	m_cbvGpuHandle = m_cbvHeap.Get()->GetGPUDescriptorHandleForHeapStart();
 	m_cbvHeap->SetName(L"CBV_HEAP");
+
+	//D3D12MA::Pool* m_cbvPool{ nullptr };
+	
+	//D3D12MA::POOL_DESC poolDesc{};
+	//poolDesc.Flags = D3D12MA::POOL_FLAG_NONE;
+
+	ThrowIfFailed(m_Device->CreateDescriptorHeap(&srvDesc, IID_PPV_ARGS(m_cbvDescriptorHeap.m_Heap.GetAddressOf())));
+	m_cbvDescriptorHeap.m_DescriptorSize = m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	m_cbvDescriptorHeap.m_Heap->SetName(L"Main CBV Heap");
+	m_cbvDescriptorHeap.m_NumDescriptors = srvDesc.NumDescriptors;
+
+	// Sampler
+	D3D12_DESCRIPTOR_HEAP_DESC samplerDesc{};
+	samplerDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	samplerDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	samplerDesc.NumDescriptors = 64;
+	ThrowIfFailed(m_Device->CreateDescriptorHeap(&samplerDesc, IID_PPV_ARGS(m_SamplerHeap.GetAddressOf())));
+	m_SamplerHeap.Get()->SetName(L"Sampler Heap");
+
+
 }
 
 void Device::CreateCommandList(ID3D12PipelineState* pPipelineState)
 {
-	m_Device.Get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocators[m_FrameIndex].Get(), pPipelineState, IID_PPV_ARGS(m_CommandList.GetAddressOf()));
+	//pPipelineState
+	m_Device.Get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocators[m_FrameIndex].Get(), nullptr, IID_PPV_ARGS(m_CommandList.GetAddressOf()));
 }
 
 void Device::CreateCommandQueue()
@@ -205,8 +238,10 @@ void Device::SetViewport()
 	m_Viewport.TopLeftY = 0.0f;
 	m_Viewport.Width = static_cast<float>(Window::GetDisplay().Width);
 	m_Viewport.Height = static_cast<float>(Window::GetDisplay().Height);
-	m_Viewport.MinDepth = 0.1f;
-	m_Viewport.MaxDepth = 1000.f;
+	//m_Viewport.MinDepth = 0.1f;
+	//m_Viewport.MaxDepth = 1000.f;
+	m_Viewport.MinDepth = 0.0f;
+	m_Viewport.MaxDepth = 1.0f;
 }
 
 void Device::Release()
@@ -227,6 +262,9 @@ void Device::Release()
 	SafeRelease(m_srvHeap);
 	SafeRelease(m_rtvHeap);
 	SafeRelease(m_SwapChain);
+
+	m_Allocator->Release();
+
 	SafeRelease(m_DebugDevice);
 	SafeRelease(m_Device);
 	SafeRelease(m_Factory);

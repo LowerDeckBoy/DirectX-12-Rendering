@@ -2,7 +2,8 @@
 cbuffer cbData : register(b0)
 {
     float4x4 WVP;
-    float4 padding[15];
+    float4 padding[12];
+    //float4 padding[15];
     //float4 Offset;
     //float4 padding[15];
 };

@@ -33,7 +33,7 @@ public:
 		compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
-		HRESULT hResult{ D3DCompileFromFile(ShaderPath, nullptr, nullptr, "VS", "vs_5_0", compileFlags, 0, Blob.GetAddressOf(), Error.GetAddressOf()) };
+		HRESULT hResult{ D3DCompileFromFile(ShaderPath, nullptr, nullptr, "VS", "vs_5_1", compileFlags, 0, Blob.GetAddressOf(), Error.GetAddressOf()) };
 
 		if (FAILED(hResult) || Blob == nullptr)
 		{
@@ -79,7 +79,7 @@ public:
 		compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
-		HRESULT hResult{ D3DCompileFromFile(ShaderPath, nullptr, nullptr, "PS", "ps_5_0", compileFlags, 0, Blob.GetAddressOf(), Error.GetAddressOf()) };
+		HRESULT hResult{ D3DCompileFromFile(ShaderPath, nullptr, nullptr, "PS", "ps_5_1", compileFlags, 0, Blob.GetAddressOf(), Error.GetAddressOf()) };
 
 		if (FAILED(hResult) || Blob == nullptr)
 		{

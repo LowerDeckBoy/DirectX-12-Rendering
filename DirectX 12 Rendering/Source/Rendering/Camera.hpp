@@ -20,7 +20,8 @@ public:
 
 	const DirectX::XMMATRIX& GetView() const { return m_View; }
 	const DirectX::XMMATRIX& GetProjection() const { return m_Projection; }
-	const DirectX::XMMATRIX& GetViewProjection() const { return m_ViewProjetion; }
+	//const DirectX::XMMATRIX& GetViewProjection() const { return m_ViewProjection; }
+	const DirectX::XMMATRIX GetViewProjection() { return XMMatrixMultiply(m_View, m_Projection); }
 
 	const DirectX::XMVECTOR& GetPosition() const { return m_Position; }
 	const DirectX::XMVECTOR& GetTarget() const { return m_Target; }
@@ -35,10 +36,10 @@ public:
 private:
 	DirectX::XMMATRIX m_View{ DirectX::XMMATRIX() };
 	DirectX::XMMATRIX m_Projection{ DirectX::XMMATRIX() };
-	DirectX::XMMATRIX m_ViewProjetion{ DirectX::XMMATRIX() };
+	DirectX::XMMATRIX m_ViewProjection{ DirectX::XMMATRIX() };
 
-	DirectX::XMVECTOR m_Position{ DirectX::XMVectorSet(0.0f, 10.0f, -25.0f, 0.0f) };
-	DirectX::XMVECTOR m_Target{ DirectX::XMVectorSet(0.0f, 10.0f, 0.0f, 0.0f) };
+	DirectX::XMVECTOR m_Position{ DirectX::XMVectorSet(0.0f, 5.0f, -10.0f, 0.0f) };
+	DirectX::XMVECTOR m_Target{ DirectX::XMVectorSet(0.0f, 5.0f, 0.0f, 0.0f) };
 	DirectX::XMVECTOR m_Up{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
 
 	DirectX::XMMATRIX m_RotationX{ DirectX::XMMATRIX() };
@@ -62,9 +63,9 @@ private:
 
 public:
 	// For calling camera movement from keyboard inputs
-	float MoveForwardBack{};
-	float MoveRightLeft{};
-	float MoveUpDown{};
+	float MoveForwardBack{ 0.0f };
+	float MoveRightLeft{ 0.0f };
+	float MoveUpDown{ 0.0f };
 
 	float m_Pitch{ 0.0f };
 	float m_Yaw{ 0.0f };

@@ -7,6 +7,9 @@
 #include <cstdint>
 #include <array>
 
+#include "DescriptorHeap.hpp"
+
+#include <D3D12MA/D3D12MemAlloc.h>
 
 class Window;
 
@@ -85,6 +88,9 @@ public:
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
+	uint32_t m_cbvIncrementSize{};
+	CD3DX12_CPU_DESCRIPTOR_HANDLE m_cbvHandle{};
+	CD3DX12_GPU_DESCRIPTOR_HANDLE m_cbvGpuHandle{};
 	ComPtr<ID3D12Resource> m_RenderTargets[FrameCount];
 	uint32_t m_DescriptorSize{ 0 };
 
@@ -103,4 +109,13 @@ public:
 	inline ID3D12DescriptorHeap* GetGUIHeap() const { return m_guiAllocator.Get(); }
 	ComPtr<ID3D12DescriptorHeap> m_guiAllocator;
 
+	// Memory Allocator
+	D3D12MA::Allocator* GetAllocator() const { return m_Allocator; }
+	D3D12MA::Allocator* m_Allocator;
+	//std::unique_ptr<D3D12MA::Allocator> m_Allocator;
+
+	// TEST
+	DescriptorHeap m_cbvDescriptorHeap;
+
+	ComPtr<ID3D12DescriptorHeap> m_SamplerHeap;
 };

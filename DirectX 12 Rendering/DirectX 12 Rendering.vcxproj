@@ -116,8 +116,8 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>Default</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -130,7 +130,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;dinput8.lib;pdh.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;dinput8.lib;pdh.lib;DirectXTex.lib;imguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>D:\Dev\DirectX 12\DirectX 12 Rendering\vcpkg_installed\x64-windows\x64-windows\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -145,15 +145,19 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;dinput8.lib;pdh.lib;DirectXTex.lib;imgui.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\Dev\DirectX 12\DirectX 12 Rendering\vcpkg_installed\x64-windows\x64-windows\release\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="3rd-party\D3D12MA\D3D12MemAlloc.cpp" />
-    <ClCompile Include="CommonStates.cpp" />
+    <ClCompile Include="Source\Core\DescriptorHeap.cpp" />
+    <ClCompile Include="Source\Graphics\CommonStates.cpp" />
+    <ClCompile Include="Source\Rendering\Model.cpp" />
     <ClCompile Include="Source\Graphics\Cube.cpp" />
     <ClCompile Include="Source\Graphics\Texture.cpp" />
     <ClCompile Include="Source\Inputs\Inputs.cpp" />
@@ -164,10 +168,16 @@
     <ClCompile Include="Source\main.cpp" />
     <ClCompile Include="Source\Core\Window.cpp" />
     <ClCompile Include="Source\Core\Renderer.cpp" />
+    <ClCompile Include="Source\Rendering\ModelImporter.cpp" />
+    <ClCompile Include="Source\Graphics\UploadBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd-party\D3D12MA\D3D12MemAlloc.h" />
-    <ClInclude Include="CommonStates.hpp" />
+    <ClInclude Include="Source\Core\DescriptorHeap.hpp" />
+    <ClInclude Include="Source\Graphics\CommonStates.hpp" />
+    <ClInclude Include="Source\Rendering\Model.hpp" />
+    <ClInclude Include="Source\Rendering\Material.hpp" />
+    <ClInclude Include="Source\Rendering\Mesh.hpp" />
     <ClInclude Include="Source\Graphics\Cube.hpp" />
     <ClInclude Include="Source\Inputs\Inputs.hpp" />
     <ClInclude Include="Source\Graphics\ConstantBuffer.hpp" />
@@ -179,12 +189,16 @@
     <ClInclude Include="Source\Core\Renderer.hpp" />
     <ClInclude Include="3rd-party\d3dx12.h" />
     <ClInclude Include="Source\Graphics\Buffer.hpp" />
-    <ClInclude Include="Source\Graphics\Descriptors.hpp" />
     <ClInclude Include="Source\Graphics\Shader.hpp" />
     <ClInclude Include="Source\Graphics\Texture.hpp" />
     <ClInclude Include="Source\Graphics\Vertex.hpp" />
+    <ClInclude Include="Source\Rendering\ModelImporter.hpp" />
+    <ClInclude Include="Source\Rendering\Node.hpp" />
+    <ClInclude Include="Source\Rendering\Primitive.hpp" />
+    <ClInclude Include="Source\Utils\FileHelper.hpp" />
     <ClInclude Include="Source\Utils\Timer.hpp" />
     <ClInclude Include="Source\Utils\Utils.hpp" />
+    <ClInclude Include="Source\Graphics\UploadBuffer.hpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\PS_CB.hlsl">
@@ -196,6 +210,16 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\PS_GLTF.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </EntryPointName>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
     </FxCompile>
     <FxCompile Include="Assets\Shaders\PS_Texture.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -233,6 +257,16 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\VS_GLTF.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </EntryPointName>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
     </FxCompile>
     <FxCompile Include="Assets\Shaders\VS_Texture.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

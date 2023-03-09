@@ -10,19 +10,20 @@ void Camera::Initialize(float AspectRatio)
 	m_Target = m_DefaultTarget;
 	m_Up = m_DefaultUp;
 
-	auto FoV{ 0.4f * XM_PI };
 	m_View = XMMatrixLookAtLH(m_Position, m_Target, m_Up);
+	auto FoV{ 0.4f * XM_PI };
 	m_Projection = XMMatrixPerspectiveFovLH(FoV, AspectRatio, m_zNear, m_zFar);
-	m_ViewProjetion = XMMatrixMultiply(m_View, m_Projection);
+	//m_ViewProjection = XMMatrixMultiply(m_View, m_Projection);
 
-	m_CameraSlider = { m_Position.m128_f32[0], m_Position.m128_f32[1], m_Position.m128_f32[2] };
+	m_CameraSlider = { XMVectorGetX(m_Position), XMVectorGetY(m_Position), XMVectorGetZ(m_Position) };
 }
 
 void Camera::Update()
 {
 	m_RotationMatrix = XMMatrixRotationRollPitchYaw(m_Pitch, m_Yaw, 0.0f);
-	m_Target = XMVector3Normalize(XMVector3TransformCoord(m_DefaultForward, m_RotationMatrix));
-	
+	m_Target = XMVector3TransformCoord(m_DefaultForward, m_RotationMatrix);
+	m_Target = XMVector3Normalize(m_Target);
+
 	XMMATRIX rotation{ XMMatrixRotationY(m_Yaw) };
 
 	m_Forward = XMVector3TransformCoord(m_DefaultForward, rotation);
@@ -31,7 +32,7 @@ void Camera::Update()
 
 	m_Position += (MoveForwardBack * m_Forward);
 	m_Position += (MoveRightLeft * m_Right);
-	m_Position += (MoveUpDown * m_Upward);
+	m_Position += (MoveUpDown * m_Up);
 
 	MoveForwardBack = 0.0f;
 	MoveRightLeft = 0.0f;
@@ -40,7 +41,7 @@ void Camera::Update()
 	m_Target = m_Position + m_Target;
 	
 	m_View = XMMatrixLookAtLH(m_Position, m_Target, m_Up);
-	m_ViewProjetion = XMMatrixMultiply(m_View, m_Projection);
+	//m_ViewProjection = XMMatrixMultiply(m_View, m_Projection);
 	m_CameraSlider = { XMVectorGetX(m_Position), XMVectorGetY(m_Position), XMVectorGetZ(m_Position) };
 }
 

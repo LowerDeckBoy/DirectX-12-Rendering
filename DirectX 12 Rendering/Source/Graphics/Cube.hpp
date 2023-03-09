@@ -10,7 +10,7 @@ class Device;
 class Cube
 {
 public:
-	Cube() {};
+	Cube() {}
 	~Cube();
 
 	void Initialize(Device* pDevice);

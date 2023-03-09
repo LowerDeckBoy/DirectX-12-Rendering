@@ -1,0 +1,35 @@
+#pragma once
+#include <filesystem>
+
+namespace files
+{
+	inline std::string GetFileExtension(const std::string& Filename) {
+		return std::filesystem::path(Filename).extension().string();
+	}
+
+	inline std::string GetFileAbsolutePath(const std::string& Filename) {
+		return absolute(std::filesystem::path(Filename)).string();
+	}
+
+	inline std::string GetFileRelativePath(const std::string& Filename) {
+		return std::filesystem::path(Filename).relative_path().string();
+	}
+
+	namespace gltf {
+		inline std::string GetRelativePath(const std::string& Filename) {
+			return std::filesystem::path(Filename).relative_path().string();
+		}
+
+		inline std::string GetAbsolutePath(const std::string& Filename) {
+			auto _path = "../" + Filename;
+			return absolute(std::filesystem::path(_path)).string();
+		}
+		//+ "/"
+		inline std::string GetTexturePath(const std::string& Filename, const std::string& TextureName) {
+			return std::filesystem::path(Filename).relative_path().parent_path().string() + "/" + TextureName;
+		}
+		inline std::string GetTexAbsolutePath(const std::string& Filename, const std::string& TextureName) {
+			return absolute(std::filesystem::path(Filename)).parent_path().string() + "\\" + TextureName;
+		}
+	}
+}

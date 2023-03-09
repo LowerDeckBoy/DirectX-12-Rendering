@@ -17,6 +17,7 @@ GUI::~GUI()
 
 void GUI::Initialize(Device* pDevice, Camera& refCamera)
 {
+
 	assert(m_Device = pDevice);
 	//assert(m_Camera = refCamera);
 	m_Camera = &refCamera;
@@ -24,8 +25,6 @@ void GUI::Initialize(Device* pDevice, Camera& refCamera)
 	ImGui::CreateContext();
 
 	ImGuiIO& IO{ ImGui::GetIO() };
-	//IO.Framerate
-	//IO.ConfigFlags |= ImGuiConfigFlags_DockingEnabled;
 	ImGuiStyle& Style{ ImGui::GetStyle() };
 	Style.WindowRounding = 5.0f;
 	Style.WindowBorderSize = 0.0f;

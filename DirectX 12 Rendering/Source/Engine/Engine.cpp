@@ -21,6 +21,7 @@ void Engine::Initialize()
 {
 	Window::Initialize();
 	m_Camera->Initialize(Window::GetDisplay().AspectRatio);
+	m_Camera->ResetCamera();
 	m_Renderer->Initialize(*m_Camera);
 	Timer::Initialize();
 }
@@ -58,9 +59,9 @@ void Engine::Run()
 		if (!bAppPaused)
 		{
 			Inputs::CameraInputs(m_Camera.get(), Timer::DeltaTime());
-			m_Camera->Update();
 			m_Renderer->Update(m_Camera->GetViewProjection());
-			m_Renderer->Draw();
+			m_Renderer->Draw(m_Camera.get());
+			m_Camera->Update();
 		}
 		else
 			::Sleep(100);
@@ -76,6 +77,8 @@ void Engine::OnResize()
 
 void Engine::OnDestroy()
 {
+	Timer::Stop();
+	m_Renderer->WaitForGPU();
 	Inputs::Release();
 }
 

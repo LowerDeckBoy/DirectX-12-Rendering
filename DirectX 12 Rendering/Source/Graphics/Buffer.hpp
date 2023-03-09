@@ -98,7 +98,7 @@ public:
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> Buffer;
-	D3D12_VERTEX_BUFFER_VIEW BufferView;
+	D3D12_VERTEX_BUFFER_VIEW BufferView{};
 
 };
 
