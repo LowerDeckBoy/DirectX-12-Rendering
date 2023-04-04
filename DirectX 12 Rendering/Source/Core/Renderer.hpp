@@ -12,7 +12,10 @@
 
 #include "../Editor/GUI.hpp"
 
-#include "../Rendering/Model.hpp"
+//#include "../Rendering/Model.hpp"
+//#include "../Rendering/Model/GLTFModel.hpp"
+#include "../Rendering/cglTF_Model/cglTF_Model.hpp"
+#include "../Rendering/assimp_Model/assimp_Model.hpp"
 
 
 class Camera;
@@ -43,7 +46,7 @@ public:
 	void Draw(Camera* pCamera);
 
 	//void RecordCommandLists(XMMATRIX ViewProjection);
-	void RecordCommandLists(Camera* pCamera);
+	void RecordCommandLists(uint32_t CurrentFrame, Camera* pCamera);
 
 	//void WaitForPreviousFrame();
 
@@ -72,6 +75,8 @@ private:
 
 private:
 	std::array<const float, 4> m_ClearColor{ 0.5f, 0.5f, 1.0f, 1.0f };
+	//std::array<const float, 4> m_ClearColor{ 0.1f, 0.1f, 0.1f, 1.0f };
+	//std::array<const float, 4> m_ClearColor{ 1.0f, 1.0f, 1.0f, 1.0f };
 
 	struct VertexUV
 	{
@@ -101,16 +106,14 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_DepthHeap;
 	void CreateDepthStencil();
 
-	// HEAP
 	// Main Descriptor Heap
 	ComPtr<ID3D12DescriptorHeap> m_MainHeap;
 	
-
-	// TEST
-	//Cube m_Cube;
-	//Texture m_Texture;
 	ComPtr<ID3D12RootSignature> m_ModelRootSignature;
 	ComPtr<ID3D12PipelineState> m_ModelPipelineState;
 	void InitModelPipeline();
-	Model m_Model;
+	//
+
+	//cglTF_Model m_TestLoader;
+	assimp_Model m_Model;
 };

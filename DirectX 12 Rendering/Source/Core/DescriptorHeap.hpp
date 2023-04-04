@@ -18,10 +18,9 @@ public:
 
 	void Allocate(Descriptor& targetDescriptor)
 	{
-		m_Allocated++;
 		targetDescriptor.m_cpuHandle = GetCPU(m_Allocated);
 		targetDescriptor.m_gpuHandle = GetGPU(m_Allocated);
-		//GetGPU(m_Allocated);
+		m_Allocated++;
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPU(uint32_t Index)
@@ -37,9 +36,7 @@ public:
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_Heap;
 	//D3D12_DESCRIPTOR_HEAP_TYPE m_Type;
-	//D3D12_CPU_DESCRIPTOR_HANDLE m_cpuHandle{};
-	//D3D12_GPU_DESCRIPTOR_HANDLE m_gpuHandle{};
-	uint32_t m_DescriptorSize{ 0 };
+	uint32_t m_DescriptorSize{ 32 };
 	uint32_t m_NumDescriptors{ 0 };
 	uint32_t m_Allocated{ 0 };
 private:

@@ -1,12 +1,12 @@
 #pragma once
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #endif
 #include <Windows.h>
 #include <iostream>
 
-
+// TODO: Get rid of statics 
+// should work just fine without them
 class Window
 {
 public:

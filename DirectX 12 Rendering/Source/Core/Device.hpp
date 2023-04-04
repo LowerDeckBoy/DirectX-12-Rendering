@@ -34,7 +34,7 @@ public:
 	inline DXGI_FORMAT GetRTVFormat() const { return m_rtvFormat; }
 
 	void CreateDescriptorHeaps();
-	void CreateCommandList(ID3D12PipelineState* pPipelineState);
+	void CreateCommandList(ID3D12PipelineState* pPipelineState = nullptr);
 	void CreateCommandQueue();
 	void CreateFences(D3D12_FENCE_FLAGS Flags = D3D12_FENCE_FLAG_NONE);
 	
@@ -62,8 +62,6 @@ public:
 	// Heap getters
 	inline ID3D12DescriptorHeap* GetDescriptorHeap() const { return m_rtvHeap.Get(); }
 	inline uint32_t GetDescriptorSize() const { return m_DescriptorSize; }
-	inline ID3D12DescriptorHeap* GetSRVHeap() const { return m_srvHeap.Get(); }
-	inline ID3D12DescriptorHeap* GetCBVHeap() const { return m_cbvHeap.Get(); }
 
 	inline ID3D12Resource* GetRenderTargets() { return m_RenderTargets->Get(); }
 	inline D3D12_VIEWPORT& GetViewport() { return m_Viewport; }
@@ -86,11 +84,6 @@ public:
 	// SwapChain
 	ComPtr<IDXGISwapChain3> m_SwapChain;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-	ComPtr<ID3D12DescriptorHeap> m_srvHeap;
-	ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
-	uint32_t m_cbvIncrementSize{};
-	CD3DX12_CPU_DESCRIPTOR_HANDLE m_cbvHandle{};
-	CD3DX12_GPU_DESCRIPTOR_HANDLE m_cbvGpuHandle{};
 	ComPtr<ID3D12Resource> m_RenderTargets[FrameCount];
 	uint32_t m_DescriptorSize{ 0 };
 
@@ -114,8 +107,9 @@ public:
 	D3D12MA::Allocator* m_Allocator;
 	//std::unique_ptr<D3D12MA::Allocator> m_Allocator;
 
-	// TEST
+	// Main Heap
 	DescriptorHeap m_cbvDescriptorHeap;
+
 
 	ComPtr<ID3D12DescriptorHeap> m_SamplerHeap;
 };
