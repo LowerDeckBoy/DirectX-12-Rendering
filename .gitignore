@@ -583,3 +583,5 @@ FodyWeavers.xsd
 /vcpkg_installed/x64-windows/vcpkg/info/stb_2022-09-09_x64-windows.list
 /vcpkg_installed/x64-windows/vcpkg/info/nlohmann-json_3.11.2_x64-windows.list
 /DirectX 12 Rendering/Assets/Fonts/BohoSunshine2.ttf
+/vcpkg_installed/x64-windows
+/DirectX 12 Rendering/packages.config

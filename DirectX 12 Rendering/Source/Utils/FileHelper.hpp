@@ -15,7 +15,8 @@ namespace files
 		return std::filesystem::path(Filename).relative_path().string();
 	}
 
-	namespace gltf {
+	namespace glTF
+	{
 		inline std::string GetRelativePath(const std::string& Filename) {
 			return std::filesystem::path(Filename).relative_path().string();
 		}
@@ -32,4 +33,6 @@ namespace files
 			return absolute(std::filesystem::path(Filename)).parent_path().string() + "\\" + TextureName;
 		}
 	}
+	
+	// TODO: Add .fbx texture paths
 }
