@@ -1,6 +1,7 @@
 #pragma once
 #include <DirectXMath.h>
 
+
 struct Vertex
 {
 	DirectX::XMFLOAT3 Position;
@@ -17,9 +18,14 @@ struct VertexUV
 	DirectX::XMFLOAT2 TexCoord;
 };
 
-
 struct CubeVertex
 {
 	DirectX::XMFLOAT3 Position;
 	DirectX::XMFLOAT4 Color;
+};
+
+struct SkyboxVertex
+{
+	DirectX::XMFLOAT3 Position;
+	DirectX::XMFLOAT2 TexCoord;
 };
