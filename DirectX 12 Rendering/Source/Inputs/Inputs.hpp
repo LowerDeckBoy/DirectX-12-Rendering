@@ -40,7 +40,6 @@ public:
 
 		if (keyboardState[DIK_ESCAPE] & state)
 		{
-			::MessageBox(Window::GetHWND(), L"Beep", L"Beep", MB_OK);
 			// Add closing fullscreen state here later
 			::PostMessage(Window::GetHWND(), WM_DESTROY, 0, 0);
 		}
