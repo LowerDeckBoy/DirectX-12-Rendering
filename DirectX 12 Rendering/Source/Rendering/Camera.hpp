@@ -1,12 +1,13 @@
 #pragma once
 
-#include <DirectXMath.h>
 #include <array>
+#include <DirectXMath.h>
 
 class Camera
 {
 public:
-	
+	Camera operator=(const Camera&) = delete;
+
 	void Initialize(float AspectRatio);
 	void Update();
 
@@ -18,14 +19,13 @@ public:
 
 	void ResetCamera();
 
-	const DirectX::XMMATRIX& GetView() const { return m_View; }
-	const DirectX::XMMATRIX& GetProjection() const { return m_Projection; }
-	//const DirectX::XMMATRIX& GetViewProjection() const { return m_ViewProjection; }
-	const DirectX::XMMATRIX GetViewProjection() { return XMMatrixMultiply(m_View, m_Projection); }
+	const inline DirectX::XMMATRIX& GetView() const { return m_View; }
+	const inline DirectX::XMMATRIX& GetProjection() const { return m_Projection; }
+	const inline DirectX::XMMATRIX GetViewProjection() { return XMMatrixMultiply(m_View, m_Projection); }
 
-	const DirectX::XMVECTOR& GetPosition() const { return m_Position; }
-	const DirectX::XMVECTOR& GetTarget() const { return m_Target; }
-	const DirectX::XMVECTOR& GetUp() const { return m_Up; }
+	const inline DirectX::XMVECTOR& GetPosition() const { return m_Position; }
+	const inline DirectX::XMVECTOR& GetTarget() const { return m_Target; }
+	const inline DirectX::XMVECTOR& GetUp() const { return m_Up; }
 
 	void DrawGUI();
 
@@ -34,32 +34,32 @@ public:
 	void OnAspectRatioChange(float NewAspectRatio);
 
 private:
-	DirectX::XMMATRIX m_View{ DirectX::XMMATRIX() };
-	DirectX::XMMATRIX m_Projection{ DirectX::XMMATRIX() };
-	DirectX::XMMATRIX m_ViewProjection{ DirectX::XMMATRIX() };
+	DirectX::XMMATRIX m_View					{ DirectX::XMMATRIX() };
+	DirectX::XMMATRIX m_Projection				{ DirectX::XMMATRIX() };
+	DirectX::XMMATRIX m_ViewProjection			{ DirectX::XMMATRIX() };
 
-	DirectX::XMVECTOR m_Position{ DirectX::XMVectorSet(0.0f, 5.0f, -10.0f, 0.0f) };
-	DirectX::XMVECTOR m_Target{ DirectX::XMVectorSet(0.0f, 5.0f, 0.0f, 0.0f) };
-	DirectX::XMVECTOR m_Up{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
+	DirectX::XMVECTOR m_Position				{ DirectX::XMVECTOR() };
+	DirectX::XMVECTOR m_Target					{ DirectX::XMVECTOR() };
+	DirectX::XMVECTOR m_Up						{ DirectX::XMVECTOR() };
 
-	DirectX::XMMATRIX m_RotationX{ DirectX::XMMATRIX() };
-	DirectX::XMMATRIX m_RotationY{ DirectX::XMMATRIX() };
-	DirectX::XMMATRIX m_RotationMatrix{ DirectX::XMMATRIX() };
+	DirectX::XMMATRIX m_RotationX				{ DirectX::XMMATRIX() };
+	DirectX::XMMATRIX m_RotationY				{ DirectX::XMMATRIX() };
+	DirectX::XMMATRIX m_RotationMatrix			{ DirectX::XMMATRIX() };
 
-	DirectX::XMVECTOR m_Forward{ DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f) };
-	DirectX::XMVECTOR m_Right{ DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f) };
-	DirectX::XMVECTOR m_Upward{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
+	DirectX::XMVECTOR m_Forward					{ DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f) };
+	DirectX::XMVECTOR m_Right					{ DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f) };
+	DirectX::XMVECTOR m_Upward					{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
 
-	DirectX::XMVECTOR const m_DefaultPosition{ DirectX::XMVectorSet(0.0f, 5.0f, -10.0f, 0.0f) };
-	DirectX::XMVECTOR const m_DefaultTarget{ DirectX::XMVectorSet(0.0f, 5.0f, 0.0f, 0.0f) };
-	DirectX::XMVECTOR const m_DefaultUp{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
+	DirectX::XMVECTOR const m_DefaultPosition	{ DirectX::XMVectorSet(0.0f, 5.0f, -10.0f, 0.0f) };
+	DirectX::XMVECTOR const m_DefaultTarget		{ DirectX::XMVectorSet(0.0f, 5.0f, 0.0f, 0.0f) };
+	DirectX::XMVECTOR const m_DefaultUp			{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
 
-	DirectX::XMVECTOR const m_DefaultForward{ DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f) };
-	DirectX::XMVECTOR const m_DefaultRight{ DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f) };
-	DirectX::XMVECTOR const m_DefaultUpward{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
+	DirectX::XMVECTOR const m_DefaultForward	{ DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f) };
+	DirectX::XMVECTOR const m_DefaultRight		{ DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f) };
+	DirectX::XMVECTOR const m_DefaultUpward		{ DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
 
 	float m_zNear{ 0.1f };
-	float m_zFar{ 5000.0f };
+	float m_zFar{ 50000.0f };
 
 public:
 	// For calling camera movement from keyboard inputs

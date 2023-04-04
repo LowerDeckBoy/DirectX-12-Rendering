@@ -6,23 +6,21 @@ using namespace DirectX;
 void Camera::Initialize(float AspectRatio)
 {
 	// Defaulting position on startup
-	m_Position = m_DefaultPosition;
-	m_Target = m_DefaultTarget;
-	m_Up = m_DefaultUp;
+	m_Position	= m_DefaultPosition;
+	m_Target	= m_DefaultTarget;
+	m_Up		= m_DefaultUp;
 
 	m_View = XMMatrixLookAtLH(m_Position, m_Target, m_Up);
 	auto FoV{ 0.4f * XM_PI };
 	m_Projection = XMMatrixPerspectiveFovLH(FoV, AspectRatio, m_zNear, m_zFar);
-	//m_ViewProjection = XMMatrixMultiply(m_View, m_Projection);
-
+	
 	m_CameraSlider = { XMVectorGetX(m_Position), XMVectorGetY(m_Position), XMVectorGetZ(m_Position) };
 }
 
 void Camera::Update()
 {
 	m_RotationMatrix = XMMatrixRotationRollPitchYaw(m_Pitch, m_Yaw, 0.0f);
-	m_Target = XMVector3TransformCoord(m_DefaultForward, m_RotationMatrix);
-	m_Target = XMVector3Normalize(m_Target);
+	m_Target = XMVector3Normalize(XMVector3TransformCoord(m_DefaultForward, m_RotationMatrix));
 
 	XMMATRIX rotation{ XMMatrixRotationY(m_Yaw) };
 
@@ -32,16 +30,15 @@ void Camera::Update()
 
 	m_Position += (MoveForwardBack * m_Forward);
 	m_Position += (MoveRightLeft * m_Right);
-	m_Position += (MoveUpDown * m_Up);
+	m_Position += (MoveUpDown * m_Upward);
 
 	MoveForwardBack = 0.0f;
-	MoveRightLeft = 0.0f;
-	MoveUpDown = 0.0f;
+	MoveRightLeft	= 0.0f;
+	MoveUpDown		= 0.0f;
 
-	m_Target = m_Position + m_Target;
+	m_Target += m_Position;
 	
 	m_View = XMMatrixLookAtLH(m_Position, m_Target, m_Up);
-	//m_ViewProjection = XMMatrixMultiply(m_View, m_Projection);
 	m_CameraSlider = { XMVectorGetX(m_Position), XMVectorGetY(m_Position), XMVectorGetZ(m_Position) };
 }
 
@@ -83,6 +80,9 @@ void Camera::DrawGUI()
 		SetPosition(m_CameraSlider);
 		Update();
 	}
+
+	ImGui::SliderFloat("Speed", &m_CameraSpeed, 1.0f, 500.0f, "%.2f");
+
 	if (ImGui::Button("Reset"))
 	{
 		ResetCamera();
