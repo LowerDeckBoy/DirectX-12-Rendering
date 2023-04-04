@@ -1,8 +1,11 @@
 {
     "name": "dx12-rendering",
-    "version": "0.1.0",
-    "dependencies":
-    [
+    "version-string": "0.1.0",
+    "dependencies": [
+        "cgltf",
+        "tinygltf",
+        "assimp",
+        "spdlog",
         {
             "name": "directxtex",
             "features": [ "dx12" ]
@@ -10,7 +13,6 @@
         {
             "name": "imgui",
             "features": [ "dx12-binding", "win32-binding"]
-        },
-        "tinygltf"
+        }
     ]
 }
