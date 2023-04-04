@@ -2,7 +2,6 @@
 #include "Texture.hpp"
 #include "../Utils/Utils.hpp"
 
-//#include "../Core/Descriptors.hpp"
 #include <D3D12MA/D3D12MemAlloc.h>
 
 
@@ -13,20 +12,14 @@ Texture::Texture()
 
 Texture::Texture(Device* pDevice, const std::string& TexturePath)
 {
-	assert(m_Device = pDevice);
+	//assert(m_Device = pDevice);
+	Create(pDevice, TexturePath);
 }
 
-Texture Texture::operator=(const Texture& rhs)
+Texture::Texture(Device* pDevice, const std::string& TexturePath, const std::string& TextureName)
 {
-	Texture result;
-	result.m_Device = rhs.m_Device;
-	result.m_Texture = rhs.m_Texture;
-	result.m_TextureUploadHeap = rhs.m_TextureUploadHeap;
-	result.m_Width = rhs.m_Width;
-	result.m_Height = rhs.m_Height;
-	result.m_Format = rhs.m_Format;
-	result.m_Dimension = rhs.m_Dimension;
-	return result;
+	Create(pDevice, TexturePath);
+	SetName(TextureName);
 }
 
 Texture::~Texture()
@@ -41,9 +34,9 @@ void Texture::Create(Device* pDevice, const std::string& TexturePath)
 	std::wstring wpath = std::wstring(TexturePath.begin(), TexturePath.end());
 	const wchar_t* path = wpath.c_str();
 
-	DirectX::ScratchImage* scratchImage = new DirectX::ScratchImage();
+	DirectX::ScratchImage* scratchImage{ new DirectX::ScratchImage() };
 	DirectX::LoadFromWICFile(path,
-							 DirectX::WIC_FLAGS_FORCE_RGB,
+							 DirectX::WIC_FLAGS_NONE,
 							 nullptr,
 							 *scratchImage);
 
@@ -57,8 +50,9 @@ void Texture::Create(Device* pDevice, const std::string& TexturePath)
 	desc.Format = metadata.format;
 	desc.Width =  static_cast<uint32_t>(metadata.width);
 	desc.Height = static_cast<uint32_t>(metadata.height);
-	desc.MipLevels = 1;
-	desc.DepthOrArraySize = metadata.depth;
+	desc.MipLevels = static_cast<uint32_t>(metadata.mipLevels);
+	desc.DepthOrArraySize = static_cast<uint16_t>(metadata.depth);
+	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 
@@ -72,50 +66,25 @@ void Texture::Create(Device* pDevice, const std::string& TexturePath)
 	m_Dimension = desc.Dimension;
 
 	// MA
-	D3D12MA::ALLOCATION_DESC allocDesc{};
-	allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
-	D3D12MA::Allocation* allocation{};
-	ThrowIfFailed(m_Device->GetAllocator()->CreateResource(&allocDesc,
-				  &desc,
-				  D3D12_RESOURCE_STATE_COPY_DEST,
-				  nullptr,
-				  &allocation,
-				  IID_PPV_ARGS(m_Texture.GetAddressOf())));
-	
-	/*
 	auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
-	ThrowIfFailed(m_Device->GetDevice()->CreateCommittedResource(&heapProperties,
-				  D3D12_HEAP_FLAG_NONE,
-				  &desc,
-				  D3D12_RESOURCE_STATE_COPY_DEST,
-				  nullptr,
-				  IID_PPV_ARGS(&m_Texture)));
-	*/
+	ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(m_Texture.GetAddressOf())));
 	
 	const uint64_t bufferSize{ GetRequiredIntermediateSize(m_Texture.Get(), 0, 1) };
 
-	auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 	const auto bufferDesc{ CD3DX12_RESOURCE_DESC::Buffer(bufferSize) };
 	ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&heapProperties,
 				  D3D12_HEAP_FLAG_NONE,
 				  &bufferDesc,
-				  D3D12_RESOURCE_STATE_GENERIC_READ,
+				  D3D12_RESOURCE_STATE_COMMON,
 				  nullptr,
 				  IID_PPV_ARGS(m_TextureUploadHeap.GetAddressOf())));
 	m_TextureUploadHeap->SetName(L"Texture Upload Heap");
-	
-	/*
-	allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-	allocDesc.ExtraHeapFlags = D3D12_HEAP_FLAG_NONE;
-	
-	ThrowIfFailed(m_Device->GetAllocator()->CreateResource(&allocDesc,
-				  &desc,
-				  D3D12_RESOURCE_STATE_GENERIC_READ,
-				  nullptr,
-				  &allocation,
-				  IID_PPV_ARGS(m_TextureUploadHeap.GetAddressOf())));
-	m_TextureUploadHeap->SetName(L"Texture Upload Heap");
-	*/
 
 	D3D12_SUBRESOURCE_DATA subresource{
 		scratchImage->GetImages()->pixels,
@@ -134,15 +103,13 @@ void Texture::Create(Device* pDevice, const std::string& TexturePath)
 	srvDesc.Format = metadata.format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-
+	//srvDesc.Texture2D.MostDetailedMip = 0;
 
 	m_Device->m_cbvDescriptorHeap.Allocate(m_Descriptor);
 
 	m_Device->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_Descriptor.m_cpuHandle);
 
 	m_Texture->SetName(L"Texture SRV");
-	allocation->Release();
 
 	//https://asawicki.info/news_1754_direct3d_12_long_way_to_access_data
 }

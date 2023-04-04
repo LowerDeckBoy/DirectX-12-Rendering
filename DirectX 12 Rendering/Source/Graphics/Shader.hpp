@@ -3,23 +3,6 @@
 //#include <d3dcompiler.h>
 #include <wrl.h>
 
-/*
-class Shader
-{
-public:
-	void Create(LPCWSTR ShaderPath)
-	{
-		std::string entryPoint = "VS";
-		if (inf)
-	}
-
-private:
-	Microsoft::WRL::ComPtr<ID3DBlob> Blob;
-	Microsoft::WRL::ComPtr<ID3DBlob> Error;
-};
-*/
-
-
 class VertexShader
 {
 public:

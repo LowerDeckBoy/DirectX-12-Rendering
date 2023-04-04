@@ -9,29 +9,26 @@
 
 class Device;
 
+// https://logins.github.io/graphics/2020/08/31/D3D12TexturesPart1.html
 
 class Texture
 {
 public:
 	Texture();
 	Texture(Device* pDevice, const std::string& TexturePath);
-	Texture operator=(const Texture& rhs);
+	Texture(Device* pDevice, const std::string& TexturePath, const std::string& TextureName);
 	~Texture();
 
+	// TODO: Add mipmapping 
 	void Create(Device* pDevice, const std::string& TexturePath);
+	void SetName(const std::string& NewName) { m_TextureName = NewName; }
 
 	void Release();
 
 	ID3D12Resource* GetTexture() const { return m_Texture.Get(); }
-	const D3D12_GPU_VIRTUAL_ADDRESS& GetTextureGPUAddress() const { return m_Texture.Get()->GetGPUVirtualAddress(); }
+	const D3D12_GPU_VIRTUAL_ADDRESS GetTextureGPUAddress() const { return m_Texture.Get()->GetGPUVirtualAddress(); }
 
-	//Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_Heap;
-
-	Descriptor m_Descriptor{};
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE m_cpuDescriptor{};
-	CD3DX12_GPU_DESCRIPTOR_HANDLE m_gpuDescriptor{};
-	uint32_t m_DescriptorSize{ UINT32_MAX };
+	Descriptor m_Descriptor;
 
 private:
 	Device* m_Device;
@@ -45,5 +42,5 @@ private:
 	uint32_t m_Height{};
 	DXGI_FORMAT m_Format{ DXGI_FORMAT_R8G8B8A8_UNORM };
 	D3D12_RESOURCE_DIMENSION m_Dimension{ D3D12_RESOURCE_DIMENSION_TEXTURE2D };
-
+	std::string m_TextureName;
 };
