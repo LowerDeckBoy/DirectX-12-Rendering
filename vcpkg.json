@@ -6,6 +6,7 @@
         "tinygltf",
         "assimp",
         "spdlog",
+        "directxtk12",
         {
             "name": "directxtex",
             "features": [ "dx12" ]
