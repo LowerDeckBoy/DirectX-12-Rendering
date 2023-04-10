@@ -1,6 +1,6 @@
 #include "../../Core/Device.hpp"
 #include "cglTF_Loader.hpp"
-#include "../../Utils/FileHelper.hpp"
+#include "../../Utils/FileUtils.hpp"
 #include "../../Utils/TimeUtils.hpp"
 #include <cassert>
 
@@ -13,7 +13,7 @@ cglTF_Loader::cglTF_Loader(Device* pDevice, std::string_view Filepath)
 
 bool cglTF_Loader::Import(Device* pDevice, std::string_view Filepath)
 {
-	if (files::GetFileExtension(Filepath.data()) != ".gltf")
+	if (files::GetExtension(Filepath.data()) != ".gltf")
 	{
 		throw std::exception();
 	}

@@ -18,6 +18,7 @@ namespace model
 		Texture* BaseColorTexture{ nullptr };
 		Texture* NormalTexture{ nullptr };
 		Texture* MetallicRoughnessTexture{ nullptr };
+		Texture* EmissiveTexture{ nullptr };
 	};
 
 	struct Mesh

@@ -2,22 +2,57 @@
 #include "../Utils/Utils.hpp"
 #include "../Core/DescriptorHeap.hpp"
 #include <DirectXMath.h>
+using namespace DirectX;
 
+// Const Types
 struct cbPerObject
 {
-	DirectX::XMMATRIX WVP	{ DirectX::XMMatrixIdentity() };
-	DirectX::XMMATRIX World	{ DirectX::XMMatrixIdentity() };
+	XMMATRIX WVP	{ XMMatrixIdentity() };
+	XMMATRIX World	{ XMMatrixIdentity() };
 	float padding[32]{};
+};
+
+struct cbCamera
+{
+	alignas(16) XMFLOAT3 CameraPosition;
+};
+
+struct cbMaterial
+{
+	XMFLOAT4 Ambient				{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
+	alignas(16) XMFLOAT3 Diffuse	{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
+	XMFLOAT3 Specular				{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
+	float SpecularIntensity			{ 32.0f };
+	alignas(16) XMFLOAT3 Direction	{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
+	XMFLOAT4 padding[13];
+};
+
+struct cb_pbrMaterial
+{
+	alignas(16) XMFLOAT4 Ambient{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
+	alignas(16) XMFLOAT3 Diffuse { XMFLOAT3(1.0f, 1.0f, 1.0f) };
+	XMFLOAT3 Specular{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
+	float SpecularIntensity{ 32.0f };
+	alignas(16) XMFLOAT3 Direction { XMFLOAT3(1.0f, 1.0f, 1.0f) };
+
+	XMFLOAT4 BaseColorFactor{ XMFLOAT4(1.0f, 1.0f,1.0f, 1.0f) };
+	XMFLOAT4 EmissiveFactor { XMFLOAT4(1.0f, 1.0f,1.0f, 1.0f) };
+
+	float MetallicFactor { 1.0f };
+	float RoughnessFactor{ 1.0f };
+	float AlphaCutoff	 { 0.5f };
+	float padding;
+
+	XMFLOAT4 padding2[9];
 };
 
 template<typename T>
 class ConstantBuffer
 {
 public:
-	~ConstantBuffer()
-	{
-		Release();
-	}
+	ConstantBuffer() = default;
+	ConstantBuffer(Device* pDevice, T* pData) { Create(pDevice, pData); }
+	~ConstantBuffer() { Release(); }
 	
 	void Create(Device* pDevice, T* pData)
 	{
@@ -43,7 +78,7 @@ public:
 		
 		pDevice->m_cbvDescriptorHeap.Allocate(m_Descriptor);
 
-		pDevice->GetDevice()->CreateConstantBufferView(&bufferView, m_Descriptor.m_cpuHandle);
+		pDevice->GetDevice()->CreateConstantBufferView(&bufferView, m_Descriptor.GetCPU());
 
 		CD3DX12_RANGE readRange(0, 0);
 		ThrowIfFailed(Buffer.Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin)));
@@ -52,9 +87,9 @@ public:
 		bIsInitialized = true;
 	}
 
-	void Update(T& Updated)
+	void Update(const T& Updated)
 	{
-		Data = Updated;
+		*Data = Updated;
 		std::memcpy(pDataBegin, &Updated, sizeof(T));
 	}
 
@@ -65,7 +100,6 @@ public:
 
 	[[nodiscard]]
 	inline ID3D12Resource* GetBuffer() { return Buffer.Get(); }
-	ID3D12Resource* GetBuffer() const { return Buffer.Get(); }
 	Descriptor GetDescriptor() const { return m_Descriptor; }
 	T* GetData() const { return Data; }
 	uint8_t* pDataBegin{ nullptr };

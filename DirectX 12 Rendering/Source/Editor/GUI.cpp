@@ -5,6 +5,7 @@
 
 #include "../Utils/Timer.hpp"
 #include "../Rendering/Camera.hpp"
+#include "../Utils/MemoryUsage.hpp"
 
 GUI::~GUI()
 {
@@ -65,6 +66,9 @@ void GUI::End(ID3D12GraphicsCommandList* pCommandList)
 		ImGui::Text("Time elapsed: %.2f", Timer::m_TimeElapsed);
 		ImGui::Text("Resolution: %.0fx%.0f", Window::GetDisplay().Width, Window::GetDisplay().Height);
 		ImGui::Text("Aspect Ratio: %.2f", Window::GetDisplay().AspectRatio);
+		MemoryUsage::ReadRAM();
+		ImGui::Text("Available RAM: %d / %d MB", (uint32_t)MemoryUsage::AvailableRAM, (uint32_t)MemoryUsage::TotalRAM);
+		ImGui::Text("Memory usage: %.3f MB", MemoryUsage::MemoryUsed);
 		ImGui::End();
 	}
 

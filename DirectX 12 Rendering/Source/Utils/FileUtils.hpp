@@ -3,15 +3,15 @@
 
 namespace files
 {
-	inline std::string GetFileExtension(const std::string& Filename) {
+	inline std::string GetExtension(const std::string& Filename) {
 		return std::filesystem::path(Filename).extension().string();
 	}
 
-	inline std::string GetFileAbsolutePath(const std::string& Filename) {
+	inline std::string GetAbsolutePath(const std::string& Filename) {
 		return absolute(std::filesystem::path(Filename)).string();
 	}
 
-	inline std::string GetFileRelativePath(const std::string& Filename) {
+	inline std::string GetRelativePath(const std::string& Filename) {
 		return std::filesystem::path(Filename).relative_path().string();
 	}
 

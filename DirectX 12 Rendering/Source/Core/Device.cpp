@@ -57,6 +57,11 @@ void Device::CreateDevice()
 	if (!adapter)
 		throw std::exception();
 
+	// Get some debug data here
+	//DXGI_ADAPTER_DESC1 adapterInfo{};
+	//adapter->GetDesc1(&adapterInfo);
+	//adapterInfo.
+
 	ComPtr<ID3D12Device> device;
 	ThrowIfFailed(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(device.GetAddressOf())),
 				  "Failed to create D3D Device!");
@@ -165,10 +170,10 @@ void Device::CreateDescriptorHeaps()
 	m_guiAllocator->SetName(L"GUI_HEAP");
 
 	cbvDesc.NumDescriptors = 4096;
-	ThrowIfFailed(m_Device->CreateDescriptorHeap(&cbvDesc, IID_PPV_ARGS(m_cbvDescriptorHeap.m_Heap.GetAddressOf())));
-	m_cbvDescriptorHeap.m_DescriptorSize = m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	m_cbvDescriptorHeap.m_Heap->SetName(L"Main CBV Heap");
-	m_cbvDescriptorHeap.m_NumDescriptors = cbvDesc.NumDescriptors;
+	ThrowIfFailed(m_Device->CreateDescriptorHeap(&cbvDesc, IID_PPV_ARGS(m_cbvDescriptorHeap.GetHeapAddessOf())));
+	m_cbvDescriptorHeap.SetDescriptorSize(m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+	m_cbvDescriptorHeap.GetHeap()->SetName(L"Main CBV Heap");
+	m_cbvDescriptorHeap.SetDescriptorsCount(cbvDesc.NumDescriptors);
 
 
 

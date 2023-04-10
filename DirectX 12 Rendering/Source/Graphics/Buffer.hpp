@@ -7,6 +7,9 @@ template<typename T>
 class VertexBuffer
 {
 public:
+	VertexBuffer() = default;
+	VertexBuffer(Device* pDevice, std::vector<T>& pData) { Create(pDevice, pData); }
+
 	void Create(Device* pDevice, std::vector<T>& pData)
 	{
 		size_t bufferSize{ sizeof(T) * pData.size() };
@@ -48,6 +51,8 @@ private:
 class IndexBuffer
 {
 public:
+	IndexBuffer() = default;
+	IndexBuffer(Device* pDevice, std::vector<uint32_t>& pData) { Create(pDevice, pData); }
 
 	void Create(Device* pDevice, std::vector<uint32_t>& pData)
 	{

@@ -1,5 +1,5 @@
 #include "asssimp_Importer.hpp"
-#include "../../Utils/FileHelper.hpp"
+#include "../../Utils/FileUtils.hpp"
 #include "../../Utils/TimeUtils.hpp"
 
 asssimp_Importer::asssimp_Importer(Device* pDevice, std::string_view Filepath)
@@ -25,13 +25,20 @@ bool asssimp_Importer::Import(Device* pDevice, std::string_view Filepath)
 	if (!scene || !scene->mRootNode || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE)
 	{
 		::OutputDebugStringA(importer.GetErrorString());
-		throw std::exception();
+		throw std::runtime_error(importer.GetErrorString());
 	}
 
 	m_ModelPath = Filepath;
 	assert(m_Device = pDevice);
 
 	ProcessNode(scene, scene->mRootNode, nullptr, XMMatrixIdentity());
+	
+	// TODO
+	if (scene->HasCameras())
+	{
+		//auto camera{ scene->mCameras[0] };
+		//::OutputDebugStringA("Model has Cameras!\n");
+	}
 
 	importer.FreeScene();
 	timer.Timer_End(true);
@@ -78,9 +85,7 @@ void asssimp_Importer::ProcessNode(const aiScene* pScene, const aiNode* pNode, m
 		newNode->Scale = XMFLOAT3(scale.x, scale.y, scale.z);
 	}
 
-	//XMMATRIX local{ newNode->Matrix * XMMatrixTranslationFromVector(XMLoadFloat3(&newNode->Translation))  * XMMatrixRotationQuaternion(XMLoadFloat4(&newNode->Rotation)) * XMMatrixScalingFromVector(XMLoadFloat3(&newNode->Scale)) };
 	XMMATRIX local{ XMMatrixScalingFromVector(XMLoadFloat3(&newNode->Scale)) * XMMatrixRotationQuaternion(XMLoadFloat4(&newNode->Rotation)) * XMMatrixTranslationFromVector(XMLoadFloat3(&newNode->Translation))  };
-	//* newNode->Matrix
 	XMMATRIX next{ local * ParentMatrix };
 
 	if (pNode->mChildren)
@@ -216,6 +221,7 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 		else
 			::OutputDebugStringA("ERROR: FAILED TO GET NORMAL TEXTURE!");
 	}
+
 	for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_METALNESS); ++i)
 	{
 		aiString materialPath{};
@@ -229,6 +235,22 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 		else
 			::OutputDebugStringA("ERROR: FAILED TO GET METALLIC TEXTURE!");
 	}
+
+	for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_EMISSIVE); ++i)
+	{
+		aiString materialPath{};
+		if (material->GetTexture(aiTextureType_EMISSIVE, i, &materialPath) == aiReturn_SUCCESS)
+		{
+			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
+			newMaterial->EmissiveTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+			std::string path{ "Loaded: " + texPath + '\n' };
+			::OutputDebugStringA(path.c_str());
+		}
+		else
+			::OutputDebugStringA("ERROR: FAILED TO GET EMISSIVE TEXTURE!");
+	}
+
+
 	
 	m_Materials.emplace_back(newMaterial);
 }

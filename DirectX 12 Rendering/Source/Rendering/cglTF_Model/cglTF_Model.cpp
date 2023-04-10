@@ -74,11 +74,11 @@ void cglTF_Model::DrawNode(uint32_t CurrentFrame, Camera* pCamera, cglTF::Node* 
 		for (auto* primitive : pNode->Mesh->Primitives)
 		{
 			if (primitive->Material.BaseColorTexture)
-				m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(1, primitive->Material.BaseColorTexture->m_Descriptor.m_gpuHandle);
+				m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(1, primitive->Material.BaseColorTexture->m_Descriptor.GetGPU());
 			if (primitive->Material.NormalTexture)
-				m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(2, primitive->Material.NormalTexture->m_Descriptor.m_gpuHandle);
+				m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(2, primitive->Material.NormalTexture->m_Descriptor.GetGPU());
 			if (primitive->Material.MetallicTexture)
-				m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(3, primitive->Material.MetallicTexture->m_Descriptor.m_gpuHandle);
+				m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(3, primitive->Material.MetallicTexture->m_Descriptor.GetGPU());
 
 			if (primitive->bHasIndices)
 			{
