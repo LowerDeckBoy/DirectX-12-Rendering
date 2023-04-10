@@ -19,8 +19,14 @@ public:
 	Texture(Device* pDevice, const std::string& TexturePath, const std::string& TextureName);
 	~Texture();
 
-	// TODO: Add mipmapping 
-	void Create(Device* pDevice, const std::string& TexturePath);
+	// No mipmapping variant
+	//void Create(Device* pDevice, const std::string& TexturePath);
+	// With mipmapping
+	// via DirectXXTK12
+	void CreateWIC(Device* pDevice, const std::string& TexturePath);
+	// Used for Skybox/Cubebox creating from DDS files
+	void CreateDDS(Device* pDevice, const std::string& TexturePath);
+
 	void SetName(const std::string& NewName) { m_TextureName = NewName; }
 
 	void Release();
@@ -31,7 +37,7 @@ public:
 	Descriptor m_Descriptor;
 
 private:
-	Device* m_Device;
+	Device* m_Device{ nullptr };
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_Texture;
 	// Temporal solution
 	// Making it local causes problems
