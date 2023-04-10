@@ -2,9 +2,8 @@
 #include "../Utils/Utils.hpp"
 #include "../Core/Window.hpp"
 #include "../Rendering/Camera.hpp"
-
+#include "GraphicsPipelineState.hpp"
 #include <array>
-
 #include <DirectXTex.h>
 
 
@@ -24,21 +23,38 @@ void Renderer::Initialize(Camera& refCamera)
 	InitModelPipeline();
 	m_Device->CreateCommandList(m_ModelPipelineState.Get());
 
-	//m_Model.Create(m_Device.get(), "Assets/glTF/sponza/scene.gltf");
-	m_Model.Create(m_Device.get(), "Assets/glTF/mathilda/scene.gltf");
-	//m_Model.Create(m_Device.get(), "Assets/glTF/fallout_ranger/scene.gltf");
-	//m_Model.Create(m_Device.get(), "Assets/glTF/globophobia/scene.gltf");
-	//m_Model.Create(m_Device.get(), "Assets/glTF/damaged_helmet/scene.gltf");
-	//m_Model.Create(m_Device.get(), "Assets/fbx/sphere/source/Perfect360.fbx");
-	//m_Model.Create(m_Device.get(), "Assets/fbx/bull/source/Bull_Lowpoly.fbx");
-	//m_Model.Create(m_Device.get(), "Assets/glTF/anemone_deer/scene.gltf");
+	LoadAssets();
 
-
+	// Upload assets to GPU
 	ThrowIfFailed(m_Device->GetCommandList()->Close());
 	ID3D12CommandList* ppCommandLists[] = { m_Device->GetCommandList() };
 	m_Device->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 	
 	WaitForGPU();
+}
+
+void Renderer::LoadAssets()
+{
+	//m_Model.Create(m_Device.get(), "Assets/glTF/sponza/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/resto_ni_teo/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/ice_cream_man/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/lizard_mage/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/pizza_ballerina/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/realistic_armor/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/smart_littel_robot/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/sphere/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/mathilda/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/fallout_ranger/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/globophobia/scene.gltf");
+	m_Model.Create(m_Device.get(), "Assets/glTF/damaged_helmet/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/fbx/sphere/source/Perfect360.fbx");
+	//m_Model.Create(m_Device.get(), "Assets/fbx/bull/source/Bull_Lowpoly.fbx");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/anemone_deer/scene.gltf");
+	// With anims
+	//m_Model.Create(m_Device.get(), "Assets/glTF/Nowy sgd162_idle_walk_cycle/scene.gltf");
+
+	// Skybox
+	m_Skybox.Create(m_Device.get());
 }
 
 void Renderer::Update(XMMATRIX ViewProj)
@@ -71,14 +87,14 @@ void Renderer::RecordCommandLists(uint32_t CurrentFrame, Camera* pCamera)
 													m_ModelPipelineState.Get()));
 
 	m_GUI->Begin();
-
+	m_Device->GetCommandList()->SetPipelineState(m_ModelPipelineState.Get());
 	m_Device->GetCommandList()->SetGraphicsRootSignature(m_ModelRootSignature.Get());
 	m_Device->GetCommandList()->RSSetViewports(1, &m_Device->m_Viewport);
 	m_Device->GetCommandList()->RSSetScissorRects(1, &m_Device->m_ViewportRect);
 
 	TransitToRender();
 
-	ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_cbvDescriptorHeap.m_Heap.Get() };
+	ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_cbvDescriptorHeap.GetHeap() };
 	m_Device->GetCommandList()->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	// RTV and Depth
@@ -86,12 +102,15 @@ void Renderer::RecordCommandLists(uint32_t CurrentFrame, Camera* pCamera)
 	
 	m_Model.Draw(pCamera);
 	m_Model.DrawGUI();
+
+	m_Device->GetCommandList()->SetPipelineState(m_SkyboxPipelineState.Get());
+	m_Device->GetCommandList()->SetGraphicsRootSignature(m_SkyboxRootSignature.Get());
+	m_Skybox.Draw(pCamera);
 	m_GUI->End(m_Device->GetCommandList());
 
 	TransitToPresent();
 
 	ThrowIfFailed(m_Device->GetCommandList()->Close());
-
 }
 
 void Renderer::OnResize()
@@ -260,20 +279,16 @@ void Renderer::CreateDepthStencil()
 	m_DepthStencil.Get()->SetName(L"Depth Stencil");
 }
 
-// TODO: Move Pipeline creation to it's own class
 void Renderer::InitModelPipeline()
 {
-	m_VertexShader->Create(L"Assets/Shaders/VS_GLTF.hlsl");
-	m_PixelShader->Create( L"Assets/Shaders/Normal_Mapping_Pixel.hlsl");
-
-	// TODO: Move input layouts to separate class
-	std::array<D3D12_INPUT_ELEMENT_DESC, 5> layout{
-		D3D12_INPUT_ELEMENT_DESC{ "POSITION",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		D3D12_INPUT_ELEMENT_DESC{ "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		D3D12_INPUT_ELEMENT_DESC{ "TANGENT",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		D3D12_INPUT_ELEMENT_DESC{ "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
-	};
+	//m_VertexShader->Create(L"Assets/Shaders/VS_GLTF.hlsl");
+	m_VertexShader->Create("Assets/Shaders/VS_GLTF.hlsl", "VS", "vs_5_1");
+	m_PixelShader->Create("Assets/Shaders/Normal_Mapping_Pixel.hlsl", "PS", "ps_5_1");
+	//m_PixelShader->Create("Assets/Shaders/Specular_Mapping_Pixel.hlsl", "PS", "ps_5_1");
+	//m_PixelShader->Create( L"Assets/Shaders/PS_GLTF.hlsl");
+	//m_PixelShader->Create( L"Assets/Shaders/Outline_Pixel.hlsl");
+	
+	auto layout{ GraphicsPipelineState::CreateInputLayout() };
 
 	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData{ D3D_ROOT_SIGNATURE_VERSION_1_1 };
 	if (FAILED(m_Device->GetDevice()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
@@ -282,44 +297,33 @@ void Renderer::InitModelPipeline()
 		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 	}
 
-	std::array<CD3DX12_DESCRIPTOR_RANGE1, 5> ranges{};
-	ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, 0);
+	// TODO: move ranges and params into GraphicsPipelineState class
+	std::array<CD3DX12_DESCRIPTOR_RANGE1, 7> ranges{};
+	// Vertex Constant Buffer
+	ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	// Pixel Constant Buffer
+	ranges.at(2).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 	// Textures
-	ranges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-	ranges.at(2).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-	ranges.at(3).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-	ranges.at(4).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(3).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(4).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(5).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(6).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 	
-	std::array<CD3DX12_ROOT_PARAMETER1, 5> params{};
+	std::array<CD3DX12_ROOT_PARAMETER1, 7> params{};
 	params.at(0).InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
-	params.at(1).InitAsDescriptorTable(1, &ranges.at(1), D3D12_SHADER_VISIBILITY_PIXEL);
-	params.at(2).InitAsDescriptorTable(1, &ranges.at(2), D3D12_SHADER_VISIBILITY_PIXEL);
+	params.at(1).InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	params.at(2).InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	params.at(3).InitAsDescriptorTable(1, &ranges.at(3), D3D12_SHADER_VISIBILITY_PIXEL);
 	params.at(4).InitAsDescriptorTable(1, &ranges.at(4), D3D12_SHADER_VISIBILITY_PIXEL);
+	params.at(5).InitAsDescriptorTable(1, &ranges.at(5), D3D12_SHADER_VISIBILITY_PIXEL);
+	params.at(6).InitAsDescriptorTable(1, &ranges.at(6), D3D12_SHADER_VISIBILITY_PIXEL);
 
-	D3D12_ROOT_SIGNATURE_FLAGS rootFlags{};
-	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
-	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
-	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-	rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
-
-	D3D12_STATIC_SAMPLER_DESC samplerDesc{};
-	samplerDesc.Filter = D3D12_FILTER_ANISOTROPIC;
-	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	samplerDesc.MipLODBias = 0;
-	samplerDesc.MaxAnisotropy = 0;
-	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	samplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-	samplerDesc.MinLOD = 0;
-	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
-	samplerDesc.ShaderRegister = 0;
-	samplerDesc.RegisterSpace = 0;
-	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	auto rootFlags{ GraphicsPipelineState::SetRootFlags() };
+	auto staticSampler{ GraphicsPipelineState::CreateStaticSampler(0) };
+	
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
-	rootDesc.Init_1_1(static_cast<uint32_t>(params.size()), params.data(), 1, &samplerDesc, rootFlags);
+	rootDesc.Init_1_1(static_cast<uint32_t>(params.size()), params.data(), 1, &staticSampler, rootFlags);
 
 	ComPtr<ID3DBlob> signature;
 	ComPtr<ID3DBlob> error;
@@ -331,27 +335,28 @@ void Renderer::InitModelPipeline()
 				  IID_PPV_ARGS(m_ModelRootSignature.GetAddressOf())));
 	m_ModelRootSignature.Get()->SetName(L"ModelRootSignature");
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
-	psoDesc.pRootSignature = m_ModelRootSignature.Get();
-	psoDesc.InputLayout = { layout.data(), static_cast<uint32_t>(layout.size()) };
-	psoDesc.VS = CD3DX12_SHADER_BYTECODE(m_VertexShader->GetData());
-	psoDesc.PS = CD3DX12_SHADER_BYTECODE(m_PixelShader->GetData());
-	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	psoDesc.RasterizerState.FrontCounterClockwise = FALSE;
-	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	psoDesc.SampleMask = UINT_MAX;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	psoDesc.SampleDesc.Count = 1;
+	auto pipelineStateDesc{ GraphicsPipelineState::CreateState(m_ModelRootSignature.Get(), m_VertexShader.get(), m_PixelShader.get(), layout) };
 
-	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_ModelPipelineState.GetAddressOf())));
+	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_ModelPipelineState.GetAddressOf())));
 	m_ModelPipelineState.Get()->SetName(L"ModelPipelineState");
 
+	// Skybox pipeline
+	// TODO: Move inside Skybox class
+	auto skyboxLayout{ GraphicsPipelineState::CreateSkyboxInputLayout() };
+	m_SkyboxVS->Create("Assets/Shaders/Skybox_VS.hlsl", "VS", "vs_5_1");
+	m_SkyboxPS->Create("Assets/Shaders/Skybox_PS.hlsl", "PS", "ps_5_1");
+
+	ThrowIfFailed(m_Device->GetDevice()->CreateRootSignature(0,
+		signature.Get()->GetBufferPointer(), signature.Get()->GetBufferSize(),
+		IID_PPV_ARGS(m_SkyboxRootSignature.GetAddressOf())));
+	m_ModelRootSignature.Get()->SetName(L"SkyboxRootSignature");
+
+	pipelineStateDesc.InputLayout = { skyboxLayout.data(), static_cast<uint32_t>(skyboxLayout.size()) };
+	pipelineStateDesc.VS = CD3DX12_SHADER_BYTECODE(m_SkyboxVS->GetData());
+	pipelineStateDesc.PS = CD3DX12_SHADER_BYTECODE(m_SkyboxPS->GetData());
+	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_SkyboxPipelineState.GetAddressOf())));
+	m_SkyboxPipelineState.Get()->SetName(L"SkyboxPipelineState");
+	
 }
 
 void Renderer::OnDestroy()

@@ -3,7 +3,6 @@
 #include <memory>
 #include <DirectXMath.h>
 #include <d3dcompiler.h>
-//#include "../Graphics/Descriptors.hpp"
 #include "../Graphics/Shader.hpp"
 #include "../Graphics/Buffer.hpp"
 #include "../Graphics/ConstantBuffer.hpp"
@@ -12,11 +11,10 @@
 
 #include "../Editor/GUI.hpp"
 
-//#include "../Rendering/Model.hpp"
-//#include "../Rendering/Model/GLTFModel.hpp"
 #include "../Rendering/cglTF_Model/cglTF_Model.hpp"
 #include "../Rendering/assimp_Model/assimp_Model.hpp"
 
+#include "../Graphics/Skybox.hpp"
 
 class Camera;
 
@@ -37,18 +35,12 @@ public:
 	~Renderer();
 
 	void Initialize(Camera& refCamera);
-	
-	void InitPipelineState();
+	void LoadAssets();
 
-	//void Update(XMMATRIX ViewProj);
-	//void Draw(XMMATRIX ViewProjection);
 	void Update(XMMATRIX ViewProj);
 	void Draw(Camera* pCamera);
 
-	//void RecordCommandLists(XMMATRIX ViewProjection);
 	void RecordCommandLists(uint32_t CurrentFrame, Camera* pCamera);
-
-	//void WaitForPreviousFrame();
 
 	void OnResize();
 	void ResizeBackbuffers();
@@ -70,35 +62,14 @@ protected:
 
 private:
 	std::unique_ptr<Device> m_Device;
-	//test
 	std::unique_ptr<GUI> m_GUI;
 
 private:
 	std::array<const float, 4> m_ClearColor{ 0.5f, 0.5f, 1.0f, 1.0f };
-	//std::array<const float, 4> m_ClearColor{ 0.1f, 0.1f, 0.1f, 1.0f };
-	//std::array<const float, 4> m_ClearColor{ 1.0f, 1.0f, 1.0f, 1.0f };
-
-	struct VertexUV
-	{
-		XMFLOAT3 Position;
-		XMFLOAT2 TexCoord;
-	};
-	struct CubeVertex
-	{
-		XMFLOAT3 Position;
-		XMFLOAT4 Color;
-	};
-
-
-	VertexBuffer<CubeVertex> m_VertexBuffer;
-	IndexBuffer m_IndexBuffer;
-	
-	//void LoadAssets(const std::string& TexturePath);
-	//ComPtr<ID3D12Resource> m_TriangleTexture;
 
 	// Shaders
-	std::unique_ptr<VertexShader> m_VertexShader{ std::make_unique<VertexShader>() };
-	std::unique_ptr<PixelShader> m_PixelShader{ std::make_unique<PixelShader>() };
+	std::unique_ptr<Shader> m_VertexShader{ std::make_unique<Shader>() };
+	std::unique_ptr<Shader> m_PixelShader{ std::make_unique<Shader>() };
 
 	// DepthStencil
 	inline ID3D12DescriptorHeap* GetDepthHeap() const { return m_DepthHeap.Get(); };
@@ -116,4 +87,11 @@ private:
 
 	//cglTF_Model m_TestLoader;
 	assimp_Model m_Model;
+
+	// Skybox
+	ComPtr<ID3D12RootSignature> m_SkyboxRootSignature;
+	ComPtr<ID3D12PipelineState> m_SkyboxPipelineState;
+	Skybox m_Skybox;
+	std::unique_ptr<Shader> m_SkyboxVS{ std::make_unique<Shader>() };
+	std::unique_ptr<Shader> m_SkyboxPS{ std::make_unique<Shader>() };
 };
