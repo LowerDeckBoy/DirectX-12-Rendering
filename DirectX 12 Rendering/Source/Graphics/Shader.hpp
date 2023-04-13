@@ -92,7 +92,7 @@ private:
 class Shader
 {
 public:
-	void Create(const std::string_view& Filepath, const std::string_view& Entrypoint, const std::string_view& Target)
+	void Create(const std::string_view& Filepath, const std::string_view& Entrypoint, const std::string_view& Target, ID3DInclude* pInclude = nullptr)
 	{
 		if (bIsInitialized)
 			return;
@@ -103,7 +103,7 @@ public:
 #endif
 		ID3DBlob* Error{ nullptr };
 		std::wstring path{ std::wstring(Filepath.begin(), Filepath.end()) };
-		HRESULT hResult{ D3DCompileFromFile(path.c_str(), nullptr, nullptr, Entrypoint.data(), Target.data(), compileFlags, 0, Blob.GetAddressOf(), &Error)};
+		HRESULT hResult{ D3DCompileFromFile(path.c_str(), nullptr, pInclude, Entrypoint.data(), Target.data(), compileFlags, 0, Blob.GetAddressOf(), &Error)};
 
 		if (Error != nullptr)
 		{

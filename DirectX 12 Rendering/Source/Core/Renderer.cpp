@@ -24,12 +24,13 @@ void Renderer::Initialize(Camera& refCamera)
 	m_Device->CreateCommandList(m_ModelPipelineState.Get());
 
 	LoadAssets();
+	//PreRender();
 
 	// Upload assets to GPU
 	ThrowIfFailed(m_Device->GetCommandList()->Close());
 	ID3D12CommandList* ppCommandLists[] = { m_Device->GetCommandList() };
 	m_Device->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-	
+
 	WaitForGPU();
 }
 
@@ -51,10 +52,42 @@ void Renderer::LoadAssets()
 	//m_Model.Create(m_Device.get(), "Assets/fbx/bull/source/Bull_Lowpoly.fbx");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/anemone_deer/scene.gltf");
 	// With anims
-	//m_Model.Create(m_Device.get(), "Assets/glTF/Nowy sgd162_idle_walk_cycle/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/sgd162_idle_walk_cycle/scene.gltf");
 
 	// Skybox
 	m_Skybox.Create(m_Device.get());
+}
+
+void Renderer::PreRender()
+{
+	// Dispatch compute shaders here
+	m_Device->GetCommandList()->SetPipelineState(m_ComputePipelineState.GetPipelineState());
+	m_Device->GetCommandList()->SetComputeRootSignature(m_ComputePipelineState.GetRootSignature());
+	
+	ID3D12DescriptorHeap* ppHeaps[] = { m_Device->m_cbvDescriptorHeap.GetHeap() };
+	m_Device->GetCommandList()->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+	//uavDesc.Format = DXGI_FORMAT_R32G32B32_UINT;
+	uavDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	
+	const auto barrier{ CD3DX12_RESOURCE_BARRIER::Transition(m_Skybox.GetTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS) };
+	m_Device->GetCommandList()->ResourceBarrier(1, &barrier);
+
+	Descriptor uavDescriptor{};
+	m_Device->m_cbvDescriptorHeap.Allocate(uavDescriptor);
+
+	m_Device->GetDevice()->CreateUnorderedAccessView(m_Skybox.GetTexture(), nullptr, &uavDesc, uavDescriptor.GetCPU());
+
+	//m_Device->GetDevice()->CopyDescriptorsSimple(1, uavDescriptor.GetCPU(), m_Device->m_cbvDescriptorHeap.GetHeap()->GetCPUDescriptorHandleForHeapStart(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	m_Device->GetCommandList()->SetComputeRootDescriptorTable(0, uavDescriptor.GetGPU());
+	//m_Device->GetCommandList()->SetComputeRootUnorderedAccessView(0, uavDescriptor.GetGPU());
+
+
+	m_Device->GetCommandList()->Dispatch(8, 8, 1);
+
 }
 
 void Renderer::Update(XMMATRIX ViewProj)
@@ -341,10 +374,17 @@ void Renderer::InitModelPipeline()
 	m_ModelPipelineState.Get()->SetName(L"ModelPipelineState");
 
 	// Skybox pipeline
-	// TODO: Move inside Skybox class
+	// Gotta dispatch compute shader irradiance calculations before actual rendering
+	m_ComputeShader->Create("Assets/Shaders/Compute/CS_Test.hlsl", "CS", "cs_5_1");
+	m_ComputePipelineState.Create(m_Device.get(), *m_ComputeShader);
+	//auto computeRootSignature{ }
+	//auto computeState{ ComputePipelineState::CreateState() }
+
 	auto skyboxLayout{ GraphicsPipelineState::CreateSkyboxInputLayout() };
 	m_SkyboxVS->Create("Assets/Shaders/Skybox_VS.hlsl", "VS", "vs_5_1");
 	m_SkyboxPS->Create("Assets/Shaders/Skybox_PS.hlsl", "PS", "ps_5_1");
+	//m_SkyboxPS->Create("Assets/Shaders/IBL_PS.hlsl", "PS", "ps_5_1");
+	//m_SkyboxPS->Create("Assets/Shaders/IBL_Draw_PS.hlsl", "PS", "ps_5_1");
 
 	ThrowIfFailed(m_Device->GetDevice()->CreateRootSignature(0,
 		signature.Get()->GetBufferPointer(), signature.Get()->GetBufferSize(),

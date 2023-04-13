@@ -14,6 +14,8 @@
 #include "../Rendering/cglTF_Model/cglTF_Model.hpp"
 #include "../Rendering/assimp_Model/assimp_Model.hpp"
 
+#include "ComputePipelineState.hpp"
+
 #include "../Graphics/Skybox.hpp"
 
 class Camera;
@@ -37,6 +39,7 @@ public:
 	void Initialize(Camera& refCamera);
 	void LoadAssets();
 
+	void PreRender();
 	void Update(XMMATRIX ViewProj);
 	void Draw(Camera* pCamera);
 
@@ -59,6 +62,8 @@ protected:
 
 	void TransitToRender();
 	void TransitToPresent();
+
+	void SetPSO();
 
 private:
 	std::unique_ptr<Device> m_Device;
@@ -87,6 +92,10 @@ private:
 
 	//cglTF_Model m_TestLoader;
 	assimp_Model m_Model;
+
+	// Compute pipeline
+	ComputePipelineState m_ComputePipelineState;
+	std::unique_ptr<Shader> m_ComputeShader{ std::make_unique<Shader>() };
 
 	// Skybox
 	ComPtr<ID3D12RootSignature> m_SkyboxRootSignature;

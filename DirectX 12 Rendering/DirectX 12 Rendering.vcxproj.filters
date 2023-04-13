@@ -75,6 +75,9 @@
     <ClCompile Include="Source\Graphics\Skybox.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Core\ComputePipelineState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd-party\d3dx12.h">
@@ -170,6 +173,9 @@
     <ClInclude Include="Source\Graphics\Skybox.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Core\ComputePipelineState.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\VS_Triangle.hlsl" />
@@ -191,6 +197,12 @@
     <FxCompile Include="Assets\Shaders\Specular_Mapping_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\Mipmap_CS.hlsl" />
     <FxCompile Include="Assets\Shaders\Blinn-Phong.hlsl" />
+    <FxCompile Include="Assets\Shaders\IBL_PS.hlsl" />
+    <FxCompile Include="Assets\Shaders\IBL_VS.hlsl" />
+    <FxCompile Include="Assets\Shaders\IBL_Draw_PS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Compute\CS_Test.hlsl">
+      <Filter>Source Files</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -19,13 +19,18 @@ public:
 	Texture(Device* pDevice, const std::string& TexturePath, const std::string& TextureName);
 	~Texture();
 
+	// TODO: Add cubemapping from jpeg and from single texture
+
 	// No mipmapping variant
 	//void Create(Device* pDevice, const std::string& TexturePath);
 	// With mipmapping
 	// via DirectXXTK12
-	void CreateWIC(Device* pDevice, const std::string& TexturePath);
+	void CreateFromWIC(Device* pDevice, const std::string& TexturePath);
 	// Used for Skybox/Cubebox creating from DDS files
-	void CreateDDS(Device* pDevice, const std::string& TexturePath);
+	void CreateFromDDS(Device* pDevice, const std::string& TexturePath);
+
+	void CreateFromHDR(Device* pDevice, const std::string& TexturePath);
+
 
 	void SetName(const std::string& NewName) { m_TextureName = NewName; }
 

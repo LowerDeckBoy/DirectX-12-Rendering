@@ -9,6 +9,7 @@
 class Camera;
 class Texture;
 
+// https://skybox.blockadelabs.com/
 class Skybox
 {
 public:
@@ -18,6 +19,8 @@ public:
 	void Draw(Camera* pCamera);
 	void UpdateWorld(Camera* pCamera);
 	void Release();
+
+	ID3D12Resource* GetTexture() { return m_Texture->GetTexture(); }
 
 private:
 	Device* m_Device{ nullptr };

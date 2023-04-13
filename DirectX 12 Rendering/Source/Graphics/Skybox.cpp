@@ -11,8 +11,16 @@ void Skybox::Create(Device* pDevice)
 	m_ConstBuffer = std::make_unique<ConstantBuffer<cbPerObject>>(pDevice, &m_cbData);
 
 	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/earth-cubemap.dds");
-	m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/SunSubMixer_specularIBL.dds");
+	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/SunSubMixer_specularIBL.dds");
+	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/newport_loft.hdr");
+	m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/anime_art_style_magic_forest_with_intense_blue_lig.hdr");
+	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/PaperMill_E_Env.hdr");
+	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/anime_art_style_sunny_day_sky.jpg");
+	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/fantasy_landscape_nightsky.jpeg");
+	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/fantasy_landscape_nightsky.hdr");
 	//m_Texture->CreateDDS(pDevice, "Assets/Textures/SunSubMixer_diffuseIBL.dds");
+
+
 }
 
 void Skybox::Draw(Camera* pCamera)
@@ -32,7 +40,6 @@ void Skybox::Draw(Camera* pCamera)
 
 void Skybox::UpdateWorld(Camera* pCamera)
 {
-	//* XMMatrixRotationRollPitchYawFromVector(m_Rotation)
 	m_WorldMatrix = XMMatrixIdentity();
 	m_Translation = XMVectorSet(DirectX::XMVectorGetX(pCamera->GetPosition()),
 								DirectX::XMVectorGetY(pCamera->GetPosition()),

@@ -155,6 +155,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="3rd-party\D3D12MA\D3D12MemAlloc.cpp" />
+    <FxCompile Include="Assets\Shaders\Compute\CS_Test.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </EntryPointName>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <ClCompile Include="Source\Core\ComputePipelineState.cpp" />
     <ClCompile Include="Source\Graphics\Skybox.cpp" />
     <ClCompile Include="Source\Rendering\Light\PointLight.cpp" />
     <ClCompile Include="Source\Rendering\assimp_Model\assimp_Model.cpp" />
@@ -178,6 +186,7 @@
   <ItemGroup>
     <ClInclude Include="3rd-party\D3D12MA\D3D12MemAlloc.h" />
     <ClInclude Include="3rd-party\d3dx12.h" />
+    <ClInclude Include="Source\Core\ComputePipelineState.hpp" />
     <ClInclude Include="Source\Graphics\Skybox.hpp" />
     <ClInclude Include="Source\Rendering\Light\PointLight.hpp" />
     <ClInclude Include="Source\Rendering\assimp_Model\assimp_Model.hpp" />
@@ -210,6 +219,25 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\Blinn-Phong.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </EntryPointName>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\IBL_Draw_PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </EntryPointName>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\IBL_PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </EntryPointName>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\IBL_VS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
