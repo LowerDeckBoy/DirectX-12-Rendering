@@ -4,9 +4,9 @@
 Playground for learning graphics programming.<br/>
 Most of implemented solutions are either temporal or experimental.<br/>
 <br/>
-Currently working on Physically Based Rendering and Image-Based Lighting
+Currently working on Physically Based Rendering and Image-Based Lighting.
 ###
-### Build with: 
+### Build with: ###
 <ul>
 <li> C++ 20 </li>
 <li> DirectX 12 </li>
@@ -14,7 +14,7 @@ Currently working on Physically Based Rendering and Image-Based Lighting
 <li> vcpkg - via manifest mode </li>
 </ul>
 
-Third-party
+### Third-party: ###
 <ul> 
 <li>assimp</li>
 <li>cgltf</li>
@@ -24,9 +24,9 @@ Third-party
 <li>ImGui</li>
 </ul>
 
-#### Some screenshots
+#### Some screenshots:
+![Screenshot](screenshots/model_03.png)
 ![Screenshot](screenshots/model_01.png)
 ![Screenshot](screenshots/model_02.png)
-![Screenshot](screenshots/model_03.png)
 ![Screenshot](screenshots/model_04.png)
 ![Screenshot](screenshots/model_05.png)
