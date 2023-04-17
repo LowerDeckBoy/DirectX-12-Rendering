@@ -67,7 +67,7 @@ void GUI::End(ID3D12GraphicsCommandList* pCommandList)
 		ImGui::Text("Resolution: %.0fx%.0f", Window::GetDisplay().Width, Window::GetDisplay().Height);
 		ImGui::Text("Aspect Ratio: %.2f", Window::GetDisplay().AspectRatio);
 		MemoryUsage::ReadRAM();
-		ImGui::Text("Available RAM: %d / %d MB", (uint32_t)MemoryUsage::AvailableRAM, (uint32_t)MemoryUsage::TotalRAM);
+		ImGui::Text("Available RAM: %d / %d MB", static_cast<uint32_t>(MemoryUsage::AvailableRAM), static_cast<uint32_t>(MemoryUsage::TotalRAM));
 		ImGui::Text("Memory usage: %.3f MB", MemoryUsage::MemoryUsed);
 		ImGui::End();
 	}

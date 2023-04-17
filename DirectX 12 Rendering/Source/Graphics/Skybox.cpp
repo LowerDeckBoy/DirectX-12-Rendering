@@ -12,8 +12,8 @@ void Skybox::Create(Device* pDevice)
 
 	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/earth-cubemap.dds");
 	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/SunSubMixer_specularIBL.dds");
-	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/newport_loft.hdr");
-	m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/anime_art_style_magic_forest_with_intense_blue_lig.hdr");
+	m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/newport_loft.hdr");
+	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/anime_art_style_magic_forest_with_intense_blue_lig.hdr");
 	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/PaperMill_E_Env.hdr");
 	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/anime_art_style_sunny_day_sky.jpg");
 	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/fantasy_landscape_nightsky.jpeg");

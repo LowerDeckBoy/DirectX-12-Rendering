@@ -20,6 +20,9 @@ public:
 	void UpdateWorld(Camera* pCamera);
 	void Release();
 
+	// For HDR Irradiance Mapping
+	//void Prefilter()
+
 	ID3D12Resource* GetTexture() { return m_Texture->GetTexture(); }
 
 private:
