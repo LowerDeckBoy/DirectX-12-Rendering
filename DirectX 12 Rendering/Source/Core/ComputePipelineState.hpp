@@ -7,9 +7,9 @@
 #include "GraphicsPipelineState.hpp"
 #include "../Utils/Utils.hpp"
 
-//class Shader;
-
 // https://logins.github.io/graphics/2020/10/31/D3D12ComputeShaders.html
+// https://www.3dgep.com/learning-directx-12-4/#Compute_Shaders
+// http://www.codinglabs.net/tutorial_compute_shaders_filters.aspx
 class ComputePipelineState
 {
 public:
@@ -38,15 +38,21 @@ public:
 
        // D3D12_PIPELINE_STATE_STREAM_DESC stateDesc{ sizeof(pipelineStateStream), &pipelineStateStream };
         ThrowIfFailed(pDevice->CreateComputePipelineState(&desc, IID_PPV_ARGS(m_PipelineState.GetAddressOf())));
+        m_PipelineState->SetName(L"Compute Pipeline State");
         //return desc;
 	}
 
-   void CreateRootSignature(ID3D12Device* pDevice)
+    void CreateRootSignature(ID3D12Device* pDevice)
     {
-        std::array<CD3DX12_DESCRIPTOR_RANGE1, 1> ranges{};
-        ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-        std::array<CD3DX12_ROOT_PARAMETER1, 1> params{};
+        std::array<CD3DX12_DESCRIPTOR_RANGE1, 2> ranges{};
+        // Input texture
+        ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
+        // Output texture - prefiltered
+        ranges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+
+        std::array<CD3DX12_ROOT_PARAMETER1, 2> params{};
         params.at(0).InitAsDescriptorTable(1, &ranges.at(0), D3D12_SHADER_VISIBILITY_ALL);
+        params.at(1).InitAsDescriptorTable(1, &ranges.at(1), D3D12_SHADER_VISIBILITY_ALL);
 
         const auto staticSampler{ GraphicsPipelineState::CreateStaticSampler(0) };
         const auto rootFlags    { GraphicsPipelineState::SetRootFlags() };
@@ -60,6 +66,8 @@ public:
         ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1_1, signature.GetAddressOf(), error.GetAddressOf()));
         ThrowIfFailed(pDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(m_RootSignature.ReleaseAndGetAddressOf())));
     }
+
+    //void Dispatch()
 
    // Get Compute Root Signature
    ID3D12RootSignature* GetRootSignature() const { return m_RootSignature.Get(); }
