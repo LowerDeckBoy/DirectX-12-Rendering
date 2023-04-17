@@ -174,9 +174,6 @@ void Device::CreateDescriptorHeaps()
 	m_cbvDescriptorHeap.SetDescriptorSize(m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 	m_cbvDescriptorHeap.GetHeap()->SetName(L"Main CBV Heap");
 	m_cbvDescriptorHeap.SetDescriptorsCount(cbvDesc.NumDescriptors);
-
-
-
 }
 
 void Device::CreateCommandList(ID3D12PipelineState* pPipelineState)
@@ -189,8 +186,13 @@ void Device::CreateCommandQueue()
 	D3D12_COMMAND_QUEUE_DESC desc{};
 	desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-
 	ThrowIfFailed(m_Device.Get()->CreateCommandQueue(&desc, IID_PPV_ARGS(m_CommandQueue.GetAddressOf())), "Failed to create Command Queue!\n");
+	m_CommandQueue->SetName(L"Direct Command Queue");
+
+	desc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	ThrowIfFailed(m_Device.Get()->CreateCommandQueue(&desc, IID_PPV_ARGS(m_ComputeQueue.GetAddressOf())), "Failed to create Compute Queue!\n");
+	m_ComputeQueue->SetName(L"Compute Command Queue");
+
 }
 
 void Device::CreateFences(D3D12_FENCE_FLAGS Flags)

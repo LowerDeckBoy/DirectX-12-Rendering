@@ -63,7 +63,7 @@ protected:
 	void TransitToRender();
 	void TransitToPresent();
 
-	void SetPSO();
+	ID3D12PipelineState* SetPSO(int32_t Selected = 0);
 
 private:
 	std::unique_ptr<Device> m_Device;
@@ -75,6 +75,7 @@ private:
 	// Shaders
 	std::unique_ptr<Shader> m_VertexShader{ std::make_unique<Shader>() };
 	std::unique_ptr<Shader> m_PixelShader{ std::make_unique<Shader>() };
+	std::unique_ptr<Shader> m_PixelPBR{ std::make_unique<Shader>() };
 
 	// DepthStencil
 	inline ID3D12DescriptorHeap* GetDepthHeap() const { return m_DepthHeap.Get(); };
@@ -86,7 +87,13 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_MainHeap;
 	
 	ComPtr<ID3D12RootSignature> m_ModelRootSignature;
+	// PSO
 	ComPtr<ID3D12PipelineState> m_ModelPipelineState;
+	ComPtr<ID3D12PipelineState> m_PBRPipelineState;
+	static inline int m_SelectedPSO = 0;
+	//TEST
+	void SwitchPSO();
+
 	void InitModelPipeline();
 	//
 

@@ -203,6 +203,7 @@
     <FxCompile Include="Assets\Shaders\Compute\CS_Test.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
+    <FxCompile Include="Assets\Shaders\EqurectangluarToCube.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

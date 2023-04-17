@@ -53,6 +53,8 @@ public:
 	inline ID3D12CommandQueue* GetCommandQueue() const { return m_CommandQueue.Get(); }
 	inline ID3D12GraphicsCommandList1* GetCommandList() { return m_CommandList.Get(); }
 
+	inline ID3D12CommandQueue* GetComputeQueue() const { return m_ComputeQueue.Get(); }
+
 	// Frame/Fence getters
 	inline uint32_t GetFrameIndex() { return m_SwapChain.Get()->GetCurrentBackBufferIndex(); }
 	void SetFrameIndex(uint32_t NewFrame) { m_FrameIndex = NewFrame; }
@@ -78,6 +80,8 @@ public:
 	ComPtr<ID3D12CommandAllocator> m_CommandAllocators[FrameCount];
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
 	ComPtr<ID3D12GraphicsCommandList1> m_CommandList;
+
+	ComPtr<ID3D12CommandQueue> m_ComputeQueue;
 
 	ComPtr<ID3D12RootSignature> m_RootSignature;
 

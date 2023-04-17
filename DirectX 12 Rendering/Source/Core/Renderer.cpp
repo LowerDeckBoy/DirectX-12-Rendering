@@ -37,17 +37,18 @@ void Renderer::Initialize(Camera& refCamera)
 void Renderer::LoadAssets()
 {
 	//m_Model.Create(m_Device.get(), "Assets/glTF/sponza/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/damaged_helmet/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/resto_ni_teo/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/ice_cream_man/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/lizard_mage/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/pizza_ballerina/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/realistic_armor/scene.gltf");
+	//m_Model.Create(m_Device.get(), "Assets/glTF/3d_anime_character_girl_stylized/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/smart_littel_robot/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/sphere/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/mathilda/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/fallout_ranger/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/globophobia/scene.gltf");
-	m_Model.Create(m_Device.get(), "Assets/glTF/damaged_helmet/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/fbx/sphere/source/Perfect360.fbx");
 	//m_Model.Create(m_Device.get(), "Assets/fbx/bull/source/Bull_Lowpoly.fbx");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/anemone_deer/scene.gltf");
@@ -68,7 +69,6 @@ void Renderer::PreRender()
 	m_Device->GetCommandList()->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-	//uavDesc.Format = DXGI_FORMAT_R32G32B32_UINT;
 	uavDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	
@@ -120,7 +120,9 @@ void Renderer::RecordCommandLists(uint32_t CurrentFrame, Camera* pCamera)
 													m_ModelPipelineState.Get()));
 
 	m_GUI->Begin();
-	m_Device->GetCommandList()->SetPipelineState(m_ModelPipelineState.Get());
+
+	//m_Device->GetCommandList()->SetPipelineState(m_ModelPipelineState.Get());
+	m_Device->GetCommandList()->SetPipelineState(SetPSO(m_SelectedPSO));
 	m_Device->GetCommandList()->SetGraphicsRootSignature(m_ModelRootSignature.Get());
 	m_Device->GetCommandList()->RSSetViewports(1, &m_Device->m_Viewport);
 	m_Device->GetCommandList()->RSSetScissorRects(1, &m_Device->m_ViewportRect);
@@ -133,12 +135,14 @@ void Renderer::RecordCommandLists(uint32_t CurrentFrame, Camera* pCamera)
 	// RTV and Depth
 	SetRenderTarget();
 	
-	m_Model.Draw(pCamera);
-	m_Model.DrawGUI();
+	//m_Model.Draw(pCamera);
+	//m_Model.DrawGUI();
 
 	m_Device->GetCommandList()->SetPipelineState(m_SkyboxPipelineState.Get());
 	m_Device->GetCommandList()->SetGraphicsRootSignature(m_SkyboxRootSignature.Get());
 	m_Skybox.Draw(pCamera);
+
+	SwitchPSO();
 	m_GUI->End(m_Device->GetCommandList());
 
 	TransitToPresent();
@@ -273,6 +277,19 @@ void Renderer::TransitToPresent()
 	m_Device->GetCommandList()->ResourceBarrier(1, &renderToPresent);
 }
 
+ID3D12PipelineState* Renderer::SetPSO(int32_t Selected)
+{
+	switch (Selected)
+	{
+	case 0: 
+		return m_ModelPipelineState.Get();
+	case 1:
+		return m_PBRPipelineState.Get();
+	default:
+		return m_ModelPipelineState.Get();
+	}
+}
+
 void Renderer::CreateDepthStencil()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC dsHeap{};
@@ -312,11 +329,27 @@ void Renderer::CreateDepthStencil()
 	m_DepthStencil.Get()->SetName(L"Depth Stencil");
 }
 
+void Renderer::SwitchPSO()
+{
+	ImGui::Begin("PSO");
+
+	const std::array<const char*, 2> PSOs{
+		"Normal Mapping",
+		"PBR"
+	};
+
+	ImGui::ListBox("PSO", &Renderer::m_SelectedPSO, PSOs.data(), static_cast<int32_t>(PSOs.size()));
+	ImGui::Text("Index: %d", m_SelectedPSO);
+
+	ImGui::End();
+}
+
 void Renderer::InitModelPipeline()
 {
 	//m_VertexShader->Create(L"Assets/Shaders/VS_GLTF.hlsl");
 	m_VertexShader->Create("Assets/Shaders/VS_GLTF.hlsl", "VS", "vs_5_1");
 	m_PixelShader->Create("Assets/Shaders/Normal_Mapping_Pixel.hlsl", "PS", "ps_5_1");
+	//m_PixelShader->Create("Assets/Shaders/PBR_Pixel.hlsl", "PS", "ps_5_1");
 	//m_PixelShader->Create("Assets/Shaders/Specular_Mapping_Pixel.hlsl", "PS", "ps_5_1");
 	//m_PixelShader->Create( L"Assets/Shaders/PS_GLTF.hlsl");
 	//m_PixelShader->Create( L"Assets/Shaders/Outline_Pixel.hlsl");
@@ -372,6 +405,13 @@ void Renderer::InitModelPipeline()
 
 	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_ModelPipelineState.GetAddressOf())));
 	m_ModelPipelineState.Get()->SetName(L"ModelPipelineState");
+
+	// PBR State
+	m_PixelPBR->Create("Assets/Shaders/PBR_Pixel.hlsl", "PS", "ps_5_1");
+	pipelineStateDesc.PS = CD3DX12_SHADER_BYTECODE(m_PixelPBR->GetData());
+	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_PBRPipelineState.GetAddressOf())));
+	m_PBRPipelineState.Get()->SetName(L"PBRPipelineState");
+
 
 	// Skybox pipeline
 	// Gotta dispatch compute shader irradiance calculations before actual rendering
