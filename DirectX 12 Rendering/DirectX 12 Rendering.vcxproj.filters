@@ -78,6 +78,9 @@
     <ClCompile Include="Source\Core\ComputePipelineState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Graphics\ImageBasedLighting.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd-party\d3dx12.h">
@@ -176,6 +179,9 @@
     <ClInclude Include="Source\Core\ComputePipelineState.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Graphics\ImageBasedLighting.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\VS_Triangle.hlsl" />
@@ -184,26 +190,29 @@
     <FxCompile Include="Assets\Shaders\VS_Texture.hlsl" />
     <FxCompile Include="Assets\Shaders\VS_CB.hlsl" />
     <FxCompile Include="Assets\Shaders\PS_CB.hlsl" />
-    <FxCompile Include="Assets\Shaders\VS_GLTF.hlsl" />
+    <FxCompile Include="Assets\Shaders\Global_Vertex.hlsl" />
     <FxCompile Include="Assets\Shaders\PS_GLTF.hlsl" />
     <FxCompile Include="Assets\Shaders\Normal_Mapping_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\Light\Directional_Light.hlsl" />
     <FxCompile Include="Assets\Shaders\Light\Point_Light.hlsl" />
     <FxCompile Include="Assets\Shaders\Light\Specular_Light.hlsl" />
     <FxCompile Include="Assets\Shaders\PBR_Pixel.hlsl" />
-    <FxCompile Include="Assets\Shaders\Skybox_PS.hlsl" />
-    <FxCompile Include="Assets\Shaders\Skybox_VS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Sky\Skybox_PS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Sky\Skybox_VS.hlsl" />
     <FxCompile Include="Assets\Shaders\Outline_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\Specular_Mapping_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\Mipmap_CS.hlsl" />
     <FxCompile Include="Assets\Shaders\Blinn-Phong.hlsl" />
-    <FxCompile Include="Assets\Shaders\IBL_PS.hlsl" />
-    <FxCompile Include="Assets\Shaders\IBL_VS.hlsl" />
-    <FxCompile Include="Assets\Shaders\IBL_Draw_PS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Sky\IBL_PS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Sky\IBL_VS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Sky\IBL_Draw_PS.hlsl" />
     <FxCompile Include="Assets\Shaders\Compute\CS_Test.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
-    <FxCompile Include="Assets\Shaders\EqurectangluarToCube.hlsl" />
+    <FxCompile Include="Assets\Shaders\Sky\EqurectangluarToCube.hlsl" />
+    <FxCompile Include="Assets\Shaders\PBR_Pixel_2.hlsl" />
+    <FxCompile Include="Assets\Shaders\Global\GBuffer_Vertex.hlsl" />
+    <FxCompile Include="Assets\Shaders\Global\GBuffer_Pixel.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
