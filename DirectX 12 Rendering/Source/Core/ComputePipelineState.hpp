@@ -13,7 +13,6 @@
 class ComputePipelineState
 {
 public:
-
     void Create(Device* pDevice, const Shader& ComputeShader)
     {
         CreateRootSignature(pDevice->GetDevice());
@@ -46,7 +45,7 @@ public:
     {
         std::array<CD3DX12_DESCRIPTOR_RANGE1, 2> ranges{};
         // Input texture
-        ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
+        ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, 0);
         // Output texture - prefiltered
         ranges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 
@@ -66,6 +65,26 @@ public:
         ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1_1, signature.GetAddressOf(), error.GetAddressOf()));
         ThrowIfFailed(pDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(m_RootSignature.ReleaseAndGetAddressOf())));
     }
+
+    static ID3D12RootSignature* CreateRootSignature(ID3D12Device4* pDevice, std::span<CD3DX12_DESCRIPTOR_RANGE1> Ranges, std::span<CD3DX12_ROOT_PARAMETER1> Parameters)
+    {
+        const auto staticSampler{ GraphicsPipelineState::CreateStaticSampler(0) };
+        const auto rootFlags{ GraphicsPipelineState::SetRootFlags() };
+
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
+        rootDesc.Init_1_1(static_cast<uint32_t>(Parameters.size()), Parameters.data(), 1, &staticSampler, rootFlags);
+
+        Microsoft::WRL::ComPtr<ID3DBlob> signature;
+        Microsoft::WRL::ComPtr<ID3DBlob> error;
+
+        ID3D12RootSignature* rootSignature{ nullptr };
+
+        ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1_1, signature.GetAddressOf(), error.GetAddressOf()));
+        ThrowIfFailed(pDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
+
+        return rootSignature;
+    }
+
 
     //void Dispatch()
 
