@@ -10,7 +10,6 @@ struct PS_INPUT
     float3 TexCoord : TEXCOORD;
 };
 
-
 static const float PI = 3.14159265359f;
 static const float2 invAtan = float2(0.1591f, 0.3183f);
 // Converting equirectangular map (spherical) into cube format
@@ -70,7 +69,7 @@ float4 Prefilter(PS_INPUT pin)
 const static float4 filteredTexture = Prefilter(pin);
 
 
-float4 PS() : SV_TARGET
+float4 main() : SV_TARGET
 {
     float2 uv = EquirectangularToCube(normalize(pin.TexCoord));
     //float3 skyTexture = skyboxTexture.Sample(filteredTexture, uv).rgb;

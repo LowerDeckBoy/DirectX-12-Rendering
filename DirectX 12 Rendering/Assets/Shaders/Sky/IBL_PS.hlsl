@@ -29,7 +29,7 @@ SamplerState texSampler : register(s0);
 //https://learnopengl.com/PBR/IBL/Diffuse-irradiance
 //float4 PS(PS_INPUT pin) : SV_TARGET
 [numthreads(8, 8, 1)]
-float4 CS(PS_INPUT pin)
+float4 main(PS_INPUT pin)
 {
     float2 uv = EquirectangularToCube(normalize(pin.TexCoord));
     //float3 skyTexture = skyboxTexture.Sample(texSampler, uv).rgb;

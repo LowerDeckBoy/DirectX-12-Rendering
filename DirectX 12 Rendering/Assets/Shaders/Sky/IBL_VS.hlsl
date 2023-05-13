@@ -19,7 +19,7 @@ struct VS_OUTPUT
     float3 TexCoord : TEXCOORD;
 };
 
-VS_OUTPUT VS(VS_INPUT vin)
+VS_OUTPUT main(VS_INPUT vin)
 {
     VS_OUTPUT output = (VS_OUTPUT) 0;
     output.Position = mul(WVP, float4(vin.Position, 1.0f)).xyzw;

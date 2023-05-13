@@ -25,7 +25,7 @@ float2 EquirectangularToCube(float3 v)
 Texture2D skyboxTexture : register(t0);
 SamplerState texSampler : register(s0);
 
-float4 PS(PS_INPUT pin) : SV_TARGET
+float4 main(PS_INPUT pin) : SV_TARGET
 {
     float2 uv = EquirectangularToCube(normalize(pin.TexCoord));
     float3 skyTexture = skyboxTexture.Sample(texSampler, uv).rgb;

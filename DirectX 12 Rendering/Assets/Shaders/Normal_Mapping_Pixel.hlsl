@@ -4,11 +4,11 @@ cbuffer cbMaterial : register(b0)
     float4 Ambient;
     float3 Diffuse;
     float padding;
-    float3 Specular;
-    float SpecularIntensity;
     float3 Direction;
     float padding2;
-    float4 padding3[12];
+    float3 CameraPosition;
+    float padding3;
+    float4 padding4[12];
 };
 
 struct PS_Input
@@ -29,7 +29,7 @@ Texture2D emissiveTexture   : register(t3);
 
 SamplerState baseSampler : register(s0);
 
-float4 PS(PS_Input pin) : SV_TARGET
+float4 main(PS_Input pin) : SV_TARGET
 {
     float4 baseColor = baseTexture.Sample(baseSampler, pin.TexCoord) * Ambient;
     if (baseColor.a < 0.1f)

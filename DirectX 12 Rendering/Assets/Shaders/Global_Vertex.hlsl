@@ -32,7 +32,7 @@ struct VS_Output
     float3 Bitangent     : BITANGENT;
 };
 
-VS_Output VS(VS_Input vin)
+VS_Output main(VS_Input vin)
 {
     VS_Output output = (VS_Output) 0;
     
