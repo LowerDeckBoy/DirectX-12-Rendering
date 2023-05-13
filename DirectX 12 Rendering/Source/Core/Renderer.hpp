@@ -22,13 +22,6 @@ class Camera;
 
 using namespace DirectX;
 
-struct cBuffer
-{
-	DirectX::XMFLOAT4 Offset;
-	float padding[60];
-};
-
-
 //: public Device
 class Renderer 
 {
@@ -76,6 +69,7 @@ private:
 	std::unique_ptr<Shader> m_VertexShader{ std::make_unique<Shader>() };
 	std::unique_ptr<Shader> m_PixelShader{ std::make_unique<Shader>() };
 	std::unique_ptr<Shader> m_PixelPBR{ std::make_unique<Shader>() };
+	std::unique_ptr<Shader> m_PixelPBR2{ std::make_unique<Shader>() };
 
 	// DepthStencil
 	inline ID3D12DescriptorHeap* GetDepthHeap() const { return m_DepthHeap.Get(); };
@@ -90,6 +84,7 @@ private:
 	// PSO
 	ComPtr<ID3D12PipelineState> m_ModelPipelineState;
 	ComPtr<ID3D12PipelineState> m_PBRPipelineState;
+	ComPtr<ID3D12PipelineState> m_PBRPipelineStatePoints;
 	static inline int m_SelectedPSO = 0;
 	//TEST
 	void SwitchPSO();

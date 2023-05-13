@@ -22,6 +22,8 @@ public:
 	Texture(Device* pDevice, const std::string& TexturePath, const std::string& TextureName);
 	~Texture();
 
+	// Determine texture loader based on input file extension
+	void Create(Device* pDevice, const std::string& TexturePath);
 	// No mipmapping variant
 	//void Create(Device* pDevice, const std::string& TexturePath);
 	// With mipmapping
@@ -33,6 +35,8 @@ public:
 	// by default without prefiltering
 	void CreateFromHDR(Device* pDevice, const std::string& TexturePath);
 
+	void CreateUAV(ID3D12Resource* pTexture, uint32_t MipSlice = 0);
+
 	//void CreateFromHDR(Device* pDevice, const std::string& TexturePath, bool bPrefilter);
 
 	void SetName(const std::string& NewName) { m_TextureName = NewName; }
@@ -43,8 +47,8 @@ public:
 	const D3D12_GPU_VIRTUAL_ADDRESS GetTextureGPUAddress() const { return m_Texture.Get()->GetGPUVirtualAddress(); }
 	std::string_view GetName() const { return m_TextureName.data(); }
 
-
 	Descriptor m_Descriptor;
+	Descriptor m_DescriptorUAV;
 
 private:
 	Device* m_Device{ nullptr };

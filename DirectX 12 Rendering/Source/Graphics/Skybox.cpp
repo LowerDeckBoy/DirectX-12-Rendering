@@ -20,7 +20,8 @@ void Skybox::Create(Device* pDevice)
 	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/fantasy_landscape_nightsky.hdr");
 	//m_Texture->CreateDDS(pDevice, "Assets/Textures/SunSubMixer_diffuseIBL.dds");
 
-
+	// Add compute shader here
+	// EqurectangluarToCube.hlsl
 }
 
 void Skybox::Draw(Camera* pCamera)
@@ -33,7 +34,7 @@ void Skybox::Draw(Camera* pCamera)
 	m_ConstBuffer->Update({ XMMatrixTranspose(m_WorldMatrix * pCamera->GetViewProjection()),
 								XMMatrixTranspose(XMMatrixIdentity()) });
 	m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(0, m_ConstBuffer->GetBuffer()->GetGPUVirtualAddress());
-	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(3, m_Texture->m_Descriptor.GetGPU());
+	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(4, m_Texture->m_Descriptor.GetGPU());
 
 	m_Device->GetCommandList()->DrawIndexedInstanced(m_IndexBuffer->GetSize(), 1, 0, 0, 0);
 }

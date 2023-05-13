@@ -199,7 +199,8 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 			if (material->GetTexture(aiTextureType_DIFFUSE, i, &materialPath) == aiReturn_SUCCESS)
 			{
 				auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-				newMaterial->BaseColorTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+				//newMaterial->BaseColorTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+				newMaterial->BaseColorTexture = new Texture(m_Device, texPath);
 				std::string path{ "Loaded: " + texPath + '\n' };
 				::OutputDebugStringA(path.c_str());
 			}
@@ -214,7 +215,8 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 		if (material->GetTexture(aiTextureType_NORMALS, i, &materialPath) == aiReturn_SUCCESS)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-			newMaterial->NormalTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+			//newMaterial->NormalTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+			newMaterial->NormalTexture = new Texture(m_Device, texPath);
 			std::string path{ "Loaded: " + texPath + '\n' };
 			::OutputDebugStringA(path.c_str());
 		}
@@ -228,7 +230,7 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 		if (material->GetTexture(aiTextureType_METALNESS, i, &materialPath) == aiReturn_SUCCESS)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-			newMaterial->MetallicRoughnessTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+			newMaterial->MetallicRoughnessTexture = new Texture(m_Device, texPath);
 			std::string path{ "Loaded: " + texPath + '\n' };
 			::OutputDebugStringA(path.c_str());
 		}
@@ -242,7 +244,7 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 		if (material->GetTexture(aiTextureType_EMISSIVE, i, &materialPath) == aiReturn_SUCCESS)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-			newMaterial->EmissiveTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+			newMaterial->EmissiveTexture = new Texture(m_Device, texPath);
 			std::string path{ "Loaded: " + texPath + '\n' };
 			::OutputDebugStringA(path.c_str());
 		}
@@ -250,7 +252,5 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 			::OutputDebugStringA("ERROR: FAILED TO GET EMISSIVE TEXTURE!");
 	}
 
-
-	
 	m_Materials.emplace_back(newMaterial);
 }

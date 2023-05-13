@@ -39,8 +39,6 @@ public:
 
 	void Release() { }
 
-
-
 private:
 	Microsoft::WRL::ComPtr<ID3DBlob> Blob;
 	Microsoft::WRL::ComPtr<ID3DBlob> Error;
@@ -92,7 +90,13 @@ private:
 class Shader
 {
 public:
-	void Create(const std::string_view& Filepath, const std::string_view& Entrypoint, const std::string_view& Target, ID3DInclude* pInclude = nullptr)
+	Shader() {}
+	Shader(const std::string_view& Filepath, const std::string_view& Target, const std::string_view& Entrypoint = "main", ID3DInclude* pInclude = nullptr)
+	{
+		Create(Filepath, Target, Entrypoint, pInclude);
+	}
+
+	void Create(const std::string_view& Filepath, const std::string_view& Target, const std::string_view& Entrypoint = "main", ID3DInclude* pInclude = nullptr)
 	{
 		if (bIsInitialized)
 			return;
@@ -122,7 +126,6 @@ public:
 
 	[[nodiscard]]
 	inline ID3DBlob* GetData() const { return Blob.Get(); }
-
 
 private:
 	Microsoft::WRL::ComPtr<ID3DBlob> Blob;

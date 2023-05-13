@@ -21,10 +21,16 @@ struct cbMaterial
 {
 	XMFLOAT4 Ambient				{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
 	alignas(16) XMFLOAT3 Diffuse	{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
-	XMFLOAT3 Specular				{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
-	float SpecularIntensity			{ 32.0f };
 	alignas(16) XMFLOAT3 Direction	{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
+	alignas(16) XMFLOAT3 CameraPosition	{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
 	XMFLOAT4 padding[13];
+};
+
+struct cbLights
+{
+	std::array<XMFLOAT4, 4> LightPositions;
+	std::array<XMFLOAT4, 4> LightColors;
+	float padding[32];
 };
 
 struct cb_pbrMaterial

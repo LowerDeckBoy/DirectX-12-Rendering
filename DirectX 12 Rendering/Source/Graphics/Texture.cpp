@@ -17,6 +17,11 @@ Texture::Texture()
 
 Texture::Texture(Device* pDevice, const std::string& TexturePath)
 {
+	Create(pDevice, TexturePath);
+}
+
+Texture::Texture(Device* pDevice, const std::string& TexturePath, bool bSkyboxHDR)
+{
 	if (files::GetExtension(TexturePath) == ".dds")
 	{
 		CreateFromDDS(pDevice, TexturePath);
@@ -31,10 +36,6 @@ Texture::Texture(Device* pDevice, const std::string& TexturePath)
 	}
 }
 
-Texture::Texture(Device* pDevice, const std::string& TexturePath, bool bSkyboxHDR)
-{
-}
-
 Texture::Texture(Device* pDevice, const std::string& TexturePath, const std::string& TextureName)
 {
 	CreateFromWIC(pDevice, TexturePath);
@@ -45,6 +46,22 @@ Texture::~Texture()
 {
 	m_Device = nullptr;
 }
+void Texture::Create(Device* pDevice, const std::string& TexturePath)
+{
+	if (files::GetExtension(TexturePath) == ".dds")
+	{
+		CreateFromDDS(pDevice, TexturePath);
+	}
+	else if (files::GetExtension(TexturePath) == ".hdr")
+	{
+		CreateFromHDR(pDevice, TexturePath);
+	}
+	else
+	{
+		CreateFromWIC(pDevice, TexturePath);
+	}
+}
+
 /*
 void Texture::Create(Device* pDevice, const std::string& TexturePath)
 {
@@ -277,7 +294,7 @@ void Texture::CreateFromDDS(Device* pDevice, const std::string& TexturePath)
 
 	m_Texture->SetName(L"Texture SRV");
 }
-/*
+
 void Texture::CreateFromHDR(Device* pDevice, const std::string& TexturePath)
 {
 	assert(m_Device = pDevice);
@@ -353,20 +370,21 @@ void Texture::CreateFromHDR(Device* pDevice, const std::string& TexturePath)
 	m_Texture->SetName(L"HDR Texture SRV");
 
 }
-*/
+
 
 // https://github.com/mateeeeeee/Adria-DX12/blob/master/Adria/Rendering/TextureManager.cpp
 // https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-object-rwtexture2d
 // http://www.codinglabs.net/tutorial_compute_shaders_filters.aspx
+/*
 void Texture::CreateFromHDR(Device* pDevice, const std::string& TexturePath)
 {
 	assert(m_Device = pDevice);
 
-	DirectX::ScratchImage* scratchImage{ new DirectX::ScratchImage() };
 	//const wchar_t* path{ ToWchar(TexturePath) };
 	std::wstring wpath = std::wstring(TexturePath.begin(), TexturePath.end());
 	const wchar_t* path = wpath.c_str();
 
+	DirectX::ScratchImage* scratchImage{ new DirectX::ScratchImage() };
 	DirectX::LoadFromHDRFile(path, nullptr, *scratchImage);
 
 	DirectX::TexMetadata metadata{ scratchImage->GetMetadata() };
@@ -378,7 +396,7 @@ void Texture::CreateFromHDR(Device* pDevice, const std::string& TexturePath)
 	cubeDesc.MipLevels = 1;
 	cubeDesc.DepthOrArraySize = metadata.IsCubemap() ? static_cast<uint16_t>(metadata.arraySize) : static_cast<uint16_t>(metadata.depth);
 	cubeDesc.SampleDesc = { 1, 0 };
-	cubeDesc.Flags = D3D12_RESOURCE_FLAG_NONE | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	cubeDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	if (metadata.dimension == DirectX::TEX_DIMENSION_TEXTURE1D)
 		cubeDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
@@ -388,12 +406,11 @@ void Texture::CreateFromHDR(Device* pDevice, const std::string& TexturePath)
 		cubeDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
 
 	ID3D12Resource* cubeTexture{ nullptr };
-
 	auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
 	ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&cubeDesc,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_PPV_ARGS(&cubeTexture)));
 
@@ -405,51 +422,31 @@ void Texture::CreateFromHDR(Device* pDevice, const std::string& TexturePath)
 	//ThrowIfFailed(pDevice->GetDevice()->CreateUnorderedAccessView(m_UavView.Get(), nullptr, &uavDesc, m_Descriptor.GetCPU()));
 	//const uint64_t bufferSize{ GetRequiredIntermediateSize(m_Texture.Get(), 0, 1) };
 
+	ID3D12DescriptorHeap* heaps[] = { m_Device->m_cbvDescriptorHeap.GetHeap() };
+	m_Device->GetCommandList()->SetDescriptorHeaps(1, heaps);
+	Descriptor uavDescriptor;
+	m_Device->m_cbvDescriptorHeap.Allocate(uavDescriptor);
+
+	const auto commonToUAV{ CD3DX12_RESOURCE_BARRIER::Transition(cubeTexture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS) };
+	pDevice->GetCommandList()->ResourceBarrier(1, &commonToUAV);
+	m_Device->GetDevice()->CreateUnorderedAccessView(cubeTexture, nullptr, &uavDesc, uavDescriptor.GetCPU());
+
 	D3D12_RESOURCE_DESC equirectDesc{};
 	equirectDesc.Format = metadata.format;
 	equirectDesc.Width = static_cast<uint32_t>(metadata.width);
 	equirectDesc.Height = static_cast<uint32_t>(metadata.height);
 	equirectDesc.MipLevels = 1;
-	equirectDesc.DepthOrArraySize = metadata.IsCubemap() ? static_cast<uint16_t>(metadata.arraySize) : static_cast<uint16_t>(metadata.depth);
 	equirectDesc.SampleDesc = { 1, 0 };
 	equirectDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	equirectDesc.Dimension = cubeDesc.Dimension;
+	equirectDesc.DepthOrArraySize = metadata.IsCubemap() ? static_cast<uint16_t>(metadata.arraySize) : static_cast<uint16_t>(metadata.depth);
 
-	ID3D12Resource* equirectTex{ nullptr };
 	ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&equirectDesc,
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		nullptr,
 		IID_PPV_ARGS(&m_Texture)));
-
-	D3D12_RESOURCE_BARRIER barriers[] = {
-		CD3DX12_RESOURCE_BARRIER::Transition(cubeTexture, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
-		CD3DX12_RESOURCE_BARRIER::Transition(m_Texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE)
-	};
-	m_Device->GetCommandList()->ResourceBarrier(_countof(barriers), barriers);
-
-	ID3D12DescriptorHeap* heaps[] = { m_Device->m_cbvDescriptorHeap.GetHeap() };
-	m_Device->GetCommandList()->SetDescriptorHeaps(1, heaps);
-	m_Device->m_cbvDescriptorHeap.Allocate(m_Descriptor);
-	// set compute pipeline
-	Shader computeShader;
-	//computeShader.Create("Assets/Shaders/Compute/CS_Test.hlsl", "CS", "cs_5_1");
-	computeShader.Create("Assets/Shaders/EqurectangluarToCube.hlsl", "CS", "cs_5_1");
-
-	ComputePipelineState computePipeline;
-	computePipeline.Create(pDevice, computeShader);
-	m_Device->GetCommandList()->SetComputeRootSignature(computePipeline.GetRootSignature());
-	m_Device->GetCommandList()->SetPipelineState(computePipeline.GetPipelineState());
-
-	m_Device->GetCommandList()->SetComputeRootDescriptorTable(0, m_Descriptor.GetGPU());
-
-	m_Device->GetCommandList()->Dispatch(8, 8, 1);
-
-	const auto barrier{ CD3DX12_RESOURCE_BARRIER::Transition(cubeTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-																		  D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE) };
-
-	pDevice->GetCommandList()->ResourceBarrier(1, &barrier);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -458,10 +455,55 @@ void Texture::CreateFromHDR(Device* pDevice, const std::string& TexturePath)
 	srvDesc.Texture2D.MipLevels = equirectDesc.MipLevels;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 
+	m_Device->m_cbvDescriptorHeap.Allocate(m_Descriptor);
+
+	// set compute pipeline
+	Shader computeShader;
+	computeShader.Create("Assets/Shaders/Compute/CS_Test.hlsl", "cs_5_1");
+	//computeShader.Create("Assets/Shaders/EqurectangluarToCube.hlsl", "CS", "cs_5_1");
+
+	ComputePipelineState computePipeline;
+	computePipeline.Create(pDevice, computeShader);
+	m_Device->GetCommandList()->SetComputeRootSignature(computePipeline.GetRootSignature());
+	m_Device->GetCommandList()->SetPipelineState(computePipeline.GetPipelineState());
+
+	m_Device->GetCommandList()->SetComputeRootDescriptorTable(0, m_Descriptor.GetGPU());
+	m_Device->GetCommandList()->SetComputeRootDescriptorTable(1, uavDescriptor.GetGPU());
+
+	m_Device->GetCommandList()->Dispatch(8, 8, 1);
+
+	const auto copyToResourceBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(m_Texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) };
+	m_Device->GetCommandList()->ResourceBarrier(1, &copyToResourceBarrier);
+
 	m_Device->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_Descriptor.GetCPU());
 
 }
+*/
+void Texture::CreateUAV(ID3D12Resource* pTexture, uint32_t MipSlice)
+{
+	const auto desc{ pTexture->GetDesc() };
+	assert(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
+	m_Device->m_cbvDescriptorHeap.Allocate(m_DescriptorUAV);
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+	uavDesc.Format = desc.Format;
+	
+	if (desc.DepthOrArraySize > 1)
+	{
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+		uavDesc.Texture2DArray.MipSlice = MipSlice;
+		uavDesc.Texture2DArray.FirstArraySlice = 0;
+		uavDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+	}
+	else
+	{
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		uavDesc.Texture2D.MipSlice = MipSlice;
+	}
+
+	m_Device->GetDevice()->CreateUnorderedAccessView(m_UavView.Get(), nullptr, &uavDesc, m_DescriptorUAV.GetCPU());
+}
 
 void Texture::Release()
 {

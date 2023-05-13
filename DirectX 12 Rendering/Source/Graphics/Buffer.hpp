@@ -1,7 +1,9 @@
 #pragma once
+
 //#include "Vertex.hpp"
 #include "../Utils/Utils.hpp"
-//#include "../Core/Device.hpp"
+#include "../Core/Device.hpp"
+
 
 template<typename T>
 class VertexBuffer

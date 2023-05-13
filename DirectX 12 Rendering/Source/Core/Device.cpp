@@ -49,9 +49,10 @@ void Device::CreateDevice()
 			continue;
 
 		if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
+		{
+			SafeRelease(adapter);
 			break;
-
-		SafeRelease(adapter);
+		}
 	}
 
 	if (!adapter)

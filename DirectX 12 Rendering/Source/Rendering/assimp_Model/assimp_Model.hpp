@@ -21,6 +21,7 @@ private:
 
 	std::unique_ptr<VertexBuffer<Vertex>> m_VertexBuffer;
 	std::unique_ptr<IndexBuffer> m_IndexBuffer;
+	//
 	std::unique_ptr<ConstantBuffer<cbPerObject>> m_ConstBuffer;
 	cbPerObject m_cbData{};
 	std::unique_ptr<ConstantBuffer<cbCamera>> m_cbCamera;
@@ -28,7 +29,12 @@ private:
 	// Data for light shading
 	std::unique_ptr<ConstantBuffer<cbMaterial>> m_cbLight;
 	cbMaterial m_cbLightData{};
-		
+
+	// Const buffer for light positions and colors -> PBR
+	std::unique_ptr<ConstantBuffer<cbLights>> m_cbPointLights;
+	cbLights m_cbPointLightsData{};
+
+
 protected:
 	// Transforms
 	void UpdateWorld();
@@ -47,6 +53,17 @@ protected:
 	std::array<float, 3> m_Specular	{ 1.0f, 1.0f, 1.0f };
 	float m_SpecularIntensity		{ 32.0f };
 	std::array<float, 3> m_Direction{ 1.0f, 1.0f, 1.0f };
+
+	// TEST 
+	//Light positions
+	std::array<XMFLOAT4, 4> m_LightPositions;
+	std::array<std::array<float, 4>, 4> m_LightPositionsFloat;
+	std::array<XMFLOAT4, 4> m_LightColors;
+	std::array<std::array<float, 4>, 4> m_LightColorsFloat;
+	void DoLights();
+	void UpdateLights();
+	void ResetLights();
+
 
 };
 

@@ -37,7 +37,7 @@ void Renderer::Initialize(Camera& refCamera)
 void Renderer::LoadAssets()
 {
 	//m_Model.Create(m_Device.get(), "Assets/glTF/sponza/scene.gltf");
-	//m_Model.Create(m_Device.get(), "Assets/glTF/damaged_helmet/scene.gltf");
+	m_Model.Create(m_Device.get(), "Assets/glTF/damaged_helmet/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/resto_ni_teo/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/ice_cream_man/scene.gltf");
 	//m_Model.Create(m_Device.get(), "Assets/glTF/lizard_mage/scene.gltf");
@@ -135,14 +135,15 @@ void Renderer::RecordCommandLists(uint32_t CurrentFrame, Camera* pCamera)
 	// RTV and Depth
 	SetRenderTarget();
 	
-	//m_Model.Draw(pCamera);
-	//m_Model.DrawGUI();
+	m_Model.Draw(pCamera);
+	m_Model.DrawGUI();
+	SwitchPSO();
 
 	m_Device->GetCommandList()->SetPipelineState(m_SkyboxPipelineState.Get());
 	m_Device->GetCommandList()->SetGraphicsRootSignature(m_SkyboxRootSignature.Get());
 	m_Skybox.Draw(pCamera);
+	
 
-	SwitchPSO();
 	m_GUI->End(m_Device->GetCommandList());
 
 	TransitToPresent();
@@ -285,6 +286,8 @@ ID3D12PipelineState* Renderer::SetPSO(int32_t Selected)
 		return m_ModelPipelineState.Get();
 	case 1:
 		return m_PBRPipelineState.Get();
+	case 2:
+		return m_PBRPipelineStatePoints.Get();
 	default:
 		return m_ModelPipelineState.Get();
 	}
@@ -333,9 +336,10 @@ void Renderer::SwitchPSO()
 {
 	ImGui::Begin("PSO");
 
-	const std::array<const char*, 2> PSOs{
+	const std::array<const char*, 3> PSOs{
 		"Normal Mapping",
-		"PBR"
+		"PBR",
+		"Test"
 	};
 
 	ImGui::ListBox("PSO", &Renderer::m_SelectedPSO, PSOs.data(), static_cast<int32_t>(PSOs.size()));
@@ -347,8 +351,8 @@ void Renderer::SwitchPSO()
 void Renderer::InitModelPipeline()
 {
 	//m_VertexShader->Create(L"Assets/Shaders/VS_GLTF.hlsl");
-	m_VertexShader->Create("Assets/Shaders/VS_GLTF.hlsl", "VS", "vs_5_1");
-	m_PixelShader->Create("Assets/Shaders/Normal_Mapping_Pixel.hlsl", "PS", "ps_5_1");
+	m_VertexShader->Create("Assets/Shaders/Global_Vertex.hlsl", "vs_5_1");
+	m_PixelShader->Create("Assets/Shaders/Normal_Mapping_Pixel.hlsl", "ps_5_1");
 	//m_PixelShader->Create("Assets/Shaders/PBR_Pixel.hlsl", "PS", "ps_5_1");
 	//m_PixelShader->Create("Assets/Shaders/Specular_Mapping_Pixel.hlsl", "PS", "ps_5_1");
 	//m_PixelShader->Create( L"Assets/Shaders/PS_GLTF.hlsl");
@@ -364,26 +368,31 @@ void Renderer::InitModelPipeline()
 	}
 
 	// TODO: move ranges and params into GraphicsPipelineState class
-	std::array<CD3DX12_DESCRIPTOR_RANGE1, 7> ranges{};
+	std::array<CD3DX12_DESCRIPTOR_RANGE1, 8> ranges{};
 	// Vertex Constant Buffer
 	ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 	ranges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 	// Pixel Constant Buffer
 	ranges.at(2).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(3).Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 	// Textures
-	ranges.at(3).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-	ranges.at(4).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-	ranges.at(5).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-	ranges.at(6).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(4).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(5).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(6).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+	ranges.at(7).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 	
-	std::array<CD3DX12_ROOT_PARAMETER1, 7> params{};
+	std::array<CD3DX12_ROOT_PARAMETER1, 8> params{};
+	// Vertex Constant Buffer
 	params.at(0).InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 	params.at(1).InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	// Pixel Constant Buffer
 	params.at(2).InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	params.at(3).InitAsDescriptorTable(1, &ranges.at(3), D3D12_SHADER_VISIBILITY_PIXEL);
+	params.at(3).InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	// Textures
 	params.at(4).InitAsDescriptorTable(1, &ranges.at(4), D3D12_SHADER_VISIBILITY_PIXEL);
 	params.at(5).InitAsDescriptorTable(1, &ranges.at(5), D3D12_SHADER_VISIBILITY_PIXEL);
 	params.at(6).InitAsDescriptorTable(1, &ranges.at(6), D3D12_SHADER_VISIBILITY_PIXEL);
+	params.at(7).InitAsDescriptorTable(1, &ranges.at(7), D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto rootFlags{ GraphicsPipelineState::SetRootFlags() };
 	auto staticSampler{ GraphicsPipelineState::CreateStaticSampler(0) };
@@ -406,23 +415,29 @@ void Renderer::InitModelPipeline()
 	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_ModelPipelineState.GetAddressOf())));
 	m_ModelPipelineState.Get()->SetName(L"ModelPipelineState");
 
-	// PBR State
-	m_PixelPBR->Create("Assets/Shaders/PBR_Pixel.hlsl", "PS", "ps_5_1");
+	// PBR State directional
+	m_PixelPBR->Create("Assets/Shaders/PBR_Pixel.hlsl", "ps_5_1");
 	pipelineStateDesc.PS = CD3DX12_SHADER_BYTECODE(m_PixelPBR->GetData());
 	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_PBRPipelineState.GetAddressOf())));
 	m_PBRPipelineState.Get()->SetName(L"PBRPipelineState");
 
+	// PBR State Points
+	m_PixelPBR2->Create("Assets/Shaders/PBR_Pixel_2.hlsl", "ps_5_1");
+	pipelineStateDesc.PS = CD3DX12_SHADER_BYTECODE(m_PixelPBR2->GetData());
+	ThrowIfFailed(m_Device->GetDevice()->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_PBRPipelineStatePoints.GetAddressOf())));
+	m_PBRPipelineState.Get()->SetName(L"PBRPipelineStatePoints");
 
+	
 	// Skybox pipeline
 	// Gotta dispatch compute shader irradiance calculations before actual rendering
-	m_ComputeShader->Create("Assets/Shaders/Compute/CS_Test.hlsl", "CS", "cs_5_1");
-	m_ComputePipelineState.Create(m_Device.get(), *m_ComputeShader);
+	//m_ComputeShader->Create("Assets/Shaders/Compute/CS_Test.hlsl", "cs_5_1");
+	//m_ComputePipelineState.Create(m_Device.get(), *m_ComputeShader);
 	//auto computeRootSignature{ }
 	//auto computeState{ ComputePipelineState::CreateState() }
 
 	auto skyboxLayout{ GraphicsPipelineState::CreateSkyboxInputLayout() };
-	m_SkyboxVS->Create("Assets/Shaders/Skybox_VS.hlsl", "VS", "vs_5_1");
-	m_SkyboxPS->Create("Assets/Shaders/Skybox_PS.hlsl", "PS", "ps_5_1");
+	m_SkyboxVS->Create("Assets/Shaders/Sky/Skybox_VS.hlsl", "vs_5_1");
+	m_SkyboxPS->Create("Assets/Shaders/Sky/Skybox_PS.hlsl", "ps_5_1");
 	//m_SkyboxPS->Create("Assets/Shaders/IBL_PS.hlsl", "PS", "ps_5_1");
 	//m_SkyboxPS->Create("Assets/Shaders/IBL_Draw_PS.hlsl", "PS", "ps_5_1");
 
