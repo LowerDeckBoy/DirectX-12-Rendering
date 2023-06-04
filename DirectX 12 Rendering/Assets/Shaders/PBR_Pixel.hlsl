@@ -10,10 +10,21 @@ cbuffer cbMaterial : register(b0)
     float padding2;
     float3 CameraPosition;
     float padding3;
-    //float Metallic;
-    //float Roughness;
-    //float2 padding4;
-    float4 padding5[11];
+
+    float4 BaseColorFactor;
+    float4 EmissiveFactor;
+
+    float MetallicFactor;
+    float RoughnessFactor;
+    float AlphaCutoff;
+    bool bDoubleSided;
+
+    bool bHasDiffuse;
+    bool bHasNormal;
+    bool bHasMetallic;
+    bool bHasEmissive;
+
+    float4 padding5[8];
 };
 
 cbuffer cbLights : register(b1)
@@ -33,13 +44,13 @@ static const float3 Fdielectric = 0.04f;
 
 struct PS_INPUT
 {
-    float4 Position : SV_POSITION;
+    float4 Position      : SV_POSITION;
     float4 WorldPosition : WORLD_POSITION;
     float3 ViewDirection : VIEW_DIRECTION;
-    float2 Texcoord : TEXCOORD;
-    float3 Normal : NORMAL;
-    float3 Tangent : TANGENT;
-    float3 Bitangent : BITANGENT;
+    float2 TexCoord      : TEXCOORD;
+    float3 Normal        : NORMAL;
+    float3 Tangent       : TANGENT;
+    float3 Bitangent     : BITANGENT;
 };
 
 float3 GetFresnelSchlick(float cosTheta, float3 F0)
@@ -107,64 +118,73 @@ SamplerState baseSampler : register(s0);
 
 float4 main(PS_INPUT pin) : SV_TARGET
 {
-    float4 baseColor = baseTexture.Sample(baseSampler, pin.Texcoord);
-    if (baseColor.a < 0.5f)
+    float4 baseColor = baseTexture.Sample(baseSampler, pin.TexCoord) * BaseColorFactor;
+    if (baseColor.a < AlphaCutoff)
         discard;
+    
+    baseColor = pow(baseColor, 2.2f);
     
     float3 tangent = normalize(pin.Tangent - dot(pin.Tangent, pin.Normal) * pin.Normal);
     float3 bitangent = cross(pin.Normal, tangent);
     float3x3 texSpace = float3x3(tangent, bitangent, pin.Normal);
     
-    float3 normalMap = normalize(2.0f * normalTexture.Sample(baseSampler, pin.Texcoord).rgb - 1.0f);
+    float3 normalMap = normalize(2.0f * normalTexture.Sample(baseSampler, pin.TexCoord).rgb - 1.0f);
     pin.Normal = normalize(mul(normalMap.xyz, texSpace));
     
-    float metalness = metallicRoughnessTexture.Sample(baseSampler, pin.Texcoord).r;
-    float roughness = metallicRoughnessTexture.Sample(baseSampler, pin.Texcoord).g;
+    float metalness = metallicRoughnessTexture.Sample(baseSampler, pin.TexCoord).b * MetallicFactor;
+    float roughness = metallicRoughnessTexture.Sample(baseSampler, pin.TexCoord).g * RoughnessFactor;
     
     float3 N = pin.Normal;
     float3 V = normalize(CameraPosition - pin.WorldPosition.xyz);
-    float3 _reflect = reflect(-V, N);
+    float3 reflection = reflect(-V, N);
     
+    float3 cosLo = max(0.0f, dot(N, V));
+    float3 Lr = 2.0f * cosLo * N - V;
+
     float3 F0 = float3(0.04f, 0.04f, 0.04f);
     F0 = lerp(F0, baseColor.xyz, metalness);
     
     // reflectance equation
     float3 Lo = float3(0.0f, 0.0f, 0.0f);
+    // TEST
+    for (int i = 0; i < LIGHTS; ++i)
+    {
+        float3 L = normalize(LightPositions[i].xyz - pin.WorldPosition.xyz);
+        float3 H = normalize(V + L);
+        
+        float distance = length(LightPositions[i].xyz - pin.WorldPosition.xyz);
+        float attenuation = 1.0f / (distance * distance);
+        float3 radiance = LightColors[i].rgb * attenuation * 1000.0f;
+        
+        float NdotV = max(dot(N, V), 0.0f);
+        float NdotH = max(dot(N, H), 0.0f);
+        float NdotL = max(dot(N, L), Epsilon);
+        
+        // Cook-Torrance BRDF
+        float NDF = GetDistributionGGX(N, H, roughness);
+        float G = GetGeometrySmith(N, V, L, roughness);
+        float3 F = GetFresnelSchlick(max(dot(H, V), 0.0f), F0);
+        
+        float3 kS = F;
+        float3 kD = float3(1.0f, 1.0f, 1.0f) - kS;
+        kD *= (1.0f - metalness);
+    
+        float3 numerator = NDF * G * F;
+        float denominator = 4.0f * NdotV * NdotL + Epsilon;
+        float3 specular = numerator / max(denominator, Epsilon);
+        // * Ambient.rgb
+        Lo += (kD * baseColor.rgb / PI + specular) * radiance * NdotL;
+    }
+   
+    float3 ambient = float3(0.03f, 0.03f, 0.03f) * baseColor.rgb * float3(1.0f, 1.0f, 1.0f);
+    float3 output = baseColor.rgb * (ambient + Lo);
 
-    // light radiance
-    // w/ Directional light
-    float3 L = normalize(Direction.xyz - pin.WorldPosition.xyz);
-    float3 H = normalize(V + L);
+    if (bHasEmissive)
+    {
+        float3 emissive = emissiveTexture.Sample(baseSampler, pin.TexCoord).rgb * EmissiveFactor.rgb;
+        output += emissive.rgb;
+    }
     
-    float NdotV = max(dot(N, V), 0.0f);
-    float NdotH = max(dot(N, H), 0.0f);
-    float NdotL = max(dot(N, L), Epsilon);
-    
-    float distance = length(Direction.xyz - pin.WorldPosition.xyz);
-    float attenuation = 1.0f / (distance * distance);
-    float3 radiance = Diffuse.rgb * attenuation;
-    
-    // Cook-Torrance BRDF
-    float NDF = GetDistributionGGX(N, H, roughness);
-    float G   = GetGeometrySmith(N, V, L, roughness);
-    float3 F  = GetFresnelSchlick(max(dot(H, V), 0.0f), F0);
-    
-    float3 kS = F;
-    float3 kD = float3(1.0f, 1.0f, 1.0f) - kS;
-    kD *= (1.0f - metalness);
-    
-    float3 numerator = NDF * G * F;
-    float denominator = 4.0f * NdotV * NdotL + Epsilon;
-    float3 specular = numerator / max(denominator, Epsilon);
-    
-    Lo += (kD * baseColor.rgb * Ambient.rgb / PI + specular) * radiance * NdotL;
-    
-    float3 emissive = emissiveTexture.Sample(baseSampler, pin.Texcoord).rgb * float3(1.0f, 1.0f, 1.0f);
-
-    float3 ambient = (kD * Diffuse * specular) * 1.0f;
-    
-    float3 output = (ambient + Lo) + emissive.rgb;
-
     // Gamma correction
     output = output / (output + float3(1.0f, 1.0f, 1.0f));
     output = lerp(output, pow(output, 1.0f / 2.2f), 0.4f);

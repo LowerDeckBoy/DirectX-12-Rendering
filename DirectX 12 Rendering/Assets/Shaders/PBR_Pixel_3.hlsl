@@ -44,13 +44,13 @@ static const float3 Fdielectric = 0.04f;
 
 struct PS_INPUT
 {
-    float4 Position         : SV_POSITION;
-    float4 WorldPosition    : WORLD_POSITION;
-    float3 ViewDirection    : VIEW_DIRECTION;
-    float2 TexCoord         : TEXCOORD;
-    float3 Normal           : NORMAL;
-    float3 Tangent          : TANGENT;
-    float3 Bitangent        : BITANGENT;
+    float4 Position : SV_POSITION;
+    float4 WorldPosition : WORLD_POSITION;
+    float3 ViewDirection : VIEW_DIRECTION;
+    float2 TexCoord : TEXCOORD;
+    float3 Normal : NORMAL;
+    float3 Tangent : TANGENT;
+    float3 Bitangent : BITANGENT;
 };
 
 float3 GetFresnelSchlick(float cosTheta, float3 F0)
@@ -109,10 +109,10 @@ float ndfGGX(float cosLh, float roughness)
     return sqAlpha / (PI * denom * denom);
 }
 
-Texture2D baseTexture               : register(t0);
-Texture2D normalTexture             : register(t1);
-Texture2D metallicRoughnessTexture  : register(t2);
-Texture2D emissiveTexture           : register(t3);
+Texture2D baseTexture : register(t0);
+Texture2D normalTexture : register(t1);
+Texture2D metallicRoughnessTexture : register(t2);
+Texture2D emissiveTexture : register(t3);
 
 Texture2D SkyTexture : register(t4);
 
@@ -150,12 +150,12 @@ float4 main(PS_INPUT pin) : SV_TARGET
     float3 N = pin.Normal;
     float3 V = normalize(CameraPosition - pin.WorldPosition.xyz);
 
-    //float3 reflection = -normalize(reflect(V, N));
-    float3 reflection = reflect(V, N);
+    float3 reflection = -normalize(reflect(V, N));
 
-    float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), baseColor.rgb, metalness); 
+    float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), baseColor.rgb, metalness);
     // reflectance equation
-    float3 sky = SkyTexture.SampleLevel(baseSampler, reflection.xz, 0).rgb;
+    //float3 sky = SkyTexture.SampleLevel(baseSampler, reflection.xz, 0).rgb;
+    float3 sky = SkyTexture.SampleLevel(baseSampler, reflection.xy, 0).rgb;
     //float3 sky = SkyTexture.SampleLevel(baseSampler, N.xz, 0).rgb;
     // TEST
     float3 Lo = float3(0.0f, 0.0f, 0.0f);
@@ -184,25 +184,31 @@ float4 main(PS_INPUT pin) : SV_TARGET
         float3 numerator = NDF * G * F;
         float denominator = 4.0f * NdotV * NdotL + Epsilon;
         float3 specular = numerator / max(denominator, Epsilon);
-        //saturate(sky) 
+        //
         Lo += (kD * baseColor.rgb / PI + specular) * radiance * NdotL;
     }
 
     float3 ambient = float3(0.03f, 0.03f, 0.03f) * baseColor.rgb * float3(1.0f, 1.0f, 1.0f);
-    //+ 
-    float3 skyoutput = lerp(baseColor.rgb, sky, Lo);
-    output = ((ambient + saturate(skyoutput) + Lo)) * baseColor.rgb;
-    //output = ((ambient + Lo)) * baseColor.rgb;
+    output = (ambient + Lo);
+    // * baseColor.rgb
+    if (metalness != 0.0f) {
+        //output *= baseColor.rgb + saturate(sky);
+        output += saturate(sky);
+    }
+    else {
+        //output *= baseColor.rgb;
+    }
+    //output = lerp(output.rgb, output.rgb, baseColor.rgb);
 
-    output = lerp(output.rgb, output.rgb, baseColor.rgb);
-    //output *= baseColor.rgb;
-    
-    //output *= baseColor.rgb;
     if (bHasEmissive)
     {
         float3 emissive = emissiveTexture.Sample(baseSampler, pin.TexCoord).rgb * EmissiveFactor.xyz;
         output += emissive;
     }
+
+    
+    output *= baseColor.rgb;
+    //output *= baseColor.rgb;
 
     // Gamma correction
     output = output / (output + float3(1.0f, 1.0f, 1.0f));

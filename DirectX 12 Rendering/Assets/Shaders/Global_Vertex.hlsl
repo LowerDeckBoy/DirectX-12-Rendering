@@ -21,6 +21,8 @@ struct VS_Input
     float3 Bitangent : BITANGENT;
 };
 
+//float3 Tangent       : TANGENT;
+//float3 Bitangent     : BITANGENT;
 struct VS_Output
 {
     float4 Position      : SV_POSITION;
@@ -28,8 +30,8 @@ struct VS_Output
     float3 ViewDirection : VIEW_DIRECTION;
     float2 TexCoord      : TEXCOORD;
     float3 Normal        : NORMAL;
-    float3 Tangent       : TANGENT;
-    float3 Bitangent     : BITANGENT;
+    float3 Tangent      : TANGENT;
+    float3 Bitangent    : BITANGENT;
 };
 
 VS_Output main(VS_Input vin)
