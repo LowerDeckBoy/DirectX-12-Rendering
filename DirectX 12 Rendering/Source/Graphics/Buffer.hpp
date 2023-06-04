@@ -1,99 +1,153 @@
 #pragma once
-
-//#include "Vertex.hpp"
-#include "../Utils/Utils.hpp"
+#include "Vertex.hpp"
+#include "../Utils/Utilities.hpp"
 #include "../Core/Device.hpp"
 
 
-template<typename T>
+enum class BufferType : uint8_t
+{
+	eVertex = 0,
+	eIndex,
+	eConstant
+};
+
+struct BufferData
+{
+	BufferData() {}
+	BufferData(void* pData, size_t Count, size_t Size) :
+		pData(pData), ElementsCount(static_cast<uint32_t>(Count)), Size(Size)
+	{ }
+
+	void*	 pData{ nullptr };
+	uint32_t ElementsCount{ 0 };
+	size_t	 Size{ 0 };
+	//BufferType TypeOf;
+};
+
+// Default properties
+// Properties:	Upload
+// Flags:		None
+// State:		Common
+// Format:		Unknown
+struct BufferDesc
+{
+	CD3DX12_HEAP_PROPERTIES HeapProperties{ D3D12_HEAP_TYPE_UPLOAD };
+	D3D12_RESOURCE_STATES	State{ D3D12_RESOURCE_STATE_COMMON };
+	D3D12_HEAP_FLAGS		HeapFlags{ D3D12_HEAP_FLAG_NONE };
+	DXGI_FORMAT				Format{ DXGI_FORMAT_UNKNOWN };
+};
+
+class Buffer
+{
+public:
+	void Create(Device* pDevice, BufferData Data, BufferDesc Desc)
+	{
+		m_DeviceCtx = pDevice;
+		m_BufferDesc = Desc;
+		m_BufferData = Data;
+
+		auto heapDesc{ CD3DX12_RESOURCE_DESC::Buffer(Data.Size) };
+
+		ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(
+			&Desc.HeapProperties,
+			Desc.HeapFlags,
+			&heapDesc,
+			Desc.State,
+			nullptr,
+			IID_PPV_ARGS(m_Buffer.GetAddressOf())));
+
+		MapMemory();
+
+		pDevice->GetMainHeap().Allocate(m_Descriptor);
+	}
+
+	void MapMemory()
+	{
+		uint8_t* pDataBegin{ nullptr };
+		CD3DX12_RANGE readRange(0, 0);
+		ThrowIfFailed(m_Buffer.Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin)));
+		std::memcpy(pDataBegin, m_BufferData.pData, m_BufferData.Size);
+		m_Buffer.Get()->Unmap(0, nullptr);
+	}
+
+	ID3D12Resource* GetBuffer() const
+	{
+		return m_Buffer.Get();
+	}
+
+	D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const
+	{
+		return m_Buffer.Get()->GetGPUVirtualAddress();
+	}
+
+	BufferDesc GetDesc() { return m_BufferDesc; }
+	BufferData GetData() { return m_BufferData; }
+
+	Descriptor m_Descriptor{};
+	Descriptor DescriptorSRV{};
+
+protected:
+	Device* m_DeviceCtx{ nullptr };
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_BufferUploadHeap;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_Buffer;
+
+	BufferDesc m_BufferDesc{};
+	BufferData m_BufferData{};
+};
+
 class VertexBuffer
 {
 public:
-	VertexBuffer() = default;
-	VertexBuffer(Device* pDevice, std::vector<T>& pData) { Create(pDevice, pData); }
-
-	void Create(Device* pDevice, std::vector<T>& pData)
+	VertexBuffer() {}
+	VertexBuffer(Device* pDevice, BufferData Data, BufferDesc Desc) 
 	{
-		size_t bufferSize{ sizeof(T) * pData.size() };
-		auto heapDesc{ CD3DX12_RESOURCE_DESC::Buffer(bufferSize) };
-
-		auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD) };
-		ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&heapProperties,
-						D3D12_HEAP_FLAG_NONE, &heapDesc,
-						D3D12_RESOURCE_STATE_GENERIC_READ,
-						nullptr,
-						IID_PPV_ARGS(Buffer.GetAddressOf())));
-		
-		uint8_t* pDataBegin{};
-		CD3DX12_RANGE readRange(0, 0);
-		ThrowIfFailed(Buffer.Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin)));
-		std::memcpy(pDataBegin, pData.data(), bufferSize);
-		Buffer.Get()->Unmap(0, nullptr);
-
-		BufferView.BufferLocation	= Buffer.Get()->GetGPUVirtualAddress();
-		BufferView.SizeInBytes		= static_cast<uint32_t>(bufferSize);
-		BufferView.StrideInBytes	= static_cast<uint32_t>(sizeof(T));
-
+		Buffer.Create(pDevice, Data, Desc); 
+		SetView();
 	}
 
-	[[nodiscard]]
-	inline ID3D12Resource* GetBuffer() const { return Buffer.Get(); }
+	Buffer Buffer;
+	D3D12_VERTEX_BUFFER_VIEW View{};
 
-	[[nodiscard]]
-	inline D3D12_VERTEX_BUFFER_VIEW& GetBufferView() { return BufferView; }
-
-
-private:
-	Microsoft::WRL::ComPtr<ID3D12Resource> BufferUploadHeap;
-	Microsoft::WRL::ComPtr<ID3D12Resource> Buffer;
-	D3D12_VERTEX_BUFFER_VIEW BufferView{};
-
+	void SetView()
+	{
+		View.BufferLocation	= this->Buffer.GetGPUAddress();
+		View.SizeInBytes	= static_cast<uint32_t>(this->Buffer.GetData().Size);
+		View.StrideInBytes	= static_cast<uint32_t>(this->Buffer.GetData().Size) / this->Buffer.GetData().ElementsCount;
+	}
 };
 
 class IndexBuffer
 {
 public:
-	IndexBuffer() = default;
-	IndexBuffer(Device* pDevice, std::vector<uint32_t>& pData) { Create(pDevice, pData); }
-
-	void Create(Device* pDevice, std::vector<uint32_t>& pData)
-	{
-		// indices count
-		BufferSize = static_cast<uint32_t>(pData.size());
-
-		size_t bufferSize = sizeof(uint32_t) * pData.size();
-		auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD)};
-		auto heapDesc{ CD3DX12_RESOURCE_DESC::Buffer(bufferSize) };
-		ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&heapProperties,
-					  D3D12_HEAP_FLAG_NONE,
-					  &heapDesc,
-					  D3D12_RESOURCE_STATE_GENERIC_READ,
-					  nullptr,
-					  IID_PPV_ARGS(&Buffer)));
-
-		uint8_t* pDataBegin{};
-		CD3DX12_RANGE readRange(0, 0);
-		ThrowIfFailed(Buffer.Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin)));
-		memcpy(pDataBegin, pData.data(), bufferSize);
-		Buffer.Get()->Unmap(0, nullptr);
-
-		BufferView.BufferLocation = Buffer->GetGPUVirtualAddress();
-		BufferView.Format = DXGI_FORMAT_R32_UINT;
-		BufferView.SizeInBytes = static_cast<uint32_t>(bufferSize);
+	IndexBuffer() {}
+	IndexBuffer(Device* pDevice, BufferData Data, BufferDesc Desc)
+	{ 
+		Buffer.Create(pDevice, Data, Desc);
+		SetView();
 	}
 
+	Buffer Buffer;
+	D3D12_INDEX_BUFFER_VIEW View{};
+	uint32_t Count{ 0 };
 
-	[[nodiscard]]
-	inline ID3D12Resource* GetBuffer() const { return Buffer.Get(); }
+	void SetView()
+	{
+		View.BufferLocation = this->Buffer.GetGPUAddress();
+		View.Format			= DXGI_FORMAT_R32_UINT;
+		View.SizeInBytes	= static_cast<uint32_t>(this->Buffer.GetData().Size);
+		Count				= this->Buffer.GetData().ElementsCount;
+	}
+};
 
-	[[nodiscard]]
-	inline D3D12_INDEX_BUFFER_VIEW& GetBufferView() { return BufferView; }
+class BufferUtils
+{
+public:
+	//static BufferDesc DefaultDesc();
+	//static BufferDesc UploadDesc();
 
-	[[nodiscard]]
-	inline uint32_t GetSize() const { return BufferSize; }
+	//static ID3D12Resource* CreateSRV();
+	//static ID3D12Resource* CreateUAV();
 
-private:
-	Microsoft::WRL::ComPtr<ID3D12Resource> Buffer;
-	D3D12_INDEX_BUFFER_VIEW BufferView;
-	uint32_t BufferSize{};
+
 };
