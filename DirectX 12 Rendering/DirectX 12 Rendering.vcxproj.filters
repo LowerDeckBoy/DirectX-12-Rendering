@@ -163,19 +163,8 @@
     <FxCompile Include="Assets\Shaders\Sky\Skybox_VS.hlsl" />
     <FxCompile Include="Assets\Shaders\Outline_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\Mipmap_CS.hlsl" />
-    <FxCompile Include="Assets\Shaders\Sky\IBL_PS.hlsl" />
-    <FxCompile Include="Assets\Shaders\Sky\IBL_VS.hlsl" />
-    <FxCompile Include="Assets\Shaders\Sky\IBL_Draw_PS.hlsl" />
-    <FxCompile Include="Assets\Shaders\Compute\CS_Test.hlsl">
-      <Filter>Source Files</Filter>
-    </FxCompile>
     <FxCompile Include="Assets\Shaders\Sky\EqurectangluarToCube.hlsl" />
     <FxCompile Include="Assets\Shaders\PBR_Pixel.hlsl" />
-    <FxCompile Include="Assets\Shaders\Global\GBuffer_Vertex.hlsl" />
-    <FxCompile Include="Assets\Shaders\Global\GBuffer_Pixel.hlsl" />
-    <FxCompile Include="Assets\Shaders\Compute\CS_EqurectangluarToCube.hlsl" />
-    <FxCompile Include="Assets\Shaders\Forward\Forward_Vertex.hlsl" />
-    <FxCompile Include="Assets\Shaders\Forward\Forward_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\PBR_Pixel_3.hlsl" />
     <FxCompile Include="Assets\Shaders\PBR_Pixel_2.hlsl" />
     <FxCompile Include="Assets\Shaders\PBR_Pixel_4.hlsl" />
