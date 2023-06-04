@@ -11,8 +11,7 @@
 
 #include "../Editor/GUI.hpp"
 
-#include "../Rendering/cglTF_Model/cglTF_Model.hpp"
-#include "../Rendering/assimp_Model/assimp_Model.hpp"
+#include "../Rendering/Model/Model.hpp"
 
 #include "ComputePipelineState.hpp"
 
@@ -21,13 +20,6 @@
 class Camera;
 
 using namespace DirectX;
-
-struct cBuffer
-{
-	DirectX::XMFLOAT4 Offset;
-	float padding[60];
-};
-
 
 //: public Device
 class Renderer 
@@ -48,13 +40,9 @@ public:
 	void OnResize();
 	void ResizeBackbuffers();
 
-	// Temporal
-	void FlushGPU();
-
-	void MoveToNextFrame();
-	void WaitForGPU();
-
 	void OnDestroy();
+
+	Device* GetDeviceContext() { return m_Device.get(); }
 
 protected:
 	void SetRenderTarget();
@@ -63,7 +51,7 @@ protected:
 	void TransitToRender();
 	void TransitToPresent();
 
-	void SetPSO();
+	ID3D12PipelineState* SetPSO(int32_t Selected = 0);
 
 private:
 	std::unique_ptr<Device> m_Device;
@@ -72,35 +60,28 @@ private:
 private:
 	std::array<const float, 4> m_ClearColor{ 0.5f, 0.5f, 1.0f, 1.0f };
 
-	// Shaders
-	std::unique_ptr<Shader> m_VertexShader{ std::make_unique<Shader>() };
-	std::unique_ptr<Shader> m_PixelShader{ std::make_unique<Shader>() };
-
 	// DepthStencil
 	inline ID3D12DescriptorHeap* GetDepthHeap() const { return m_DepthHeap.Get(); };
 	ComPtr<ID3D12Resource> m_DepthStencil;
 	ComPtr<ID3D12DescriptorHeap> m_DepthHeap;
 	void CreateDepthStencil();
 
-	// Main Descriptor Heap
-	ComPtr<ID3D12DescriptorHeap> m_MainHeap;
-	
 	ComPtr<ID3D12RootSignature> m_ModelRootSignature;
+	// PSO
 	ComPtr<ID3D12PipelineState> m_ModelPipelineState;
+	ComPtr<ID3D12PipelineState> m_PBRPipelineState;
+	ComPtr<ID3D12PipelineState> m_PBRPipelineState2;
+	ComPtr<ID3D12PipelineState> m_PBRPipelineState3;
+	static inline int m_SelectedPSO = 0;
+	
+	void SwitchPSO();
 	void InitModelPipeline();
-	//
 
-	//cglTF_Model m_TestLoader;
-	assimp_Model m_Model;
-
-	// Compute pipeline
-	ComputePipelineState m_ComputePipelineState;
-	std::unique_ptr<Shader> m_ComputeShader{ std::make_unique<Shader>() };
+	std::unique_ptr<Model> m_Model;
 
 	// Skybox
 	ComPtr<ID3D12RootSignature> m_SkyboxRootSignature;
 	ComPtr<ID3D12PipelineState> m_SkyboxPipelineState;
-	Skybox m_Skybox;
-	std::unique_ptr<Shader> m_SkyboxVS{ std::make_unique<Shader>() };
-	std::unique_ptr<Shader> m_SkyboxPS{ std::make_unique<Shader>() };
+	Skybox* m_Skybox;
+
 };

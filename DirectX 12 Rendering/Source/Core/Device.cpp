@@ -1,5 +1,5 @@
 #include "Device.hpp"
-#include "../Utils/Utils.hpp"
+#include "../Utils/Utilities.hpp"
 #include "Window.hpp"
 #include <dxgidebug.h>
 
@@ -33,7 +33,7 @@ void Device::CreateDevice()
 	//debugController.Get()->SetEnableGPUBasedValidation(TRUE);
 	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 
-	SafeRelease(debugController);
+	SAFE_RELEASE(debugController);
 
 #endif
 
@@ -49,9 +49,10 @@ void Device::CreateDevice()
 			continue;
 
 		if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
+		{
+			SAFE_RELEASE(adapter);
 			break;
-
-		SafeRelease(adapter);
+		}
 	}
 
 	if (!adapter)
@@ -76,7 +77,7 @@ void Device::CreateDevice()
 	dxgiDebug.Get()->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_IGNORE_INTERNAL);
 	//dxgiDebug->EnableLeakTrackingForThread();
 
-	SafeRelease(dxgiDebug);
+	SAFE_RELEASE(dxgiDebug);
 #else
 	m_DebugDevice.Get()->ReportLiveDeviceObjects(D3D12_RLDO_NONE);
 #endif
@@ -174,9 +175,6 @@ void Device::CreateDescriptorHeaps()
 	m_cbvDescriptorHeap.SetDescriptorSize(m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 	m_cbvDescriptorHeap.GetHeap()->SetName(L"Main CBV Heap");
 	m_cbvDescriptorHeap.SetDescriptorsCount(cbvDesc.NumDescriptors);
-
-
-
 }
 
 void Device::CreateCommandList(ID3D12PipelineState* pPipelineState)
@@ -189,8 +187,13 @@ void Device::CreateCommandQueue()
 	D3D12_COMMAND_QUEUE_DESC desc{};
 	desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-
 	ThrowIfFailed(m_Device.Get()->CreateCommandQueue(&desc, IID_PPV_ARGS(m_CommandQueue.GetAddressOf())), "Failed to create Command Queue!\n");
+	m_CommandQueue->SetName(L"Direct Command Queue");
+
+	desc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	ThrowIfFailed(m_Device.Get()->CreateCommandQueue(&desc, IID_PPV_ARGS(m_ComputeQueue.GetAddressOf())), "Failed to create Compute Queue!\n");
+	m_ComputeQueue->SetName(L"Compute Command Queue");
+
 }
 
 void Device::CreateFences(D3D12_FENCE_FLAGS Flags)
@@ -217,29 +220,77 @@ void Device::SetViewport()
 	m_Viewport.MaxDepth = 1.0f;
 }
 
+void Device::FlushGPU()
+{
+	for (uint32_t i = 0; i < Device::FrameCount; i++)
+	{
+		const uint64_t currentValue = m_FenceValues[i];
+
+		ThrowIfFailed(m_CommandQueue->Signal(GetFence(), currentValue));
+		m_FenceValues[i]++;
+
+		if (GetFence()->GetCompletedValue() < currentValue)
+		{
+			ThrowIfFailed(GetFence()->SetEventOnCompletion(currentValue, m_FenceEvent));
+
+			WaitForSingleObject(m_FenceEvent, INFINITE);
+		}
+	}
+
+	m_FrameIndex = 0;
+}
+
+void Device::MoveToNextFrame()
+{
+	const UINT64 currentFenceValue = m_FenceValues[m_FrameIndex];
+	ThrowIfFailed(m_CommandQueue->Signal(m_Fence.Get(), currentFenceValue));
+
+	// Update the frame index.
+	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+	// If the next frame is not ready to be rendered yet, wait until it is ready.
+	if (m_Fence->GetCompletedValue() < m_FenceValues[m_FrameIndex])
+	{
+		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_FenceValues[m_FrameIndex], m_FenceEvent));
+		WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
+	}
+
+	m_FenceValues[m_FrameIndex] = currentFenceValue + 1;
+}
+
+void Device::WaitForGPU()
+{
+	ThrowIfFailed(GetCommandQueue()->Signal(GetFence(), m_FenceValues[m_FrameIndex]));
+
+	ThrowIfFailed(m_Fence->SetEventOnCompletion(m_FenceValues[m_FrameIndex], m_FenceEvent));
+	::WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
+
+	m_FenceValues[m_FrameIndex]++;
+}
+
 void Device::Release()
 {
-	//SafeRelease(m_PipelineState);
-	SafeRelease(m_RootSignature);
-	SafeRelease(m_CommandQueue);
-	SafeRelease(m_CommandList);
+	//SAFE_RELEASE(m_PipelineState);
+	SAFE_RELEASE(m_RootSignature);
+	SAFE_RELEASE(m_CommandQueue);
+	SAFE_RELEASE(m_CommandList);
 
 	for (auto& allocator : m_CommandAllocators)
-		SafeRelease(allocator);
+		SAFE_RELEASE(allocator);
 
-	SafeRelease(m_Fence);
+	SAFE_RELEASE(m_Fence);
 
 	for (auto& buffer : m_RenderTargets)
-		SafeRelease(buffer);
+		SAFE_RELEASE(buffer);
 
-	SafeRelease(m_rtvHeap);
-	SafeRelease(m_SwapChain);
+	SAFE_RELEASE(m_rtvHeap);
+	SAFE_RELEASE(m_SwapChain);
 
 	m_Allocator->Release();
 
-	SafeRelease(m_DebugDevice);
-	SafeRelease(m_Device);
-	SafeRelease(m_Factory);
+	SAFE_RELEASE(m_DebugDevice);
+	SAFE_RELEASE(m_Device);
+	SAFE_RELEASE(m_Factory);
 
 	//CloseHandle(m_FenceEvent);
 }

@@ -1,16 +1,17 @@
 #pragma once
-#include "assimp_Mesh.hpp"
+#include "Mesh.hpp"
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <assimp/material.h>
 #include <assimp/GltfMaterial.h>
 
-class asssimp_Importer
+class Importer
 {
 public:
-	asssimp_Importer() = default;
-	asssimp_Importer(Device* pDevice, std::string_view Filepath);
+	Importer() = default;
+	Importer(Device* pDevice, std::string_view Filepath);
+	virtual ~Importer() {};
 
 	bool Import(Device* pDevice, std::string_view Filepath);
 
@@ -19,7 +20,7 @@ public:
 	void ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh);
 
 protected:
-	Device* m_Device;
+	Device* m_Device{ nullptr };
 	std::string_view m_ModelPath;
 
 	std::vector<Vertex> m_Vertices;

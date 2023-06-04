@@ -1,9 +1,4 @@
 
-cbuffer cbMaterial : register(b0)
-{
-    float4 padding[16];
-};
-
 struct PS_INPUT
 {
     float4 Position : SV_POSITION;
@@ -25,10 +20,14 @@ float2 EquirectangularToCube(float3 v)
 Texture2D skyboxTexture : register(t0);
 SamplerState texSampler : register(s0);
 
-float4 PS(PS_INPUT pin) : SV_TARGET
+float4 main(PS_INPUT pin) : SV_TARGET
 {
     float2 uv = EquirectangularToCube(normalize(pin.TexCoord));
     float3 skyTexture = skyboxTexture.Sample(texSampler, uv).rgb;
+    
+    float3 gamma = float3(1.0f / 2.2f, 1.0f / 2.2f, 1.0f / 2.2f);
+    skyTexture = skyTexture / (skyTexture + float3(1.0f, 1.0f, 1.0f));
+    skyTexture = pow(skyTexture, gamma);
+    
     return float4(skyTexture, 1.0f);
-    //return float4(skyboxTexture.Sample(texSampler, pin.TexCoord.xy).rgb, 1.0f);
 }

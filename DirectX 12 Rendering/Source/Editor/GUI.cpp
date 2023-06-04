@@ -1,5 +1,5 @@
 #include "GUI.hpp"
-#include "../Utils/Utils.hpp"
+#include "../Utils/Utilities.hpp"
 #include "../Core/Window.hpp"
 #include "../Core/Device.hpp"
 
@@ -10,7 +10,7 @@
 GUI::~GUI()
 {
 	m_MainFont = nullptr;
-	SafeRelease(m_Heap);
+	SAFE_RELEASE(m_Heap);
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
@@ -44,9 +44,8 @@ void GUI::Initialize(Device* pDevice, Camera& refCamera)
 						m_Heap.Get()->GetCPUDescriptorHandleForHeapStart(),
 						m_Heap.Get()->GetGPUDescriptorHandleForHeapStart());
 
-	const float fontSize = 16.0f;
+	const float fontSize{ 16.0f };
 	m_MainFont = IO.Fonts->AddFontFromFileTTF("Assets/Fonts/CascadiaCode-Bold.ttf", fontSize);
-	//m_MainFont = IO.Fonts->AddFontFromFileTTF("Assets/Fonts/BohoSunshine2.ttf", fontSize);
 
 }
 
@@ -67,7 +66,7 @@ void GUI::End(ID3D12GraphicsCommandList* pCommandList)
 		ImGui::Text("Resolution: %.0fx%.0f", Window::GetDisplay().Width, Window::GetDisplay().Height);
 		ImGui::Text("Aspect Ratio: %.2f", Window::GetDisplay().AspectRatio);
 		MemoryUsage::ReadRAM();
-		ImGui::Text("Available RAM: %d / %d MB", (uint32_t)MemoryUsage::AvailableRAM, (uint32_t)MemoryUsage::TotalRAM);
+		ImGui::Text("Available RAM: %d / %d MB", static_cast<uint32_t>(MemoryUsage::AvailableRAM), static_cast<uint32_t>(MemoryUsage::TotalRAM));
 		ImGui::Text("Memory usage: %.3f MB", MemoryUsage::MemoryUsed);
 		ImGui::End();
 	}

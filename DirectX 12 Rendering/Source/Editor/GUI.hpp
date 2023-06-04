@@ -21,9 +21,9 @@ public:
 private:
 	Device* m_Device{ nullptr };
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_Heap;
-	// Can't be unique_ptr
+	
 	ImFont* m_MainFont;
-	// { nullptr }
+
 	Camera* m_Camera;
 };
 

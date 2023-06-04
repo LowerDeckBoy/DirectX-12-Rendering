@@ -68,8 +68,8 @@ void cglTF_Model::DrawNode(uint32_t CurrentFrame, Camera* pCamera, cglTF::Node* 
 		//pNode->Mesh->Matrix
 		m_cbDatas.at(CurrentFrame).WVP = XMMatrixTranspose(pNode->Mesh->Matrix * m_WorldMatrix * pCamera->GetViewProjection());
 		m_cbDatas.at(CurrentFrame).World = XMMatrixTranspose(m_WorldMatrix);
-		std::memcpy(m_ConstantBuffers.at(CurrentFrame).pDataBegin, &m_cbDatas.at(CurrentFrame), sizeof(cbPerObject));
-		m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(0, m_ConstantBuffers.at(CurrentFrame).GetBuffer()->GetGPUVirtualAddress());
+		//std::memcpy(m_ConstantBuffers.at(CurrentFrame).pDataBegin, &m_cbDatas.at(CurrentFrame), sizeof(cbPerObject));
+		m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(0, m_ConstantBuffers.at(CurrentFrame).GetBuffer(CurrentFrame)->GetGPUVirtualAddress());
 
 		for (auto* primitive : pNode->Mesh->Primitives)
 		{

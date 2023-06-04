@@ -1,12 +1,12 @@
-#include "asssimp_Importer.hpp"
+#include "Importer.hpp"
 #include "../../Utils/FileUtils.hpp"
 #include "../../Utils/TimeUtils.hpp"
 
-asssimp_Importer::asssimp_Importer(Device* pDevice, std::string_view Filepath)
+Importer::Importer(Device* pDevice, std::string_view Filepath)
 {
 }
 
-bool asssimp_Importer::Import(Device* pDevice, std::string_view Filepath)
+bool Importer::Import(Device* pDevice, std::string_view Filepath)
 {
 	TimeUtils timer{};
 	timer.Timer_Start();
@@ -36,8 +36,8 @@ bool asssimp_Importer::Import(Device* pDevice, std::string_view Filepath)
 	// TODO
 	if (scene->HasCameras())
 	{
+		::OutputDebugStringA("Model has NOT Cameras\n");
 		//auto camera{ scene->mCameras[0] };
-		//::OutputDebugStringA("Model has Cameras!\n");
 	}
 
 	importer.FreeScene();
@@ -46,7 +46,7 @@ bool asssimp_Importer::Import(Device* pDevice, std::string_view Filepath)
 	return true;
 }
 
-void asssimp_Importer::ProcessNode(const aiScene* pScene, const aiNode* pNode, model::Node* ParentNode, XMMATRIX ParentMatrix)
+void Importer::ProcessNode(const aiScene* pScene, const aiNode* pNode, model::Node* ParentNode, XMMATRIX ParentMatrix)
 {
 	model::Node* newNode{ new model::Node() };
 	newNode->Parent = ParentNode;
@@ -106,7 +106,7 @@ void asssimp_Importer::ProcessNode(const aiScene* pScene, const aiNode* pNode, m
 		m_Nodes.emplace_back(newNode);
 }
 
-model::Mesh* asssimp_Importer::ProcessMesh(const aiScene* pScene, const aiMesh* pMesh, XMMATRIX Matrix)
+model::Mesh* Importer::ProcessMesh(const aiScene* pScene, const aiMesh* pMesh, XMMATRIX Matrix)
 {
 	std::vector<XMFLOAT3> positions;
 	std::vector<XMFLOAT2> uvs;
@@ -180,7 +180,7 @@ model::Mesh* asssimp_Importer::ProcessMesh(const aiScene* pScene, const aiMesh* 
 	return newMesh;
 }
 
-void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
+void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 {
 	model::Material* newMaterial{ new model::Material() };
 
@@ -199,7 +199,14 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 			if (material->GetTexture(aiTextureType_DIFFUSE, i, &materialPath) == aiReturn_SUCCESS)
 			{
 				auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-				newMaterial->BaseColorTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+				//newMaterial->BaseColorTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+				newMaterial->BaseColorTexture = new Texture(m_Device, texPath);
+				newMaterial->bHasDiffuse = true;
+
+				aiColor4D colorFactor{};
+				aiGetMaterialColor(material, AI_MATKEY_BASE_COLOR, &colorFactor);
+				newMaterial->BaseColorFactor = XMFLOAT4(colorFactor.r, colorFactor.g, colorFactor.b, colorFactor.a);
+
 				std::string path{ "Loaded: " + texPath + '\n' };
 				::OutputDebugStringA(path.c_str());
 			}
@@ -214,7 +221,10 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 		if (material->GetTexture(aiTextureType_NORMALS, i, &materialPath) == aiReturn_SUCCESS)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-			newMaterial->NormalTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+			//newMaterial->NormalTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+			newMaterial->NormalTexture = new Texture(m_Device, texPath);
+			newMaterial->bHasNormal = true;
+
 			std::string path{ "Loaded: " + texPath + '\n' };
 			::OutputDebugStringA(path.c_str());
 		}
@@ -228,7 +238,13 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 		if (material->GetTexture(aiTextureType_METALNESS, i, &materialPath) == aiReturn_SUCCESS)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-			newMaterial->MetallicRoughnessTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+			newMaterial->MetallicRoughnessTexture = new Texture(m_Device, texPath);
+			newMaterial->bHasMetallic = true;
+
+			aiGetMaterialFloat(material, AI_MATKEY_METALLIC_FACTOR, &newMaterial->MetallicFactor);
+			aiGetMaterialFloat(material, AI_MATKEY_ROUGHNESS_FACTOR, &newMaterial->RoughnessFactor);
+			//aiGetMaterialProperty(material, AI_MATKEY_METALLIC_FACTOR, i, i, )
+			
 			std::string path{ "Loaded: " + texPath + '\n' };
 			::OutputDebugStringA(path.c_str());
 		}
@@ -242,7 +258,13 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 		if (material->GetTexture(aiTextureType_EMISSIVE, i, &materialPath) == aiReturn_SUCCESS)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-			newMaterial->EmissiveTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
+			newMaterial->EmissiveTexture = new Texture(m_Device, texPath);
+			newMaterial->bHasEmissive = true;
+
+			aiColor4D colorFactor{};
+			aiGetMaterialColor(material, AI_MATKEY_COLOR_EMISSIVE, &colorFactor);
+			newMaterial->EmissiveFactor = XMFLOAT4(colorFactor.r, colorFactor.g, colorFactor.b, colorFactor.a);
+
 			std::string path{ "Loaded: " + texPath + '\n' };
 			::OutputDebugStringA(path.c_str());
 		}
@@ -250,7 +272,7 @@ void asssimp_Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMe
 			::OutputDebugStringA("ERROR: FAILED TO GET EMISSIVE TEXTURE!");
 	}
 
+	aiGetMaterialFloat(material, AI_MATKEY_GLTF_ALPHACUTOFF, &newMaterial->AlphaCutoff);
 
-	
 	m_Materials.emplace_back(newMaterial);
 }

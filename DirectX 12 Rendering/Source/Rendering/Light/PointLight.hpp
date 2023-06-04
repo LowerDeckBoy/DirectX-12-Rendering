@@ -1,7 +1,7 @@
 #pragma once
 #include "../../Core/Device.hpp"
 #include <DirectXMath.h>
-#include "../assimp_Model/assimp_Model.hpp"
+#include "../Model/Model.hpp"
 
 struct cbPointLight
 {

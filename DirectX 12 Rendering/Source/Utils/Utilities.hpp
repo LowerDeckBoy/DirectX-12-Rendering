@@ -3,12 +3,13 @@
 #include <stdexcept>
 #include <cassert>
 
-#define SafeRelease(x) { if (x) { x.Reset(); x = nullptr; } }
+#define SAFE_RELEASE(x) { if (x) { x.Reset(); x = nullptr; } }
+
 
 inline void ThrowIfFailed(HRESULT hr)
 {
 	if (FAILED(hr))
-		throw std::runtime_error("Exception occurred.");
+		throw std::runtime_error("Exception thrown.");
 }
 
 inline void ThrowIfFailed(HRESULT hr, const std::string_view& msg)
@@ -20,5 +21,6 @@ inline void ThrowIfFailed(HRESULT hr, const std::string_view& msg)
 inline const wchar_t* ToWchar(const std::string& String)
 {
 	std::wstring wpath = std::wstring(String.begin(), String.end());
-	return wpath.c_str();
+	auto output{ wpath.c_str() };
+	return output;
 }

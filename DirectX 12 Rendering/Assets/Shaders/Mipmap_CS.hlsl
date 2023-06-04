@@ -58,7 +58,7 @@ float4 LoadColor(uint Index)
 
 [RootSignature(GenerateMips_RootSignature)]
 [numthreads( BLOCK_SIZE, BLOCK_SIZE, 1 )]
-void CS(CS_INPUT cin)
+void main(CS_INPUT cin)
 {
     float4 srcMip = (float4) 0;
     

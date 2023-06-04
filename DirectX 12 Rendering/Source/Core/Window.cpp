@@ -48,7 +48,7 @@ bool Window::Initialize()
     
     m_WindowRect = { 0, 0, static_cast<LONG>(GetDisplay().Width), static_cast<LONG>(GetDisplay().Height)};
     ::AdjustWindowRect(&m_WindowRect, WS_OVERLAPPEDWINDOW, false);
-    int width = m_WindowRect.right - m_WindowRect.left;
+    int width  = m_WindowRect.right - m_WindowRect.left;
     int height = m_WindowRect.bottom - m_WindowRect.top;
 
     m_hWnd = ::CreateWindow(m_WindowClass, m_WindowName,

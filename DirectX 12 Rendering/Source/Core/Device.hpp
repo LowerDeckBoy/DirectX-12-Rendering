@@ -26,7 +26,7 @@ public:
 	static const uint32_t FrameCount{ 2 };
 
 	bool Initialize();
-	
+
 	void CreateDevice();
 	void CreateSwapChain();
 	void CreateBackbuffer();
@@ -37,8 +37,12 @@ public:
 	void CreateCommandList(ID3D12PipelineState* pPipelineState = nullptr);
 	void CreateCommandQueue();
 	void CreateFences(D3D12_FENCE_FLAGS Flags = D3D12_FENCE_FLAG_NONE);
-	
+
 	void SetViewport();
+
+	void FlushGPU();
+	void MoveToNextFrame();
+	void WaitForGPU();
 
 	void Release();
 
@@ -52,6 +56,8 @@ public:
 	//inline ID3D12CommandAllocator* GetCommandAllocator() const { return m_CommandAllocator.Get(); }
 	inline ID3D12CommandQueue* GetCommandQueue() const { return m_CommandQueue.Get(); }
 	inline ID3D12GraphicsCommandList1* GetCommandList() { return m_CommandList.Get(); }
+
+	inline ID3D12CommandQueue* GetComputeQueue() const { return m_ComputeQueue.Get(); }
 
 	// Frame/Fence getters
 	inline uint32_t GetFrameIndex() { return m_SwapChain.Get()->GetCurrentBackBufferIndex(); }
@@ -78,6 +84,10 @@ public:
 	ComPtr<ID3D12CommandAllocator> m_CommandAllocators[FrameCount];
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
 	ComPtr<ID3D12GraphicsCommandList1> m_CommandList;
+
+	ComPtr<ID3D12CommandQueue> m_ComputeQueue;
+
+	//ComPtr<ID3D12CommandList>
 
 	ComPtr<ID3D12RootSignature> m_RootSignature;
 
@@ -109,6 +119,7 @@ public:
 
 	// Main Heap
 	DescriptorHeap m_cbvDescriptorHeap;
+	DescriptorHeap GetMainHeap() { return m_cbvDescriptorHeap; }
 
 
 	ComPtr<ID3D12DescriptorHeap> m_SamplerHeap;

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\vcpkg.F.vcpkg.1.0.0\build\native\vcpkg.F.vcpkg.props" Condition="Exists('..\packages\vcpkg.F.vcpkg.1.0.0\build\native\vcpkg.F.vcpkg.props')" />
   <Import Project="..\packages\vcpkg.D.Tools.vcpkg.1.0.0\build\native\vcpkg.D.Tools.vcpkg.props" Condition="Exists('..\packages\vcpkg.D.Tools.vcpkg.1.0.0\build\native\vcpkg.D.Tools.vcpkg.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -126,6 +127,7 @@
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <AdditionalIncludeDirectories>$(ProjectDir)3rd-party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -155,18 +157,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="3rd-party\D3D12MA\D3D12MemAlloc.cpp" />
-    <FxCompile Include="Assets\Shaders\Compute\CS_Test.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
-    </FxCompile>
+    <ClCompile Include="Source\Graphics\Buffer.cpp" />
     <ClCompile Include="Source\Core\ComputePipelineState.cpp" />
     <ClCompile Include="Source\Graphics\Skybox.cpp" />
     <ClCompile Include="Source\Rendering\Light\PointLight.cpp" />
-    <ClCompile Include="Source\Rendering\assimp_Model\assimp_Model.cpp" />
-    <ClCompile Include="Source\Rendering\assimp_Model\asssimp_Importer.cpp" />
+    <ClCompile Include="Source\Rendering\Model\Model.cpp" />
+    <ClCompile Include="Source\Rendering\Model\Importer.cpp" />
     <ClCompile Include="Source\Core\DescriptorHeap.cpp" />
     <ClCompile Include="Source\Core\Device.cpp" />
     <ClCompile Include="Source\Core\GraphicsPipelineState.cpp" />
@@ -174,14 +170,10 @@
     <ClCompile Include="Source\Core\Window.cpp" />
     <ClCompile Include="Source\Editor\GUI.cpp" />
     <ClCompile Include="Source\Engine\Engine.cpp" />
-    <ClCompile Include="Source\Graphics\CommonStates.cpp" />
     <ClCompile Include="Source\Graphics\Texture.cpp" />
-    <ClCompile Include="Source\Graphics\UploadBuffer.cpp" />
     <ClCompile Include="Source\Inputs\Inputs.cpp" />
     <ClCompile Include="Source\main.cpp" />
     <ClCompile Include="Source\Rendering\Camera.cpp" />
-    <ClCompile Include="Source\Rendering\cglTF_Model\cglTF_Loader.cpp" />
-    <ClCompile Include="Source\Rendering\cglTF_Model\cglTF_Model.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd-party\D3D12MA\D3D12MemAlloc.h" />
@@ -189,8 +181,8 @@
     <ClInclude Include="Source\Core\ComputePipelineState.hpp" />
     <ClInclude Include="Source\Graphics\Skybox.hpp" />
     <ClInclude Include="Source\Rendering\Light\PointLight.hpp" />
-    <ClInclude Include="Source\Rendering\assimp_Model\assimp_Model.hpp" />
-    <ClInclude Include="Source\Rendering\assimp_Model\asssimp_Importer.hpp" />
+    <ClInclude Include="Source\Rendering\Model\Model.hpp" />
+    <ClInclude Include="Source\Rendering\Model\Importer.hpp" />
     <ClInclude Include="Source\Core\DescriptorHeap.hpp" />
     <ClInclude Include="Source\Core\Device.hpp" />
     <ClInclude Include="Source\Core\GraphicsPipelineState.hpp" />
@@ -199,45 +191,45 @@
     <ClInclude Include="Source\Editor\GUI.hpp" />
     <ClInclude Include="Source\Engine\Engine.hpp" />
     <ClInclude Include="Source\Graphics\Buffer.hpp" />
-    <ClInclude Include="Source\Graphics\CommonStates.hpp" />
     <ClInclude Include="Source\Graphics\ConstantBuffer.hpp" />
     <ClInclude Include="Source\Graphics\Shader.hpp" />
     <ClInclude Include="Source\Graphics\Texture.hpp" />
-    <ClInclude Include="Source\Graphics\UploadBuffer.hpp" />
     <ClInclude Include="Source\Graphics\Vertex.hpp" />
     <ClInclude Include="Source\Inputs\Inputs.hpp" />
-    <ClInclude Include="Source\Rendering\assimp_Model\assimp_Mesh.hpp" />
+    <ClInclude Include="Source\Rendering\Model\Mesh.hpp" />
     <ClInclude Include="Source\Rendering\Camera.hpp" />
-    <ClInclude Include="Source\Rendering\cglTF_Model\cglTF_Loader.hpp" />
-    <ClInclude Include="Source\Rendering\cglTF_Model\cglTF_Mesh.hpp" />
-    <ClInclude Include="Source\Rendering\cglTF_Model\cglTF_Model.hpp" />
     <ClInclude Include="Source\Utils\FileUtils.hpp" />
     <ClInclude Include="Source\Utils\MemoryUsage.hpp" />
     <ClInclude Include="Source\Utils\Timer.hpp" />
     <ClInclude Include="Source\Utils\TimeUtils.hpp" />
-    <ClInclude Include="Source\Utils\Utils.hpp" />
+    <ClInclude Include="Source\Utils\Utilities.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Assets\Shaders\Blinn-Phong.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\IBL_Draw_PS.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+    <FxCompile Include="Assets\Shaders\PBR_Pixel_3.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\IBL_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
     </FxCompile>
-    <FxCompile Include="Assets\Shaders\IBL_VS.hlsl">
+    <FxCompile Include="Assets\Shaders\PBR_Pixel_4.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\PBR_Pixel_2.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\Sky\EqurectangluarToCube.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
@@ -278,77 +270,28 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
     </FxCompile>
     <FxCompile Include="Assets\Shaders\PBR_Pixel.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
     </FxCompile>
-    <FxCompile Include="Assets\Shaders\PS_CB.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\PS_GLTF.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\PS_Texture.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\PS_Triangle.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\Skybox_PS.hlsl">
+    <FxCompile Include="Assets\Shaders\Sky\Skybox_PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="Assets\Shaders\Skybox_VS.hlsl">
+    <FxCompile Include="Assets\Shaders\Sky\Skybox_VS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="Assets\Shaders\Specular_Mapping_Pixel.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\VS_CB.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\VS_GLTF.hlsl">
+    <FxCompile Include="Assets\Shaders\Global_Vertex.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
@@ -357,23 +300,6 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\VS_Texture.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Assets\Shaders\VS_Triangle.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -383,11 +309,14 @@
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\vcpkg.D.Tools.vcpkg.vcpkg.1.0.0\build\native\vcpkg.D.Tools.vcpkg.vcpkg.targets" Condition="Exists('..\packages\vcpkg.D.Tools.vcpkg.vcpkg.1.0.0\build\native\vcpkg.D.Tools.vcpkg.vcpkg.targets')" />
     <Import Project="..\packages\vcpkg.D.Tools.vcpkg.1.0.0\build\native\vcpkg.D.Tools.vcpkg.targets" Condition="Exists('..\packages\vcpkg.D.Tools.vcpkg.1.0.0\build\native\vcpkg.D.Tools.vcpkg.targets')" />
+    <Import Project="..\packages\vcpkg.F.vcpkg.1.0.0\build\native\vcpkg.F.vcpkg.targets" Condition="Exists('..\packages\vcpkg.F.vcpkg.1.0.0\build\native\vcpkg.F.vcpkg.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\vcpkg.D.Tools.vcpkg.1.0.0\build\native\vcpkg.D.Tools.vcpkg.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\vcpkg.D.Tools.vcpkg.1.0.0\build\native\vcpkg.D.Tools.vcpkg.props'))" />
+    <Error Condition="!Exists('..\packages\vcpkg.F.vcpkg.1.0.0\build\native\vcpkg.F.vcpkg.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\vcpkg.F.vcpkg.1.0.0\build\native\vcpkg.F.vcpkg.props'))" />
+    <Error Condition="!Exists('..\packages\vcpkg.F.vcpkg.1.0.0\build\native\vcpkg.F.vcpkg.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\vcpkg.F.vcpkg.1.0.0\build\native\vcpkg.F.vcpkg.targets'))" />
   </Target>
 </Project>

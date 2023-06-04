@@ -24,6 +24,7 @@ public:
 	const inline DirectX::XMMATRIX GetViewProjection() { return XMMatrixMultiply(m_View, m_Projection); }
 
 	const inline DirectX::XMVECTOR& GetPosition() const { return m_Position; }
+	const inline DirectX::XMFLOAT4 GetPositionFloat() const { return DirectX::XMFLOAT4(m_Position.m128_f32[0], m_Position.m128_f32[1], m_Position.m128_f32[2], 0.0f); }
 	const inline DirectX::XMVECTOR& GetTarget() const { return m_Target; }
 	const inline DirectX::XMVECTOR& GetUp() const { return m_Up; }
 
