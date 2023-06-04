@@ -26,7 +26,7 @@ public:
 	static const uint32_t FrameCount{ 2 };
 
 	bool Initialize();
-	
+
 	void CreateDevice();
 	void CreateSwapChain();
 	void CreateBackbuffer();
@@ -37,8 +37,12 @@ public:
 	void CreateCommandList(ID3D12PipelineState* pPipelineState = nullptr);
 	void CreateCommandQueue();
 	void CreateFences(D3D12_FENCE_FLAGS Flags = D3D12_FENCE_FLAG_NONE);
-	
+
 	void SetViewport();
+
+	void FlushGPU();
+	void MoveToNextFrame();
+	void WaitForGPU();
 
 	void Release();
 
@@ -83,6 +87,8 @@ public:
 
 	ComPtr<ID3D12CommandQueue> m_ComputeQueue;
 
+	//ComPtr<ID3D12CommandList>
+
 	ComPtr<ID3D12RootSignature> m_RootSignature;
 
 	// SwapChain
@@ -113,6 +119,7 @@ public:
 
 	// Main Heap
 	DescriptorHeap m_cbvDescriptorHeap;
+	DescriptorHeap GetMainHeap() { return m_cbvDescriptorHeap; }
 
 
 	ComPtr<ID3D12DescriptorHeap> m_SamplerHeap;

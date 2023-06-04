@@ -13,7 +13,8 @@ class Texture;
 class Skybox
 {
 public:
-	Skybox() = default;
+	Skybox() { }
+	Skybox(Device* pDevice);
 
 	void Create(Device* pDevice);
 	void Draw(Camera* pCamera);
@@ -24,10 +25,12 @@ public:
 	//void Prefilter()
 
 	ID3D12Resource* GetTexture() { return m_Texture->GetTexture(); }
+	Texture GetTex();
 
 private:
 	Device* m_Device{ nullptr };
-	std::unique_ptr<VertexBuffer<SkyboxVertex>> m_VertexBuffer{ nullptr };
+	//std::unique_ptr<VertexBuffer<SkyboxVertex>> m_VertexBuffer{ nullptr };
+	std::unique_ptr<VertexBuffer> m_VertexBuffer{ nullptr };
 	std::unique_ptr<IndexBuffer> m_IndexBuffer{ nullptr };
 	std::unique_ptr<ConstantBuffer<cbPerObject>> m_ConstBuffer{ nullptr };
 	cbPerObject m_cbData{};
@@ -36,13 +39,13 @@ private:
 
 	std::vector<SkyboxVertex>* m_Vertices = new std::vector<SkyboxVertex>{
 		{ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-1.0f,  1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3( 1.0f,  1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3( 1.0f, -1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-1.0f, -1.0f,  1.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-1.0f,  1.0f,  1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3( 1.0f,  1.0f,  1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3( 1.0f, -1.0f,  1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) }
+		{ DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) }
 	};
 
 	std::vector<uint32_t>* m_Indices = new std::vector<uint32_t>{
@@ -54,7 +57,7 @@ private:
 		4, 0, 3, 4, 3, 7
 	};
 
-	XMMATRIX m_WorldMatrix{ XMMatrixIdentity() };
-	XMVECTOR m_Translation{ XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f) };
-	XMVECTOR m_Scale{ XMVectorSet(5000.0f, 5000.0f, 5000.0f, 0.0f) };
+	XMMATRIX m_WorldMatrix	{ XMMatrixIdentity() };
+	XMVECTOR m_Translation	{ XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f) };
+	XMVECTOR m_Scale		{ XMVectorSet(5000.0f, 5000.0f, 5000.0f, 0.0f) };
 };

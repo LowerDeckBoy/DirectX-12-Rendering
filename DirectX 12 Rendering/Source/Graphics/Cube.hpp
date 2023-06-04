@@ -14,16 +14,17 @@ public:
 	~Cube();
 
 	void Initialize(Device* pDevice);
-	void Draw();
+	void Draw(DirectX::XMMATRIX ViewProjection);
 	void Release();
 
 private:
 	Device* m_Device;
-	VertexBuffer<CubeVertex> m_VertexBuffer;
+	//VertexBuffer<CubeVertex> m_VertexBuffer;
+	VertexBuffer m_VertexBuffer;
 	IndexBuffer m_IndexBuffer;
 
-	//cbPerObject m_cbData{};
-	//ConstantBuffer<cbPerObject> m_ConstBuffer;
+	cbPerObject m_cbData{};
+	ConstantBuffer<cbPerObject> m_ConstBuffer;
 
 	std::vector<CubeVertex>* m_Vertices = new std::vector<CubeVertex>{
 		{ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
