@@ -9,7 +9,6 @@ cbuffer cbPerObject : register(b0)
 struct VS_INPUT
 {
     float3 Position : POSITION;
-    // Unnecessary?
     float3 TexCoord : TEXCOORD;
 };
 
@@ -23,7 +22,7 @@ VS_OUTPUT main(VS_INPUT vin)
 {
     VS_OUTPUT output = (VS_OUTPUT) 0;
     output.Position = mul(WVP, float4(vin.Position, 1.0f)).xyzw;
-    output.TexCoord = vin.Position;
+    output.TexCoord = normalize(vin.Position);
     
     return output;
 };

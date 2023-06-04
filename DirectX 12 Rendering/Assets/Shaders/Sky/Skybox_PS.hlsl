@@ -1,9 +1,4 @@
 
-cbuffer cbMaterial : register(b0)
-{
-    float4 padding[16];
-};
-
 struct PS_INPUT
 {
     float4 Position : SV_POSITION;
@@ -35,5 +30,4 @@ float4 main(PS_INPUT pin) : SV_TARGET
     skyTexture = pow(skyTexture, gamma);
     
     return float4(skyTexture, 1.0f);
-    //return float4(skyboxTexture.Sample(texSampler, pin.TexCoord.xy).rgb, 1.0f);
 }

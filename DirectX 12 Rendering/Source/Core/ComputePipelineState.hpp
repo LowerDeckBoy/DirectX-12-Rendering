@@ -5,7 +5,7 @@
 #include "../Core/Device.hpp"
 #include "../Graphics/Shader.hpp"
 #include "GraphicsPipelineState.hpp"
-#include "../Utils/Utils.hpp"
+#include "../Utils/Utilities.hpp"
 
 // https://logins.github.io/graphics/2020/10/31/D3D12ComputeShaders.html
 // https://www.3dgep.com/learning-directx-12-4/#Compute_Shaders
@@ -53,8 +53,8 @@ public:
         params.at(0).InitAsDescriptorTable(1, &ranges.at(0), D3D12_SHADER_VISIBILITY_ALL);
         params.at(1).InitAsDescriptorTable(1, &ranges.at(1), D3D12_SHADER_VISIBILITY_ALL);
 
-        const auto staticSampler{ GraphicsPipelineState::CreateStaticSampler(0) };
-        const auto rootFlags    { GraphicsPipelineState::SetRootFlags() };
+        const auto staticSampler{ PSOUtils::CreateStaticSampler(0) };
+        const auto rootFlags    { PSOUtils::SetRootFlags() };
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
         rootDesc.Init_1_1(static_cast<uint32_t>(params.size()), params.data(), 1, &staticSampler, rootFlags);
@@ -68,8 +68,8 @@ public:
 
     static ID3D12RootSignature* CreateRootSignature(ID3D12Device4* pDevice, std::span<CD3DX12_DESCRIPTOR_RANGE1> Ranges, std::span<CD3DX12_ROOT_PARAMETER1> Parameters)
     {
-        const auto staticSampler{ GraphicsPipelineState::CreateStaticSampler(0) };
-        const auto rootFlags{ GraphicsPipelineState::SetRootFlags() };
+        const auto staticSampler{ PSOUtils::CreateStaticSampler(0) };
+        const auto rootFlags    { PSOUtils::SetRootFlags() };
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
         rootDesc.Init_1_1(static_cast<uint32_t>(Parameters.size()), Parameters.data(), 1, &staticSampler, rootFlags);

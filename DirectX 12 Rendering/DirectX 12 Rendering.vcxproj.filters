@@ -42,31 +42,19 @@
     <ClCompile Include="Source\Engine\Engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Graphics\CommonStates.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Graphics\Texture.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Graphics\UploadBuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Inputs\Inputs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Rendering\cglTF_Model\cglTF_Loader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Rendering\cglTF_Model\cglTF_Model.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Rendering\Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Rendering\assimp_Model\asssimp_Importer.cpp">
+    <ClCompile Include="Source\Rendering\Model\Importer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Rendering\assimp_Model\assimp_Model.cpp">
+    <ClCompile Include="Source\Rendering\Model\Model.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Rendering\Light\PointLight.cpp">
@@ -78,7 +66,7 @@
     <ClCompile Include="Source\Core\ComputePipelineState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Graphics\ImageBasedLighting.cpp">
+    <ClCompile Include="Source\Graphics\Buffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -113,9 +101,6 @@
     <ClInclude Include="Source\Graphics\Buffer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Graphics\CommonStates.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Graphics\ConstantBuffer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -125,22 +110,10 @@
     <ClInclude Include="Source\Graphics\Texture.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Graphics\UploadBuffer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Graphics\Vertex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Inputs\Inputs.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Rendering\cglTF_Model\cglTF_Loader.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Rendering\cglTF_Model\cglTF_Mesh.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Rendering\cglTF_Model\cglTF_Model.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Rendering\Camera.hpp">
@@ -152,19 +125,19 @@
     <ClInclude Include="Source\Utils\Timer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Utils\Utils.hpp">
+    <ClInclude Include="Source\Utils\Utilities.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Rendering\assimp_Model\assimp_Mesh.hpp">
+    <ClInclude Include="Source\Rendering\Model\Mesh.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Utils\TimeUtils.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Rendering\assimp_Model\asssimp_Importer.hpp">
+    <ClInclude Include="Source\Rendering\Model\Importer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Rendering\assimp_Model\assimp_Model.hpp">
+    <ClInclude Include="Source\Rendering\Model\Model.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Rendering\Light\PointLight.hpp">
@@ -179,30 +152,17 @@
     <ClInclude Include="Source\Core\ComputePipelineState.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Graphics\ImageBasedLighting.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Assets\Shaders\VS_Triangle.hlsl" />
-    <FxCompile Include="Assets\Shaders\PS_Triangle.hlsl" />
-    <FxCompile Include="Assets\Shaders\PS_Texture.hlsl" />
-    <FxCompile Include="Assets\Shaders\VS_Texture.hlsl" />
-    <FxCompile Include="Assets\Shaders\VS_CB.hlsl" />
-    <FxCompile Include="Assets\Shaders\PS_CB.hlsl" />
     <FxCompile Include="Assets\Shaders\Global_Vertex.hlsl" />
-    <FxCompile Include="Assets\Shaders\PS_GLTF.hlsl" />
     <FxCompile Include="Assets\Shaders\Normal_Mapping_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\Light\Directional_Light.hlsl" />
     <FxCompile Include="Assets\Shaders\Light\Point_Light.hlsl" />
     <FxCompile Include="Assets\Shaders\Light\Specular_Light.hlsl" />
-    <FxCompile Include="Assets\Shaders\PBR_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\Sky\Skybox_PS.hlsl" />
     <FxCompile Include="Assets\Shaders\Sky\Skybox_VS.hlsl" />
     <FxCompile Include="Assets\Shaders\Outline_Pixel.hlsl" />
-    <FxCompile Include="Assets\Shaders\Specular_Mapping_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\Mipmap_CS.hlsl" />
-    <FxCompile Include="Assets\Shaders\Blinn-Phong.hlsl" />
     <FxCompile Include="Assets\Shaders\Sky\IBL_PS.hlsl" />
     <FxCompile Include="Assets\Shaders\Sky\IBL_VS.hlsl" />
     <FxCompile Include="Assets\Shaders\Sky\IBL_Draw_PS.hlsl" />
@@ -210,9 +170,15 @@
       <Filter>Source Files</Filter>
     </FxCompile>
     <FxCompile Include="Assets\Shaders\Sky\EqurectangluarToCube.hlsl" />
-    <FxCompile Include="Assets\Shaders\PBR_Pixel_2.hlsl" />
+    <FxCompile Include="Assets\Shaders\PBR_Pixel.hlsl" />
     <FxCompile Include="Assets\Shaders\Global\GBuffer_Vertex.hlsl" />
     <FxCompile Include="Assets\Shaders\Global\GBuffer_Pixel.hlsl" />
+    <FxCompile Include="Assets\Shaders\Compute\CS_EqurectangluarToCube.hlsl" />
+    <FxCompile Include="Assets\Shaders\Forward\Forward_Vertex.hlsl" />
+    <FxCompile Include="Assets\Shaders\Forward\Forward_Pixel.hlsl" />
+    <FxCompile Include="Assets\Shaders\PBR_Pixel_3.hlsl" />
+    <FxCompile Include="Assets\Shaders\PBR_Pixel_2.hlsl" />
+    <FxCompile Include="Assets\Shaders\PBR_Pixel_4.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

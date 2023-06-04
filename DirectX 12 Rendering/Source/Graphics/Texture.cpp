@@ -1,6 +1,6 @@
 #include "../Core/Device.hpp"
 #include "Texture.hpp"
-#include "../Utils/Utils.hpp"
+#include "../Utils/Utilities.hpp"
 #include "../Utils/FileUtils.hpp"
 //TEST
 #include "../Core/ComputePipelineState.hpp"
@@ -44,8 +44,9 @@ Texture::Texture(Device* pDevice, const std::string& TexturePath, const std::str
 
 Texture::~Texture()
 {
-	m_Device = nullptr;
+	Release();
 }
+
 void Texture::Create(Device* pDevice, const std::string& TexturePath)
 {
 	if (files::GetExtension(TexturePath) == ".dds")
@@ -371,6 +372,31 @@ void Texture::CreateFromHDR(Device* pDevice, const std::string& TexturePath)
 
 }
 
+void Texture::CreateTexture(Device* pDevice, uint32_t Width, uint32_t Height, DXGI_FORMAT Format)
+{
+	D3D12_RESOURCE_DESC desc{};
+	desc.Width = Width;
+	desc.Height = Height;
+	desc.Format = Format;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	desc.SampleDesc = { 1, 0 };
+	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	auto heapDesc{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
+	ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&heapDesc, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_Texture)));
+	
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = desc.Format;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	pDevice->GetMainHeap().Allocate(m_DescriptorSRV);
+	pDevice->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_DescriptorSRV.GetCPU());
+
+}
 
 // https://github.com/mateeeeeee/Adria-DX12/blob/master/Adria/Rendering/TextureManager.cpp
 // https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-object-rwtexture2d
@@ -507,4 +533,9 @@ void Texture::CreateUAV(ID3D12Resource* pTexture, uint32_t MipSlice)
 
 void Texture::Release()
 {
+	SAFE_RELEASE(m_UavView);
+	SAFE_RELEASE(m_TextureUploadHeap);
+	SAFE_RELEASE(m_Texture);
+
+	m_Device = nullptr;
 }

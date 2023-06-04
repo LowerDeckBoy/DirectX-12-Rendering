@@ -35,6 +35,10 @@ public:
 	// by default without prefiltering
 	void CreateFromHDR(Device* pDevice, const std::string& TexturePath);
 
+	void CreateTexture(Device* pDevice, uint32_t Width, uint32_t Height, DXGI_FORMAT Format);
+
+	//void CreateSRV(Device* pDevice);
+
 	void CreateUAV(ID3D12Resource* pTexture, uint32_t MipSlice = 0);
 
 	//void CreateFromHDR(Device* pDevice, const std::string& TexturePath, bool bPrefilter);
@@ -49,6 +53,7 @@ public:
 
 	Descriptor m_Descriptor;
 	Descriptor m_DescriptorUAV;
+	Descriptor m_DescriptorSRV;
 
 private:
 	Device* m_Device{ nullptr };
@@ -68,3 +73,10 @@ private:
 
 	std::string m_TextureName;
 };
+
+class TextureUtils
+{
+public:
+
+};
+

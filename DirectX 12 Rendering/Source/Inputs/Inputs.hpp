@@ -6,7 +6,7 @@
 #include <array>
 #include "../Core/Window.hpp"
 #include "../Rendering/Camera.hpp"
-#include "../Utils/Utils.hpp"
+#include "../Utils/Utilities.hpp"
 
 //class Camera;
 
@@ -91,14 +91,23 @@ public:
 
 	static void Release()
 	{
-		DxKeyboard->Unacquire();
-		DxKeyboard = nullptr;
+		if (DxKeyboard)
+		{
+			DxKeyboard->Unacquire();
+			DxKeyboard = nullptr;
+		}
 
-		DxMouse->Unacquire();
-		DxMouse = nullptr;
+		if (DxMouse)
+		{
+			DxMouse->Unacquire();
+			DxMouse = nullptr;
+		}
 
-		DxInput->Release();
-		DxInput = nullptr;
+		if (DxInput)
+		{
+			DxInput->Release();
+			DxInput = nullptr;
+		}
 
 		DxLastMouseState = {};
 	}

@@ -78,7 +78,7 @@ void Engine::OnResize()
 void Engine::OnDestroy()
 {
 	Timer::Stop();
-	m_Renderer->WaitForGPU();
+	m_Renderer->GetDeviceContext()->WaitForGPU();
 	Inputs::Release();
 }
 
