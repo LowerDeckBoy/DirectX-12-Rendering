@@ -25,8 +25,8 @@ Currently working on Physically Based Rendering and Image-Based Lighting.
 </ul>
 
 #### Some screenshots:
-![Screenshot](screenshots/model_03.png)
+![Screenshot](screenshots/sponza_pbr.png)
+![Screenshot](screenshots/helmet_pbr.png)
 ![Screenshot](screenshots/model_01.png)
 ![Screenshot](screenshots/model_02.png)
 ![Screenshot](screenshots/model_04.png)
-![Screenshot](screenshots/model_05.png)
