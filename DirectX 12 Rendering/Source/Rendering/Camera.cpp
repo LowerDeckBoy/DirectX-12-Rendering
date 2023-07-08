@@ -1,7 +1,6 @@
 #include "Camera.hpp"
 #include <imgui.h>
 
-using namespace DirectX;
 
 void Camera::Initialize(float AspectRatio)
 {
@@ -11,8 +10,7 @@ void Camera::Initialize(float AspectRatio)
 	m_Up		= m_DefaultUp;
 
 	m_View = XMMatrixLookAtLH(m_Position, m_Target, m_Up);
-	auto FoV{ 0.4f * XM_PI };
-	m_Projection = XMMatrixPerspectiveFovLH(FoV, AspectRatio, m_zNear, m_zFar);
+	m_Projection = XMMatrixPerspectiveFovLH(m_FoV, AspectRatio, m_zNear, m_zFar);
 	
 	m_CameraSlider = { XMVectorGetX(m_Position), XMVectorGetY(m_Position), XMVectorGetZ(m_Position) };
 }
@@ -71,9 +69,44 @@ void Camera::ResetCamera()
 	m_Pitch = 0.0f;
 }
 
+const XMMATRIX& Camera::GetView() const noexcept
+{
+	return m_View;
+}
+
+const XMMATRIX& Camera::GetProjection() const noexcept
+{
+	return m_Projection;
+}
+
+const XMMATRIX Camera::GetViewProjection()
+{
+	return XMMatrixMultiply(m_View, m_Projection);
+}
+
+const XMVECTOR& Camera::GetPosition() const noexcept
+{
+	return m_Position;
+}
+
+const XMFLOAT4 Camera::GetPositionFloat() const noexcept
+{
+	return XMFLOAT4(XMVectorGetX(m_Position), XMVectorGetY(m_Position), XMVectorGetZ(m_Position), 0.0f);
+}
+
+const XMVECTOR& Camera::GetTarget() const noexcept
+{
+	return m_Target;
+}
+
+const XMVECTOR& Camera::GetUp() const noexcept
+{
+	return m_Up;
+}
+
 void Camera::DrawGUI()
 {
-	ImGui::Begin("Camera");
+	//ImGui::Begin("Camera");
 
 	if (ImGui::DragFloat3("Position", m_CameraSlider.data()))
 	{
@@ -89,11 +122,40 @@ void Camera::DrawGUI()
 		Update();
 	}
 
-	ImGui::End();
+	//ImGui::End();
 }
 
 void Camera::OnAspectRatioChange(float NewAspectRatio)
 {
-	auto FoV{ 0.4f * XM_PI };
-	m_Projection = XMMatrixPerspectiveFovLH(FoV, NewAspectRatio, m_zNear, m_zFar);
+	m_Projection = XMMatrixPerspectiveFovLH(m_FoV, NewAspectRatio, m_zNear, m_zFar);
+}
+
+float Camera::GetCameraSpeed() const noexcept
+{
+	return m_CameraSpeed;
+}
+
+void Camera::SetCameraSpeed(float NewSpeed) noexcept
+{
+	m_CameraSpeed = NewSpeed;
+}
+
+void Camera::SetZNear(float NewZ) noexcept
+{
+	m_zNear = NewZ;
+}
+
+void Camera::SetZFar(float NewZ) noexcept
+{
+	m_zFar = NewZ;
+}
+
+inline float Camera::GetZNear() const noexcept
+{
+	return m_zNear;
+}
+
+inline float Camera::GetZFar() const noexcept
+{
+	return m_zFar;
 }
