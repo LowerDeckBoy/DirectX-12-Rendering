@@ -8,20 +8,20 @@ class Camera
 public:
 	Camera operator=(const Camera&) = delete;
 
-	void Initialize(float AspectRatio);
-	void Update();
+	void Initialize(float AspectRatio) noexcept;
+	void Update() noexcept;
 
-	void SetPosition(const DirectX::XMVECTOR NewPosition);
-	void SetPosition(const std::array<float, 3> NewPosition);
+	void SetPosition(const DirectX::XMVECTOR NewPosition) noexcept;
+	void SetPosition(const std::array<float, 3> NewPosition) noexcept;
 
-	void ResetPitch();
-	void ResetYaw();
+	void ResetPitch() noexcept;
+	void ResetYaw() noexcept;
 
-	void ResetCamera();
+	void ResetCamera() noexcept;
 
 	const XMMATRIX& GetView() const noexcept;
 	const XMMATRIX& GetProjection() const noexcept;
-	const XMMATRIX GetViewProjection();
+	const XMMATRIX GetViewProjection() noexcept;
 
 	const XMVECTOR& GetPosition() const noexcept;
 	const XMFLOAT4 GetPositionFloat() const noexcept;
