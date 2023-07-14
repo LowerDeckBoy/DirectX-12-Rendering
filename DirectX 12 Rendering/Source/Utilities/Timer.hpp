@@ -7,7 +7,7 @@ public:
 	static void Initialize()
 	{
 		__int64 countsPerSec{};
-		QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
+		::QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
 		m_SecondsPerCount = 1.0 / (double)countsPerSec;
 	}
 
@@ -29,7 +29,7 @@ public:
 	static void Reset()
 	{
 		__int64 currentTime{};
-		QueryPerformanceCounter((LARGE_INTEGER*)&currentTime);
+		::QueryPerformanceCounter((LARGE_INTEGER*)&currentTime);
 
 		m_BaseTime = currentTime;
 		m_PreviousTime = currentTime;
@@ -40,7 +40,7 @@ public:
 	static void Start()
 	{
 		__int64 startTime{};
-		QueryPerformanceCounter((LARGE_INTEGER*)&startTime);
+		::QueryPerformanceCounter((LARGE_INTEGER*)&startTime);
 
 		if (bIsStopped)
 		{
@@ -57,7 +57,7 @@ public:
 		if (!bIsStopped)
 		{
 			__int64 currentTime{};
-			QueryPerformanceCounter((LARGE_INTEGER*)&currentTime);
+			::QueryPerformanceCounter((LARGE_INTEGER*)&currentTime);
 
 			m_StopTime = currentTime;
 			bIsStopped = true;
@@ -73,7 +73,7 @@ public:
 		}
 
 		__int64 currentTime{};
-		QueryPerformanceCounter((LARGE_INTEGER*)&currentTime);
+		::QueryPerformanceCounter((LARGE_INTEGER*)&currentTime);
 		m_CurrentTime = currentTime;
 
 		m_DeltaTime = (m_CurrentTime - m_PreviousTime) * m_SecondsPerCount;

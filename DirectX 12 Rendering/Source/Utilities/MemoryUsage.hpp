@@ -31,17 +31,17 @@ public:
             float available = static_cast<float>(mem.ullAvailPhys / dwMBFactor);
             float total = static_cast<float>(mem.ullTotalPhys / dwMBFactor);
             InUsePercentage = (100.0f - (available / total) * 100.0f);
-            MemoryUsed = static_cast<float>(pcmex.PrivateUsage / (1024.0f * 1024.0f));
+            MemoryInUse = static_cast<float>(pcmex.PrivateUsage / (1024.0f * 1024.0f));
         }
     }
 
     static unsigned long long AvailableRAM;
     static unsigned long long TotalRAM;
     static float InUsePercentage;
-    static float MemoryUsed;
+    static float MemoryInUse;
 };
 
 unsigned long long MemoryUsage::AvailableRAM = 0;
 unsigned long long MemoryUsage::TotalRAM = 0;
 float MemoryUsage::InUsePercentage = 0.0f;
-float MemoryUsage::MemoryUsed = 0.0f;
+float MemoryUsage::MemoryInUse = 0.0f;

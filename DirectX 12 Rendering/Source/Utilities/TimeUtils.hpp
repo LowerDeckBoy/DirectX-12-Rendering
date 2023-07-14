@@ -1,6 +1,7 @@
 #pragma once
-
 #include <chrono>
+#include "Logger.hpp"
+
 
 class TimeUtils {
 private:
@@ -16,8 +17,8 @@ public:
 		End = std::chrono::high_resolution_clock::now();
 		Duration = End - Start;
 		if (bPrint) {
-			auto msg{ "Model load time:\t" + std::to_string(Duration.count()) + "ms\n" };
-			::OutputDebugStringA(msg.c_str());
+			auto msg{ "Load time:\t" + std::to_string(Duration.count()) + "ms" };
+			Logger::Log(msg);
 		}
 	}
 };
