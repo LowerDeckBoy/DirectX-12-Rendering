@@ -20,12 +20,32 @@ namespace model
 		Texture* NormalTexture				{ nullptr };
 		Texture* MetallicRoughnessTexture	{ nullptr };
 		Texture* EmissiveTexture			{ nullptr };
+	};
 
-		// BOOL aligns bool type to 4 bytes
-		BOOL bHasDiffuse	{ FALSE };
-		BOOL bHasNormal		{ FALSE };
-		BOOL bHasMetallic	{ FALSE };
-		BOOL bHasEmissive	{ FALSE };
+	struct MaterialData
+	{
+		XMFLOAT4 BaseColorFactor{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
+		XMFLOAT4 EmissiveFactor { XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
+
+		float MetallicFactor { 1.0f };
+		float RoughnessFactor{ 1.0f };
+		float AlphaCutoff	 { 0.5f };
+		BOOL bDoubleSided	 { FALSE };
+
+		int32_t BaseColorIndex			{ -1 };
+		int32_t NormalIndex				{ -1 };
+		int32_t MetallicRoughnessIndex	{ -1 };
+		int32_t EmissiveIndex			{ -1 };
+	};
+
+	// Meant for pushing constants
+	// -1 equals invalid index
+	struct MaterialIndices
+	{
+		int32_t BaseColorIndex			{ -1 };
+		int32_t NormalIndex				{ -1 };
+		int32_t MetallicRoughnessIndex	{ -1 };
+		int32_t EmissiveIndex			{ -1 };
 	};
 
 	struct Mesh

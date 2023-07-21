@@ -1,13 +1,23 @@
+#include "../../Core/DeviceContext.hpp"
+#include <assimp/scene.h>
 #include "Importer.hpp"
-#include "../../Utils/FileUtils.hpp"
-#include "../../Utils/TimeUtils.hpp"
+#include "../../Utilities/FileUtils.hpp"
+#include "../../Utilities/TimeUtils.hpp"
+#include "../../Utilities/Logger.hpp"
 
-Importer::Importer(Device* pDevice, std::string_view Filepath)
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/material.h>
+#include <assimp/GltfMaterial.h>
+#include <assimp/anim.h>
+
+Importer::Importer(DeviceContext* pDevice, std::string_view Filepath)
 {
 }
 
-bool Importer::Import(Device* pDevice, std::string_view Filepath)
+bool Importer::Import(DeviceContext* pDevice, std::string_view Filepath)
 {
+	Logger::Log("Loading model...");
 	TimeUtils timer{};
 	timer.Timer_Start();
 
@@ -15,6 +25,7 @@ bool Importer::Import(Device* pDevice, std::string_view Filepath)
 	auto loadFlags{  
 		aiProcess_Triangulate |
 		aiProcess_ConvertToLeftHanded |
+		aiProcess_GenSmoothNormals |
 		aiProcess_PreTransformVertices |
 		aiProcess_JoinIdenticalVertices |
 		aiProcess_ValidateDataStructure 
@@ -24,7 +35,7 @@ bool Importer::Import(Device* pDevice, std::string_view Filepath)
 	
 	if (!scene || !scene->mRootNode || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE)
 	{
-		::OutputDebugStringA(importer.GetErrorString());
+		Logger::Log(importer.GetErrorString(), LogType::eError);
 		throw std::runtime_error(importer.GetErrorString());
 	}
 
@@ -34,12 +45,12 @@ bool Importer::Import(Device* pDevice, std::string_view Filepath)
 	ProcessNode(scene, scene->mRootNode, nullptr, XMMatrixIdentity());
 	
 	// TODO
-	if (scene->HasCameras())
+	if (scene->HasAnimations())
 	{
-		::OutputDebugStringA("Model has NOT Cameras\n");
-		//auto camera{ scene->mCameras[0] };
+		bHasAnimations = true;
+		ProcessAnimations(scene);
 	}
-
+	
 	importer.FreeScene();
 	timer.Timer_End(true);
 
@@ -100,10 +111,10 @@ void Importer::ProcessNode(const aiScene* pScene, const aiNode* pNode, model::No
 			m_Meshes.emplace_back(ProcessMesh(pScene, pScene->mMeshes[pNode->mMeshes[i]], next));
 	}
 
-	if (ParentNode)
-		ParentNode->Children.emplace_back(newNode);
-	else
-		m_Nodes.emplace_back(newNode);
+	//if (ParentNode)
+	//	ParentNode->Children.emplace_back(newNode);
+	//else
+	//	m_Nodes.emplace_back(newNode);
 }
 
 model::Mesh* Importer::ProcessMesh(const aiScene* pScene, const aiMesh* pMesh, XMMATRIX Matrix)
@@ -182,7 +193,7 @@ model::Mesh* Importer::ProcessMesh(const aiScene* pScene, const aiMesh* pMesh, X
 
 void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 {
-	model::Material* newMaterial{ new model::Material() };
+	model::MaterialData* newMaterial{ new model::MaterialData() };
 
 	if (pMesh->mMaterialIndex < 0)
 	{
@@ -200,18 +211,21 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 			{
 				auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
 				//newMaterial->BaseColorTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
-				newMaterial->BaseColorTexture = new Texture(m_Device, texPath);
-				newMaterial->bHasDiffuse = true;
+				Texture* BaseColorTexture = new Texture(m_Device, texPath);
+				m_Textures.push_back(BaseColorTexture);
+				//newMaterial->BaseColorIndex = BaseColorTexture->m_Descriptor.m_Index;
+				newMaterial->BaseColorIndex = BaseColorTexture->m_Descriptor.m_Index;
+				//newMaterial->BaseColorIndex = m_Textures.size() - 1;
 
 				aiColor4D colorFactor{};
 				aiGetMaterialColor(material, AI_MATKEY_BASE_COLOR, &colorFactor);
 				newMaterial->BaseColorFactor = XMFLOAT4(colorFactor.r, colorFactor.g, colorFactor.b, colorFactor.a);
 
-				std::string path{ "Loaded: " + texPath + '\n' };
-				::OutputDebugStringA(path.c_str());
+				std::string path{ "Loaded: " + texPath };
+				Logger::Log(path);
 			}
 			else
-				::OutputDebugStringA("ERROR: FAILED TO GET DIFFUSE TEXTURE!\n");
+				Logger::Log("Failed to get Diffuse texture!");
 		}
 	}
 	
@@ -222,14 +236,15 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
 			//newMaterial->NormalTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
-			newMaterial->NormalTexture = new Texture(m_Device, texPath);
-			newMaterial->bHasNormal = true;
+			Texture* NormalTexture = new Texture(m_Device, texPath);
+			m_Textures.push_back(NormalTexture);
+			newMaterial->NormalIndex = NormalTexture->m_Descriptor.m_Index;
 
-			std::string path{ "Loaded: " + texPath + '\n' };
-			::OutputDebugStringA(path.c_str());
+			std::string path{ "Loaded: " + texPath };
+			Logger::Log(path);
 		}
 		else
-			::OutputDebugStringA("ERROR: FAILED TO GET NORMAL TEXTURE!");
+			Logger::Log("Failed to get Normal texture!", LogType::eError);
 	}
 
 	for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_METALNESS); ++i)
@@ -238,18 +253,18 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 		if (material->GetTexture(aiTextureType_METALNESS, i, &materialPath) == aiReturn_SUCCESS)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-			newMaterial->MetallicRoughnessTexture = new Texture(m_Device, texPath);
-			newMaterial->bHasMetallic = true;
+			Texture* MetallicRoughnessTexture = new Texture(m_Device, texPath);
+			m_Textures.push_back(MetallicRoughnessTexture);
+			newMaterial->MetallicRoughnessIndex = MetallicRoughnessTexture->m_Descriptor.m_Index;
 
 			aiGetMaterialFloat(material, AI_MATKEY_METALLIC_FACTOR, &newMaterial->MetallicFactor);
 			aiGetMaterialFloat(material, AI_MATKEY_ROUGHNESS_FACTOR, &newMaterial->RoughnessFactor);
-			//aiGetMaterialProperty(material, AI_MATKEY_METALLIC_FACTOR, i, i, )
 			
-			std::string path{ "Loaded: " + texPath + '\n' };
-			::OutputDebugStringA(path.c_str());
+			std::string path{ "Loaded: " + texPath };
+			Logger::Log(path.c_str());
 		}
 		else
-			::OutputDebugStringA("ERROR: FAILED TO GET METALLIC TEXTURE!");
+			Logger::Log("Failed to get MetalRoughness texture!", LogType::eError);
 	}
 
 	for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_EMISSIVE); ++i)
@@ -258,21 +273,27 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 		if (material->GetTexture(aiTextureType_EMISSIVE, i, &materialPath) == aiReturn_SUCCESS)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-			newMaterial->EmissiveTexture = new Texture(m_Device, texPath);
-			newMaterial->bHasEmissive = true;
+			Texture* EmissiveTexture = new Texture(m_Device, texPath);
+			m_Textures.push_back(EmissiveTexture);
+			newMaterial->EmissiveIndex = EmissiveTexture->m_Descriptor.m_Index;
 
 			aiColor4D colorFactor{};
 			aiGetMaterialColor(material, AI_MATKEY_COLOR_EMISSIVE, &colorFactor);
 			newMaterial->EmissiveFactor = XMFLOAT4(colorFactor.r, colorFactor.g, colorFactor.b, colorFactor.a);
 
-			std::string path{ "Loaded: " + texPath + '\n' };
-			::OutputDebugStringA(path.c_str());
+			std::string path{ "Loaded: " + texPath };
+			Logger::Log(path.c_str());
 		}
 		else
-			::OutputDebugStringA("ERROR: FAILED TO GET EMISSIVE TEXTURE!");
+			Logger::Log("Failed to get Emissive texture!", LogType::eError);
 	}
 
 	aiGetMaterialFloat(material, AI_MATKEY_GLTF_ALPHACUTOFF, &newMaterial->AlphaCutoff);
 
 	m_Materials.emplace_back(newMaterial);
+}
+
+void Importer::ProcessAnimations(const aiScene* pScene)
+{
+	// TODO: ...
 }
