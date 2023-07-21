@@ -1,12 +1,15 @@
+#ifndef GLOBAL_VERTEX_HLSL
+#define GLOBAL_VERTEX_HLSL
 
-cbuffer cbPerObject : register(b0)
+
+cbuffer cbPerObject : register(b0, space0)
 {
     row_major float4x4 WVP;
     row_major float4x4 World;
     float4 padding[8];
 }
 
-cbuffer cbCamera : register(b1)
+cbuffer cbCamera : register(b1, space0)
 {
     float3 CameraPosition;
     float cameraPadding;
@@ -21,8 +24,6 @@ struct VS_Input
     float3 Bitangent : BITANGENT;
 };
 
-//float3 Tangent       : TANGENT;
-//float3 Bitangent     : BITANGENT;
 struct VS_Output
 {
     float4 Position      : SV_POSITION;
@@ -30,8 +31,8 @@ struct VS_Output
     float3 ViewDirection : VIEW_DIRECTION;
     float2 TexCoord      : TEXCOORD;
     float3 Normal        : NORMAL;
-    float3 Tangent      : TANGENT;
-    float3 Bitangent    : BITANGENT;
+    float3 Tangent       : TANGENT;
+    float3 Bitangent     : BITANGENT;
 };
 
 VS_Output main(VS_Input vin)
@@ -49,3 +50,5 @@ VS_Output main(VS_Input vin)
     
 	return output;
 }
+
+#endif // GLOBAL_VERTEX_HLSL
