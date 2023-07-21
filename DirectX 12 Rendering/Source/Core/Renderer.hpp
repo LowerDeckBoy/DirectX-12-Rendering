@@ -1,72 +1,75 @@
 #pragma once
-#include "Device.hpp"
+#include "DeviceContext.hpp"
 #include <memory>
-#include <DirectXMath.h>
-#include <d3dcompiler.h>
+#include "../Graphics/ShaderManager.hpp"
 #include "../Graphics/Shader.hpp"
-#include "../Graphics/Buffer.hpp"
 #include "../Graphics/ConstantBuffer.hpp"
-#include "../Graphics/Cube.hpp"
-#include "../Graphics/Texture.hpp"
-
 #include "../Editor/GUI.hpp"
-
-#include "../Rendering/Model/Model.hpp"
-
 #include "ComputePipelineState.hpp"
-
+#include "../Rendering/Model/Model.hpp"
 #include "../Graphics/Skybox.hpp"
+#include "../Rendering/ScreenQuad.hpp"
+#include "../Utilities/Logger.hpp"
 
 class Camera;
+class GUI;
 
 using namespace DirectX;
 
-//: public Device
 class Renderer 
 {
 public:
-	//explicit Renderer(HINSTANCE hInstance);
 	~Renderer();
 
-	void Initialize(Camera& refCamera);
+	void Initialize(Camera* pCamera);
 	void LoadAssets();
 
 	void PreRender();
-	void Update(XMMATRIX ViewProj);
-	void Draw(Camera* pCamera);
+	void Update();
+	void Draw();
+	void DrawSkybox();
+	void Forward();
+	void Deferred();
 
-	void RecordCommandLists(uint32_t CurrentFrame, Camera* pCamera);
+	void RecordCommandLists(uint32_t CurrentFrame);
 
 	void OnResize();
-	void ResizeBackbuffers();
 
-	void OnDestroy();
+	void Release();
 
-	Device* GetDeviceContext() { return m_Device.get(); }
+	inline DeviceContext* GetDeviceContext() noexcept { return m_Device.get(); }
 
 protected:
+	// Wrappers
+	void SetHeap(ID3D12DescriptorHeap** ppHeap);
+	void SetRootSignature(ID3D12RootSignature* pRootSignature);
+	void SetRootSignature(const ComPtr<ID3D12RootSignature>& ppRootSignature);
+	void SetPipelineState(ID3D12PipelineState* pPipelineState);;
+	void SetPipelineState(const ComPtr<ID3D12PipelineState>& ppPipelineState);;
+
 	void SetRenderTarget();
-	void ClearRenderTarget(CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle);
+	void ClearRenderTarget();
 
 	void TransitToRender();
-	void TransitToPresent();
+	void TransitToPresent(D3D12_RESOURCE_STATES StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	ID3D12PipelineState* SetPSO(int32_t Selected = 0);
+	ID3D12PipelineState* SetPSO(int32_t Selected = 0) noexcept;
+
+	void BeginFrame();
+	void EndFrame();
 
 private:
-	std::unique_ptr<Device> m_Device;
+	std::unique_ptr<DeviceContext> m_Device;
+
+	Camera* m_Camera{ nullptr };
+
 	std::unique_ptr<GUI> m_GUI;
 
 private:
 	std::array<const float, 4> m_ClearColor{ 0.5f, 0.5f, 1.0f, 1.0f };
 
-	// DepthStencil
-	inline ID3D12DescriptorHeap* GetDepthHeap() const { return m_DepthHeap.Get(); };
-	ComPtr<ID3D12Resource> m_DepthStencil;
-	ComPtr<ID3D12DescriptorHeap> m_DepthHeap;
-	void CreateDepthStencil();
-
 	ComPtr<ID3D12RootSignature> m_ModelRootSignature;
+	ComPtr<ID3D12RootSignature> m_DeferredRootSignature;
 	// PSO
 	ComPtr<ID3D12PipelineState> m_ModelPipelineState;
 	ComPtr<ID3D12PipelineState> m_PBRPipelineState;
@@ -75,13 +78,68 @@ private:
 	static inline int m_SelectedPSO = 0;
 	
 	void SwitchPSO();
-	void InitModelPipeline();
+	// TODO: Requires some cleanup
+	void InitPipelines();
 
 	std::unique_ptr<Model> m_Model;
+	std::unique_ptr<Model> m_Model2;
 
 	// Skybox
 	ComPtr<ID3D12RootSignature> m_SkyboxRootSignature;
 	ComPtr<ID3D12PipelineState> m_SkyboxPipelineState;
-	Skybox* m_Skybox;
+	std::unique_ptr<Skybox> m_Skybox;
+
+	std::unique_ptr<ShaderManager> m_ShaderManager;
+
+	// Deferred Context
+	ScreenQuad m_ScreenQuad;
+
+	static const int32_t m_DeferredRTVCount{ 5 };
+	void CreateDeferredRTVs();
+	ComPtr<ID3D12DescriptorHeap> m_DefRTVHeap;
+	ComPtr<ID3D12Resource> m_RTVTextures[m_DeferredRTVCount];
+	std::array<CD3DX12_CPU_DESCRIPTOR_HANDLE, m_DeferredRTVCount> m_RTVDescriptors;
+	std::array<Descriptor, m_DeferredRTVCount> m_RTSRVDescs;
+	ComPtr<ID3D12PipelineState> m_DeferredPSO;
+	ComPtr<ID3D12PipelineState> m_DeferredLightPSO;
+
+	std::array<DXGI_FORMAT, m_DeferredRTVCount> m_RTVFormats{ DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM };
+
+	// GBuffer
+	void PassGBuffer(Camera* pCamera);
+	void PassLight(Camera* pCamera);
+
+	// Deferred CBVs
+	// Camera Scene data
+	std::unique_ptr<ConstantBuffer<SceneConstData>> m_cbCamera;
+	SceneConstData m_cbSceneData{};
+	// Data for light shading
+	std::unique_ptr<ConstantBuffer<cbMaterial>> m_cbMaterial;
+	cbMaterial m_cbMaterialData{};
+	
+	void DrawGUI();
+
+	// Lighting
+	// Temporal
+	void SetupLights();
+	void UpdateLights();
+	void ResetLights();
+
+	// Const buffer for light positions and colors -> PBR
+	std::unique_ptr<ConstantBuffer<cbLights>> m_cbPointLights;
+	cbLights m_cbPointLightsData{};
+
+	//Light positions
+	std::array<XMFLOAT4, 4>				m_LightPositions;
+	std::array<std::array<float, 4>, 4> m_LightPositionsFloat;
+	std::array<XMFLOAT4, 4>				m_LightColors;
+	std::array<std::array<float, 4>, 4> m_LightColorsFloat;
+
+public:
+	static bool bDrawSky;
+	static bool bRaster;
+	static bool bDeferred;
+
+	Logger m_Logger;
 
 };
