@@ -1,6 +1,6 @@
 #pragma once
-#include "../Core/Device.hpp"
-#include "../Utils/Utilities.hpp"
+#include "../Core/DeviceContext.hpp"
+#include "../Utilities/Utilities.hpp"
 #include "../Core/DescriptorHeap.hpp"
 #include <DirectXMath.h>
 using namespace DirectX;
@@ -18,12 +18,19 @@ struct cbCamera
 	alignas(16) XMFLOAT3 CameraPosition;
 };
 
+struct SceneConstData
+{
+	XMVECTOR Position;
+	XMMATRIX View;
+	XMMATRIX Projection;
+	XMMATRIX InversedView;
+	XMMATRIX InversedProjection;
+	XMFLOAT2 ScreenDimension;
+};
+
 // Mainly for glTF model purposes
 struct cbMaterial
 {
-	XMFLOAT4 Ambient		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
-	XMFLOAT4 Diffuse		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f) };
-	XMFLOAT4 Direction		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f) };
 	XMFLOAT4 CameraPosition	{ XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f) };
 
 	XMFLOAT4 BaseColorFactor	{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0) };
@@ -34,26 +41,28 @@ struct cbMaterial
 	float AlphaCutoff	{ 0.5f };
 	BOOL bDoubleSided	{ FALSE };
 
-	BOOL bHasDiffuse	{ FALSE };
-	BOOL bHasNormal		{ FALSE };
-	BOOL bHasMetallic	{ FALSE };
-	BOOL bHasEmissive	{ FALSE };
-	
-	XMFLOAT4 padding[8]{};
+	//test
+	int32_t BaseColorIndex{ -1 };
+	int32_t NormalIndex{ -1 };
+	int32_t MetallicRoughnessIndex{ -1 };
+	int32_t EmissiveIndex{ -1 };
+
+	//XMFLOAT4 padding[8]{};
 };
 
 struct cbLights
 {
 	std::array<XMFLOAT4, 4> LightPositions;
 	std::array<XMFLOAT4, 4> LightColors;
+	float Radius{ 25.0f };
 	float padding[32];
 };
 
 struct cb_pbrMaterial
 {
-	alignas(16) XMFLOAT4 Ambient{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
-	alignas(16) XMFLOAT3 Diffuse { XMFLOAT3(1.0f, 1.0f, 1.0f) };
-	XMFLOAT3 Specular{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
+	XMFLOAT4 Ambient{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
+	XMFLOAT4 Diffuse { XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f) };
+	XMFLOAT4 Specular{ XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f) };
 	float SpecularIntensity{ 32.0f };
 	alignas(16) XMFLOAT3 Direction { XMFLOAT3(1.0f, 1.0f, 1.0f) };
 
@@ -71,13 +80,13 @@ struct cb_pbrMaterial
 template<typename T>
 class ConstantBuffer
 {
-	const static uint32_t FRAME_COUNT{ 2 };
+	const static uint32_t FRAME_COUNT{ 3 };
 public:
 	ConstantBuffer() = default;
-	ConstantBuffer(Device* pDevice, T* pData) { Create(pDevice, pData); }
+	ConstantBuffer(DeviceContext* pDevice, T* pData) { Create(pDevice, pData); }
 	~ConstantBuffer() { Release(); }
 
-	void Create(Device* pDevice, T* pData)
+	void Create(DeviceContext* pDevice, T* pData)
 	{
 		if (bIsInitialized)
 			return;
@@ -91,25 +100,27 @@ public:
 		{
 			Data.at(i) = pData;
 
-			ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&heapProperties,
-				D3D12_HEAP_FLAG_NONE,
-				&bufferDesc,
-				D3D12_RESOURCE_STATE_COMMON,
-				nullptr, IID_PPV_ARGS(Buffer[i].GetAddressOf())));
-			// Debug name
-			Buffer[i]->SetName(L"Model Constant Buffer");
+			D3D12MA::ALLOCATION_DESC allocDesc{};
+			allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+			allocDesc.Flags = D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_COMMITTED | D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+
+			D3D12MA::Allocation* allocation{ nullptr };
+			pDevice->GetAllocator()->CreateResource(&allocDesc, &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, &allocation, IID_PPV_ARGS(Buffer.at(i).ReleaseAndGetAddressOf()));
+
+			allocation->Release();
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC bufferView{};
 			bufferView.BufferLocation = Buffer[i].Get()->GetGPUVirtualAddress();
-			bufferView.SizeInBytes = static_cast<uint32_t>(sizeof((structSize)+255) & ~255);
+			bufferView.SizeInBytes = static_cast<uint32_t>(structSize);
 
-			pDevice->GetMainHeap().Allocate(m_Descriptors.at(i));
-
+			pDevice->GetMainHeap()->Allocate(m_Descriptors.at(i));
 			pDevice->GetDevice()->CreateConstantBufferView(&bufferView, m_Descriptors.at(i).GetCPU());
 
+			// Persistent mapping
 			CD3DX12_RANGE readRange(0, 0);
 			ThrowIfFailed(Buffer[i].Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin.at(i))));
 			std::memcpy(pDataBegin.at(i), &pData, sizeof(T));
+			//Buffer[i].Get()->Unmap(0, nullptr);
 		}
 
 		bIsInitialized = true;
@@ -152,77 +163,9 @@ public:
 
 private:
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> Buffer[FRAME_COUNT];
+	std::array<ComPtr<ID3D12Resource>, FRAME_COUNT> Buffer;
 	std::array<T*, FRAME_COUNT> Data{ nullptr, nullptr };
 	std::array<Descriptor, FRAME_COUNT> m_Descriptors;
 
 	bool bIsInitialized{ false };
 };
-
-/*
-template<typename T>
-class ConstantBuffer
-{
-public:
-	ConstantBuffer() = default;
-	ConstantBuffer(Device* pDevice, T* pData) { Create(pDevice, pData); }
-	~ConstantBuffer() { Release(); }
-
-	void Create(Device* pDevice, T* pData)
-	{
-		if (bIsInitialized)
-			return;
-
-		Data = pData;
-		size_t structSize{ (sizeof(T) + 255) & ~255 };
-
-		auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD) };
-		auto bufferDesc{ CD3DX12_RESOURCE_DESC::Buffer(structSize) };
-		ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&heapProperties,
-					  D3D12_HEAP_FLAG_NONE,
-					  &bufferDesc,
-					  D3D12_RESOURCE_STATE_COMMON,
-					  nullptr, IID_PPV_ARGS(Buffer.GetAddressOf())));
-		// Debug name
-		Buffer->SetName(L"Model Constant Buffer");
-
-		D3D12_CONSTANT_BUFFER_VIEW_DESC bufferView{};
-		bufferView.BufferLocation = Buffer.Get()->GetGPUVirtualAddress();
-		bufferView.SizeInBytes = static_cast<uint32_t>(sizeof((structSize) + 255) & ~255);
-
-		pDevice->m_cbvDescriptorHeap.Allocate(m_Descriptor);
-
-		pDevice->GetDevice()->CreateConstantBufferView(&bufferView, m_Descriptor.GetCPU());
-
-		CD3DX12_RANGE readRange(0, 0);
-		ThrowIfFailed(Buffer.Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin)));
-		std::memcpy(pDataBegin, &pData, sizeof(T));
-
-		bIsInitialized = true;
-	}
-
-	void Update(const T& Updated)
-	{
-		*Data = Updated;
-		std::memcpy(pDataBegin, &Updated, sizeof(T));
-	}
-
-	void Release()
-	{
-		SafeRelease(Buffer);
-	}
-
-	[[nodiscard]]
-	inline ID3D12Resource* GetBuffer() { return Buffer.Get(); }
-	Descriptor GetDescriptor() const { return m_Descriptor; }
-	T* GetData() const { return Data; }
-	uint8_t* pDataBegin{ nullptr };
-
-private:
-	Microsoft::WRL::ComPtr<ID3D12Resource> Buffer;
-	T* Data{ nullptr };
-	Descriptor m_Descriptor;
-
-	bool bIsInitialized{ false };
-};
-*/
