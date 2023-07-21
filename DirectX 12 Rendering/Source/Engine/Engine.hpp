@@ -1,6 +1,6 @@
 #pragma once
 #include "../Core/Window.hpp"
-#include "../Utils/Timer.hpp"
+#include "../Utilities/Timer.hpp"
 #include "../Rendering/Camera.hpp"
 #include "../Core/Renderer.hpp"
 
@@ -8,7 +8,6 @@
 class Engine : public Window
 {
 public:
-	//Engine() {} 
 	explicit Engine(HINSTANCE hInstance);
 	~Engine();
 	
@@ -22,7 +21,6 @@ private:
 	void OnDestroy();
 
 private:
-	//std::unique_ptr<Timer> m_Timer;
 	std::unique_ptr<Renderer> m_Renderer;
 	std::unique_ptr<Camera> m_Camera;
 

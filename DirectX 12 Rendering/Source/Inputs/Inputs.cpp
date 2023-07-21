@@ -23,15 +23,15 @@ void Inputs::CameraInputs(Camera* pCamera, const float DeltaTime)
 	DxKeyboard->Acquire();
 	DxMouse->Acquire();
 
-	DxMouse->GetDeviceState(sizeof(mouseState), static_cast<LPVOID>(&mouseState));
-	DxKeyboard->GetDeviceState(sizeof(keyboardState), static_cast<LPVOID>(&keyboardState));
+	DxMouse->GetDeviceState(sizeof(mouseState), reinterpret_cast<LPVOID>(&mouseState));
+	DxKeyboard->GetDeviceState(sizeof(keyboardState), reinterpret_cast<LPVOID>(&keyboardState));
 
 	constexpr int state{ 0x80 };
 
 	if (keyboardState.at(DIK_ESCAPE) & state)
 	{
 		// Add closing fullscreen state here later
-		::PostMessage(Window::GetHWND(), WM_DESTROY, 0, 0);
+		::PostMessage(Window::GetHWND(), WM_QUIT, 0, 0);
 	}
 
 	if (!mouseState.rgbButtons[1])

@@ -24,7 +24,7 @@
     <ClCompile Include="Source\Core\DescriptorHeap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\Device.cpp">
+    <ClCompile Include="Source\Core\DeviceContext.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Core\GraphicsPipelineState.cpp">
@@ -69,6 +69,30 @@
     <ClCompile Include="Source\Graphics\Buffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Graphics\ImageBasedLighting.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Graphics\TextureUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Graphics\ShaderManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Rendering\ScreenQuad.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Utilities\Logger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Core\Viewport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Graphics\Shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Core\RenderPass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd-party\d3dx12.h">
@@ -80,7 +104,7 @@
     <ClInclude Include="Source\Core\DescriptorHeap.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Core\Device.hpp">
+    <ClInclude Include="Source\Core\DeviceContext.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Core\GraphicsPipelineState.hpp">
@@ -119,19 +143,19 @@
     <ClInclude Include="Source\Rendering\Camera.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Utils\FileUtils.hpp">
+    <ClInclude Include="Source\Utilities\FileUtils.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Utils\Timer.hpp">
+    <ClInclude Include="Source\Utilities\Timer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Utils\Utilities.hpp">
+    <ClInclude Include="Source\Utilities\Utilities.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Rendering\Model\Mesh.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Utils\TimeUtils.hpp">
+    <ClInclude Include="Source\Utilities\TimeUtils.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Rendering\Model\Importer.hpp">
@@ -143,7 +167,7 @@
     <ClInclude Include="Source\Rendering\Light\PointLight.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Utils\MemoryUsage.hpp">
+    <ClInclude Include="Source\Utilities\MemoryUsage.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Graphics\Skybox.hpp">
@@ -152,22 +176,27 @@
     <ClInclude Include="Source\Core\ComputePipelineState.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Assets\Shaders\Global_Vertex.hlsl" />
-    <FxCompile Include="Assets\Shaders\Normal_Mapping_Pixel.hlsl" />
-    <FxCompile Include="Assets\Shaders\Light\Directional_Light.hlsl" />
-    <FxCompile Include="Assets\Shaders\Light\Point_Light.hlsl" />
-    <FxCompile Include="Assets\Shaders\Light\Specular_Light.hlsl" />
-    <FxCompile Include="Assets\Shaders\Sky\Skybox_PS.hlsl" />
-    <FxCompile Include="Assets\Shaders\Sky\Skybox_VS.hlsl" />
-    <FxCompile Include="Assets\Shaders\Outline_Pixel.hlsl" />
-    <FxCompile Include="Assets\Shaders\Mipmap_CS.hlsl" />
-    <FxCompile Include="Assets\Shaders\Sky\EqurectangluarToCube.hlsl" />
-    <FxCompile Include="Assets\Shaders\PBR_Pixel.hlsl" />
-    <FxCompile Include="Assets\Shaders\PBR_Pixel_3.hlsl" />
-    <FxCompile Include="Assets\Shaders\PBR_Pixel_2.hlsl" />
-    <FxCompile Include="Assets\Shaders\PBR_Pixel_4.hlsl" />
+    <ClInclude Include="Source\Graphics\ImageBasedLighting.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Graphics\TextureUtils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Graphics\ShaderManager.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Rendering\ScreenQuad.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Utilities\Logger.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Core\Viewport.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Core\RenderPass.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

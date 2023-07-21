@@ -1,15 +1,20 @@
 #pragma once
 #include <d3d12.h>
 #include <d3dx12.h>
+//#include <dxcapi.h>
 #include <span>
 
 class Shader;
+class ShaderManager;
+struct IDxcBlob;
 
 class PSOBuilder
 {
 public:
 	PSOBuilder();
 	~PSOBuilder();
+
+	void AddShaderManger(ShaderManager* pShaderManager);
 
 	void Create(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignature, ID3D12PipelineState** pTarget, LPCWSTR DebugName = L"");
 	void CreateRootSignature(ID3D12Device* pDevice, ID3D12RootSignature** ppTarget, LPCWSTR DebugName = L"");
@@ -22,6 +27,10 @@ public:
 		D3D12_TEXTURE_ADDRESS_MODE AddressMode = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
 		D3D12_COMPARISON_FUNC ComparsionFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL);
 	void AddShaders(const std::string_view& VertexPath, const std::string_view& PixelPath);
+	void AddGeometryShader(const std::string_view& GeometryPath);
+	void AddDomainShader(const std::string_view& DomainPath);
+	void AddHullShader(const std::string_view& HullPath);
+	void SetFillMode(D3D12_FILL_MODE FillMode);
 	//void AddVertexShader(Shader* pShader);
 	//void AddPixelShader(Shader* pShader);
 	void AddRootFlags(D3D12_ROOT_SIGNATURE_FLAGS Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -32,12 +41,21 @@ private:
 	std::vector<CD3DX12_ROOT_PARAMETER1>	m_Parameters;
 	std::vector<D3D12_INPUT_ELEMENT_DESC>	m_InputLayout;
 
-	Shader m_VertexShader;
-	Shader m_PixelShader;
+	IDxcBlob* m_VertexShader  { nullptr };
+	IDxcBlob* m_PixelShader   { nullptr };
+	IDxcBlob* m_DomainShader  { nullptr };
+	IDxcBlob* m_HullShader	  { nullptr };
+	IDxcBlob* m_GeometryShader{ nullptr };
+
+	//Shader m_VertexShader;
+	//Shader m_PixelShader;
 
 	D3D12_STATIC_SAMPLER_DESC m_StaticSampler{};
-
 	D3D12_ROOT_SIGNATURE_FLAGS m_RootFlags{ D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT };
+	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_SOLID };
+
+private:
+	ShaderManager* m_ShaderManager{ nullptr };
 
 };
 
@@ -63,7 +81,11 @@ public:
 	// Position, TexCoord, Normal,Tangent, Bitangent
 	static std::array<D3D12_INPUT_ELEMENT_DESC, 5> CreateInputLayout();
 
+	//static std::array<D3D12_INPUT_ELEMENT_DESC, 5> CreateGBufferLayout();
+
 	static std::array<D3D12_INPUT_ELEMENT_DESC, 2> CreateSkyboxInputLayout();
+
+	static std::array<D3D12_INPUT_ELEMENT_DESC, 2> CreateScreenQuadLayout();
 
 };
 

@@ -1,8 +1,7 @@
 #include "Engine.hpp"
 #include <imgui.h>
-//#include <imgui_impl_win32.h>
-//#include <imgui_impl_dx12.h>
 #include "../Inputs/Inputs.hpp"
+
 
 Engine::Engine(HINSTANCE hInstance) : Window(hInstance)
 {
@@ -22,7 +21,7 @@ void Engine::Initialize()
 	Window::Initialize();
 	m_Camera->Initialize(Window::GetDisplay().AspectRatio);
 	m_Camera->ResetCamera();
-	m_Renderer->Initialize(*m_Camera);
+	m_Renderer->Initialize(m_Camera.get());
 	Timer::Initialize();
 }
 
@@ -38,12 +37,11 @@ void Engine::Run()
 	// without ongoing frame rendering
 	//m_Timer->Start();
 
-	MSG msg{};
-
 	// Ensure Timer clean start
 	Inputs::Initialize();
 	Timer::Reset();
-	//m_Timer->Reset();
+
+	MSG msg{};
 
 	while (msg.message != WM_QUIT)
 	{
@@ -59,18 +57,18 @@ void Engine::Run()
 		if (!bAppPaused)
 		{
 			Inputs::CameraInputs(m_Camera.get(), Timer::DeltaTime());
-			m_Renderer->Update(m_Camera->GetViewProjection());
-			m_Renderer->Draw(m_Camera.get());
+			m_Renderer->Update();
+			m_Renderer->Draw();
 			m_Camera->Update();
 		}
 		else
 			::Sleep(100);
 	}
+
 }
 
 void Engine::OnResize()
 {
-	//OutputDebugStringA("Resize event occured.\n");
 	m_Renderer->OnResize();
 	m_Camera->OnAspectRatioChange(Window::GetDisplay().AspectRatio);
 }
@@ -82,29 +80,110 @@ void Engine::OnDestroy()
 	Inputs::Release();
 }
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+//test
+void AdjustRect(RECT& Rect)
 {
-	if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+	auto monitor = ::MonitorFromWindow(Window::m_hWnd, MONITOR_DEFAULTTONULL);
+	if (!monitor) {
+		return;
+	}
+
+	MONITORINFO monitor_info{};
+	monitor_info.cbSize = sizeof(monitor_info);
+	if (!::GetMonitorInfoW(monitor, &monitor_info)) {
+		return;
+	}
+
+	// when maximized, make the client area fill just the monitor (without task bar) rect,
+	// not the whole window rect which extends beyond the monitor.
+	Rect = monitor_info.rcWork;
+}
+
+LRESULT HitTest(POINT Cursor)
+{
+	const POINT border{
+		::GetSystemMetrics(SM_CXFRAME) + ::GetSystemMetrics(SM_CXPADDEDBORDER),
+		::GetSystemMetrics(SM_CYFRAME) + ::GetSystemMetrics(SM_CXPADDEDBORDER)
+	};
+	RECT window;
+	if (!::GetWindowRect(Window::m_hWnd, &window)) {
+		return HTNOWHERE;
+	}
+
+	auto borderless_drag = true;
+	const auto drag = borderless_drag ? HTCAPTION : HTCLIENT;
+
+	enum region_mask {
+		client = 0b0000,
+		left = 0b0001,
+		right = 0b0010,
+		top = 0b0100,
+		bottom = 0b1000,
+	};
+
+	const auto result =
+		left * (Cursor.x < (window.left + border.x)) |
+		right * (Cursor.x >= (window.right - border.x)) |
+		top * (Cursor.y < (window.top + border.y)) |
+		bottom * (Cursor.y >= (window.bottom - border.y));
+
+	auto borderless_resize = true;
+	switch (result) {
+	case left: return borderless_resize ? HTLEFT : drag;
+	case right: return borderless_resize ? HTRIGHT : drag;
+	case top: return borderless_resize ? HTTOP : drag;
+	case bottom: return borderless_resize ? HTBOTTOM : drag;
+	case top | left: return borderless_resize ? HTTOPLEFT : drag;
+	case top | right: return borderless_resize ? HTTOPRIGHT : drag;
+	case bottom | left: return borderless_resize ? HTBOTTOMLEFT : drag;
+	case bottom | right: return borderless_resize ? HTBOTTOMRIGHT : drag;
+	case client: return drag;
+	default: return HTNOWHERE;
+	}
+}
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam))
 		return true;
 
 	// For debug purposes uncomment OutputDebugStringA
-	switch (msg)
+	switch (Msg)
 	{
+	case WM_NCCREATE:
+	{
+		auto userdata = reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams;
+		// store window instance pointer in window user data
+		::SetWindowLongPtrW(m_hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(userdata));
+	}
+	case WM_NCCALCSIZE: {
+		if (wParam == TRUE) {
+			auto& params = *reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+			AdjustRect(params.rgrc[0]);
+			return 0;
+		}
+		break;
+	}
+	case WM_NCHITTEST: {
+		// When we have no border or title bar, we need to perform our
+		// own hit testing to allow resizing and moving.
+		//return HitTest(POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
+
+		break;
+	}
+
 	case WM_ACTIVATE:
 	{
 		if (LOWORD(wParam) == WA_INACTIVE)
 		{
-			//OutputDebugStringA("WA_INACTIVE\n");
 			bAppPaused = true;
 			Timer::Stop();
-			//OutputDebugStringA("Timer stopped\n");
 		}
 		else
 		{
 			bAppPaused = false;
 			Timer::Start();
-			//OutputDebugStringA("Timer started\n");
 		}
 		return 0;
 	}
@@ -116,12 +195,10 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		if (!m_Renderer)
 		{
-			//OutputDebugStringA("Failed to get Renderer on resize event!\n");
 			return 0;
 		}
 		if (wParam == SIZE_MINIMIZED)
 		{
-			//OutputDebugStringA("SIZE_MINIMIZED\n");
 			bAppPaused = true;
 			bMinimized = true;
 			bMaximized = false;
@@ -129,7 +206,6 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 		else if (wParam == SIZE_MAXIMIZED)
 		{
-			//OutputDebugStringA("SIZE_MAXIMIZED\n");
 			bAppPaused = false;
 			bMinimized = false;
 			bMaximized = true;
@@ -137,7 +213,6 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 		else if (wParam == SIZE_RESTORED)
 		{
-			//OutputDebugStringA("SIZE_RESTORED\n");
 			if (bMinimized)
 			{
 				bAppPaused = false;
@@ -160,27 +235,34 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			//}
 			OnResize();
 		}
+
+		return 0;
 	}
-	return 0;
+	// Temporal
+	case WM_KEYDOWN:
+	{
+		if (GetKeyState(VK_SPACE) & 0x800)
+		{
+			m_Renderer->bRaster = !m_Renderer->bRaster;
+		}
+
+		return 0;
+	}
 
 	case WM_ENTERSIZEMOVE:
 	{
-		//OutputDebugStringA("WM_ENTERSIZEMOVE\n");
 		bAppPaused = true;
 		bIsResizing = true;
-		Timer::Stop();
-		//OutputDebugStringA("Timer stopped\n");
+		Timer::Stop();;
 
 		return 0;
 	}
 
 	case WM_EXITSIZEMOVE:
 	{
-		//OutputDebugStringA("WM_EXITSIZEMOVE\n");
 		bAppPaused = false;
 		bIsResizing = false;
 		Timer::Start();
-		//OutputDebugStringA("Timer started\n");
 
 		OnResize();
 
@@ -193,9 +275,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		::PostQuitMessage(0);
 		return 0;
 	}
-	//default:
-	//	return ::DefWindowProcW(hWnd, msg, wParam, lParam);
 	}
 	
-	return ::DefWindowProcW(hWnd, msg, wParam, lParam);
+	return ::DefWindowProcW(hWnd, Msg, wParam, lParam);
 }

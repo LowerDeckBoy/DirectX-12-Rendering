@@ -1,7 +1,9 @@
 #include "../Graphics/Shader.hpp"
+#include "../Graphics/ShaderManager.hpp"
 #include "GraphicsPipelineState.hpp"
-#include "../Core/Device.hpp"
-#include "../Utils/Utilities.hpp"
+#include "../Core/DeviceContext.hpp"
+#include "../Utilities/Utilities.hpp"
+#include "../Utilities/Logger.hpp"
 
 
 PSOBuilder::PSOBuilder()
@@ -10,7 +12,17 @@ PSOBuilder::PSOBuilder()
 
 PSOBuilder::~PSOBuilder()
 {
+    if (m_ShaderManager)
+        delete m_ShaderManager;
+
     Reset();
+
+    Logger::Log("PSOBuilder released.");
+}
+
+void PSOBuilder::AddShaderManger(ShaderManager* pShaderManager)
+{
+    m_ShaderManager = pShaderManager;
 }
 
 void PSOBuilder::Create(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignature, ID3D12PipelineState** ppTarget, LPCWSTR DebugName)
@@ -26,10 +38,19 @@ void PSOBuilder::Create(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignatu
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
     desc.pRootSignature = pRootSignature;
     desc.InputLayout = { m_InputLayout.data(), static_cast<uint32_t>(m_InputLayout.size()) };
-    desc.VS = CD3DX12_SHADER_BYTECODE(m_VertexShader.GetData());
-    desc.PS = CD3DX12_SHADER_BYTECODE(m_PixelShader.GetData());
+
+    desc.VS = CD3DX12_SHADER_BYTECODE(m_VertexShader->GetBufferPointer(), m_VertexShader->GetBufferSize());
+    desc.PS = CD3DX12_SHADER_BYTECODE(m_PixelShader->GetBufferPointer(), m_PixelShader->GetBufferSize());
+
+    if (m_DomainShader)
+        desc.DS = CD3DX12_SHADER_BYTECODE(m_DomainShader->GetBufferPointer(), m_DomainShader->GetBufferSize());
+    if (m_HullShader)
+        desc.HS = CD3DX12_SHADER_BYTECODE(m_HullShader->GetBufferPointer(), m_HullShader->GetBufferSize());
+    if (m_GeometryShader)
+        desc.GS = CD3DX12_SHADER_BYTECODE(m_GeometryShader->GetBufferPointer(), m_GeometryShader->GetBufferSize());
+
     desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    desc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+    desc.RasterizerState.FillMode = m_FillMode;
     desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
     desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -37,7 +58,8 @@ void PSOBuilder::Create(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignatu
     desc.NumRenderTargets = 1;
     desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-    desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    //desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    desc.PrimitiveTopologyType = (m_DomainShader ? D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH : D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
     desc.SampleDesc = { 1, 0 };
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
@@ -52,9 +74,6 @@ void PSOBuilder::Create(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignatu
 
 void PSOBuilder::CreateRootSignature(ID3D12Device* pDevice, ID3D12RootSignature** ppTarget, LPCWSTR DebugName)
 {
-    //assert(!m_Ranges.empty());
-    //assert(!m_Parameters.empty());
-
     if ((*ppTarget) != nullptr)
     {
         (*ppTarget)->Release();
@@ -114,11 +133,38 @@ void PSOBuilder::AddSampler(uint32_t ShaderRegister, uint32_t RegisterSpace, D3D
 
 void PSOBuilder::AddShaders(const std::string_view& VertexPath, const std::string_view& PixelPath)
 {
-    m_VertexShader.Reset();
-    m_PixelShader.Reset();
+    //m_VertexShader.Reset();
+    //m_PixelShader.Reset();
 
-    m_VertexShader.Create(VertexPath.data(), "vs_5_1");
-    m_PixelShader.Create(PixelPath.data(), "ps_5_1");
+    //m_VertexShader.Create(VertexPath.data(), "vs_5_1");
+    //m_PixelShader.Create(PixelPath.data(), "ps_5_1");
+
+    m_VertexShader = nullptr;
+    m_PixelShader = nullptr;
+    
+    m_VertexShader = m_ShaderManager->CreateDXIL(VertexPath, L"vs_6_0");
+    m_PixelShader = m_ShaderManager->CreateDXIL(PixelPath, L"ps_6_0");
+
+}
+
+void PSOBuilder::AddGeometryShader(const std::string_view& GeometryPath)
+{
+    m_GeometryShader = m_ShaderManager->CreateDXIL(GeometryPath, L"gs_6_0");
+}
+
+void PSOBuilder::AddDomainShader(const std::string_view& DomainPath)
+{
+    m_DomainShader = m_ShaderManager->CreateDXIL(DomainPath, L"ds_6_0");
+}
+
+void PSOBuilder::AddHullShader(const std::string_view& HullPath)
+{
+    m_HullShader = m_ShaderManager->CreateDXIL(HullPath, L"ds_6_0");
+}
+
+void PSOBuilder::SetFillMode(D3D12_FILL_MODE FillMode)
+{
+    m_FillMode = FillMode;
 }
 
 void PSOBuilder::AddRootFlags(D3D12_ROOT_SIGNATURE_FLAGS Flags)
@@ -132,10 +178,12 @@ void PSOBuilder::Reset()
     m_Parameters.clear();
     m_InputLayout = {};
 
-    m_VertexShader.Reset();
-    m_PixelShader.Reset();
+    //m_VertexShader.Reset();
+    //m_PixelShader.Reset();
 
     m_StaticSampler = {};
+    m_RootFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    m_FillMode = D3D12_FILL_MODE_SOLID;
 }
 
 // ======================= Utils =======================
@@ -176,7 +224,8 @@ D3D12_STATIC_SAMPLER_DESC PSOUtils::CreateStaticSampler(uint32_t ShaderRegister,
     desc.MaxLOD = UINT32_MAX;
     desc.ShaderRegister = ShaderRegister;
     desc.RegisterSpace = RegisterSpace;
-    desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    //desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     return desc;
 }
@@ -224,7 +273,17 @@ std::array<D3D12_INPUT_ELEMENT_DESC, 2> PSOUtils::CreateSkyboxInputLayout()
 {
     std::array<D3D12_INPUT_ELEMENT_DESC, 2> layout{
         D3D12_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+
+    return layout;
+}
+
+std::array<D3D12_INPUT_ELEMENT_DESC, 2> PSOUtils::CreateScreenQuadLayout()
+{
+    std::array<D3D12_INPUT_ELEMENT_DESC, 2> layout{
+        D3D12_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 
     return layout;
