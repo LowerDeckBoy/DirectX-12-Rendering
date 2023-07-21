@@ -4,7 +4,9 @@
 #include <imgui_impl_dx12.h>
 #include <wrl.h>
 
-class Device;
+#include <string>
+
+class DeviceContext;
 class Camera;
 //class Timer;
 
@@ -13,17 +15,46 @@ class GUI
 public:
 	~GUI();
 
-	void Initialize(Device* pDevice, Camera& refCamera);
+	void Initialize(DeviceContext* pDevice, Camera* pCamera);
 	void Begin();
-	// Goes before making Barrier Resource Transition
+	// Goes before making Barrier Resource Transition for Present state
 	void End(ID3D12GraphicsCommandList* pCommandList);
 
+	void Logs();
+
+	void Release();
+
 private:
-	Device* m_Device{ nullptr };
+	DeviceContext* m_Device{ nullptr };
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_Heap;
 	
-	ImFont* m_MainFont;
+	ImFont* m_MainFont{ nullptr };
 
-	Camera* m_Camera;
+	Camera* m_Camera{ nullptr };
+
+	bool bShowLogs{ false };
 };
 
+// TEST
+class GUIObject
+{
+public:
+	void Draw()
+	{
+		if (ImGui::CollapsingHeader(m_Name.c_str()))
+		{
+
+		}
+	}
+
+	void SetName(const std::string_view& Name)
+	{
+		m_Name = Name.data();
+	}
+
+private:
+	std::string m_Name;
+
+
+
+};
