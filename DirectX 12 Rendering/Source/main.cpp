@@ -9,6 +9,8 @@
 // https://alextardif.com/Bindless.html
 // https://alain.xyz/blog/raw-directx12#initialize-api
 
+// https://github.com/ocornut/imgui/discussions/4942
+
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 {

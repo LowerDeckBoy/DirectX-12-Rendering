@@ -1,5 +1,5 @@
 #pragma once
-#include "../../Core/Device.hpp"
+#include "../../Core/DeviceContext.hpp"
 #include <DirectXMath.h>
 #include "../Model/Model.hpp"
 
@@ -15,12 +15,12 @@ struct cbPointLight
 class PointLight
 {
 public:
-	PointLight();
+	PointLight() {}
 	
-	void Create(Device* pDevice, const std::string_view& Filepath);
+	void Create(DeviceContext* pDevice, const std::string_view& Filepath);
 
 private:
-	Device* m_Device{ nullptr };
+	DeviceContext* m_Device{ nullptr };
 
 	float m_Radius;
 	// World position

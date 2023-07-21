@@ -1,6 +1,6 @@
 #include "PointLight.hpp"
 
-void PointLight::Create(Device* pDevice, const std::string_view& Filepath)
+void PointLight::Create(DeviceContext* pDevice, const std::string_view& Filepath)
 {
 
 

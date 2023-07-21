@@ -29,3 +29,9 @@ struct SkyboxVertex
 	DirectX::XMFLOAT3 Position;
 	DirectX::XMFLOAT2 TexCoord;
 };
+
+struct ScreenQuadVertex
+{
+	DirectX::XMFLOAT4 Position;
+	DirectX::XMFLOAT2 TexCoord;
+};

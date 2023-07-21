@@ -3,6 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <Windows.h>
+#include <windowsx.h>
 #include <iostream>
 
 // TODO: Get rid of statics 
@@ -10,7 +11,7 @@
 class Window
 {
 public:
-	explicit Window(HINSTANCE hInstance);
+	explicit Window(HINSTANCE hInstance) noexcept;
 	Window(const Window&) = delete;
 	virtual ~Window();
 
@@ -18,27 +19,27 @@ public:
 	void Show();
 
 	// For GUI usage
-	static void ShowCursor();
-	static void HideCursor();
+	static void ShowCursor() noexcept;
+	static void HideCursor() noexcept;
 	
-	void Destroy();
+	void Release();
 
 	virtual LRESULT WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) = 0;
 	virtual void OnResize() = 0;
 
 	inline static struct Display
 	{
-		float Width{ 1280.0f };
-		float Height{ 800.0f };
-		float AspectRatio{ Width / Height };
+		float Width;
+		float Height;
+		float AspectRatio;
 	} m_Display;
 
 	[[nodiscard]]
-	static HINSTANCE GetHInstance() { return m_hInstance;  }
+	static HINSTANCE GetHInstance() noexcept { return m_hInstance;  }
 	[[nodiscard]]
-	static HWND GetHWND() { return m_hWnd; }
+	static HWND GetHWND() noexcept { return m_hWnd; }
 	[[nodiscard]]
-	static inline Display GetDisplay() { return m_Display; }
+	static inline Display GetDisplay() noexcept { return m_Display; }
 
 	inline static bool bShouldResize{ false };
 
@@ -55,4 +56,3 @@ private:
 	inline static bool bIsInitialized{ false };
 
 };
-

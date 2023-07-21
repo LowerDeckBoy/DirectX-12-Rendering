@@ -1,47 +1,43 @@
 #pragma once
 #include <d3d12.h>
 #include <wrl.h>
-
 #include <string>
 #include <DirectXTex.h>
-
 #include "../Core/DescriptorHeap.hpp"
 
-class Device;
 
-// https://logins.github.io/graphics/2020/08/31/D3D12TexturesPart1.html
+class DeviceContext;
 
 class Texture
 {
 public:
 	Texture();
-	Texture(Device* pDevice, const std::string& TexturePath);
+	Texture(DeviceContext* pDevice, const std::string& TexturePath);
 	// bSkyboxHDR parameter indicates whether desired texture is meant for Skybox
 	// and should be prefiltered for Image Based Lighting usage
-	Texture(Device* pDevice, const std::string& TexturePath, bool bSkyboxHDR);
-	Texture(Device* pDevice, const std::string& TexturePath, const std::string& TextureName);
+	Texture(DeviceContext* pDevice, const std::string& TexturePath, bool bSkyboxHDR);
+	Texture(DeviceContext* pDevice, const std::string& TexturePath, const std::string& TextureName);
 	~Texture();
 
 	// Determine texture loader based on input file extension
-	void Create(Device* pDevice, const std::string& TexturePath);
+	void Create(DeviceContext* pDevice, const std::string& TexturePath);
 	// No mipmapping variant
-	//void Create(Device* pDevice, const std::string& TexturePath);
-	// With mipmapping
-	// via DirectXTK12
-	void CreateFromWIC(Device* pDevice, const std::string& TexturePath);
+	//void Create(DeviceContext* pDevice, const std::string& TexturePath);
+	// With mipmapping via DirectXTK12
+	void CreateFromWIC(DeviceContext* pDevice, const std::string& TexturePath);
 	// Used for Skybox/Cubebox creating from DDS files
-	void CreateFromDDS(Device* pDevice, const std::string& TexturePath);
+	void CreateFromDDS(DeviceContext* pDevice, const std::string& TexturePath);
 	// HDR Skybox texture
-	// by default without prefiltering
-	void CreateFromHDR(Device* pDevice, const std::string& TexturePath);
+	// by default without prefiltering -> non IBL
+	void CreateFromHDR(DeviceContext* pDevice, const std::string& TexturePath);
 
-	void CreateTexture(Device* pDevice, uint32_t Width, uint32_t Height, DXGI_FORMAT Format);
+	void CreateTexture(DeviceContext* pDevice, uint32_t Width, uint32_t Height, DXGI_FORMAT Format);
 
-	//void CreateSRV(Device* pDevice);
+	//void CreateSRV(DeviceContext* pDevice);
 
 	void CreateUAV(ID3D12Resource* pTexture, uint32_t MipSlice = 0);
 
-	//void CreateFromHDR(Device* pDevice, const std::string& TexturePath, bool bPrefilter);
+	//void CreateFromHDR(DeviceContext* pDevice, const std::string& TexturePath, bool bPrefilter);
 
 	void SetName(const std::string& NewName) { m_TextureName = NewName; }
 
@@ -56,7 +52,7 @@ public:
 	Descriptor m_DescriptorSRV;
 
 private:
-	Device* m_Device{ nullptr };
+	DeviceContext* m_Device{ nullptr };
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_Texture;
 	// Temporal solution
 	// Making it local causes problems
@@ -73,10 +69,3 @@ private:
 
 	std::string m_TextureName;
 };
-
-class TextureUtils
-{
-public:
-
-};
-

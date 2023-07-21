@@ -1,5 +1,5 @@
 #pragma once
-#include "../Core/Device.hpp"
+#include "../Core/DeviceContext.hpp"
 #include "../Graphics/Buffer.hpp"
 #include "../Graphics/ConstantBuffer.hpp"
 #include "Vertex.hpp"
@@ -8,16 +8,19 @@
 
 class Camera;
 class Texture;
+class ImageBasedLighting;
 
 // https://skybox.blockadelabs.com/
 class Skybox
 {
 public:
 	Skybox() { }
-	Skybox(Device* pDevice);
+	Skybox(DeviceContext* pDevice);
+	//Skybox(Device* pDevice, ImageBasedLighting& IBL);
 
-	void Create(Device* pDevice);
+	void Create(DeviceContext* pDevice);
 	void Draw(Camera* pCamera);
+	void DrawIBL(Camera* pCamera, ImageBasedLighting& IBL);
 	void UpdateWorld(Camera* pCamera);
 	void Release();
 
@@ -27,8 +30,10 @@ public:
 	ID3D12Resource* GetTexture() { return m_Texture->GetTexture(); }
 	Texture GetTex();
 
+	//ImageBasedLighting mIBL;
+
 private:
-	Device* m_Device{ nullptr };
+	DeviceContext* m_Device{ nullptr };
 	//std::unique_ptr<VertexBuffer<SkyboxVertex>> m_VertexBuffer{ nullptr };
 	std::unique_ptr<VertexBuffer> m_VertexBuffer{ nullptr };
 	std::unique_ptr<IndexBuffer> m_IndexBuffer{ nullptr };
