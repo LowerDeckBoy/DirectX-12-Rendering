@@ -1,180 +1,176 @@
 #include "ImageBasedLighting.hpp"
+#include "../Core/DescriptorHeap.hpp"
+#include "../Rendering/Camera.hpp"
+#include "Texture.hpp"
 #include "../Core/DeviceContext.hpp"
+#include "TextureUtils.hpp"
 #include <vector>
 
-void ImageBasedLighting::Test(DeviceContext* pDevice)
+
+ImageBasedLighting::~ImageBasedLighting()
 {
-
-	//ComputePipelineState pipeline;
-	m_Pipeline.AddShader("Assets/Shaders/Compute/CS_Test.hlsl");
-
-	std::vector<CD3DX12_DESCRIPTOR_RANGE1> ranges(2);
-	ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
-	ranges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-	std::vector<CD3DX12_ROOT_PARAMETER1> params(2);
-	params.at(0).InitAsDescriptorTable(1, &ranges.at(0));
-	params.at(1).InitAsDescriptorTable(1, &ranges.at(1));
-
-	m_Pipeline.CreateRootSignature(pDevice->GetDevice(), ranges, params);
-	m_Pipeline.CreateState(pDevice->GetDevice(), m_Pipeline.GetRootSignature());
-	//m_Pipeline.
-
-	ID3D12Resource* srvTexture{ nullptr };
-	ID3D12Resource* uavTexture{ nullptr };
-	//Texture unfiltered;
-
-	D3D12_RESOURCE_DESC desc{};
-	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-	desc.DepthOrArraySize = 1;
-	desc.Width = 1024;
-	desc.Height = 1024;
-	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	desc.MipLevels = 1;
-	desc.SampleDesc = { 1, 0 };
-
-	auto heapProps{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
-	pDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&srvTexture));
-
-	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-	pDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&uavTexture));
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-	uavDesc.Texture2D.MipSlice = 0;
-	uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-
-	pDevice->GetMainHeap()->Allocate(m_UAVDesc);
-	pDevice->GetMainHeap()->Allocate(m_SRVDesc);
-
-	pDevice->GetDevice()->CreateShaderResourceView(srvTexture, &srvDesc, m_SRVDesc.GetCPU());
-	pDevice->GetDevice()->CreateUnorderedAccessView(uavTexture, nullptr, &uavDesc, m_UAVDesc.GetCPU());
-	auto commandList{ pDevice->GetCommandList() };
-	
-	commandList->SetDescriptorHeaps(1, pDevice->GetMainHeap()->GetHeapAddressOf());
-	commandList->SetComputeRootSignature(m_Pipeline.GetRootSignature());
-	commandList->SetPipelineState(m_Pipeline.GetPipelineState());
-	commandList->SetComputeRootDescriptorTable(0, m_UAVDesc.GetGPU());
-	commandList->SetComputeRootDescriptorTable(1, m_SRVDesc.GetGPU());
-
-	m_Pipeline.Dispatch(commandList);
-
-	auto barrier{ CD3DX12_RESOURCE_BARRIER::Transition(uavTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,  D3D12_RESOURCE_STATE_COPY_SOURCE) };
-	commandList->ResourceBarrier(1, &barrier);
-	auto barrier2{ CD3DX12_RESOURCE_BARRIER::Transition(srvTexture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST) };
-	commandList->ResourceBarrier(1, &barrier2);
-	commandList->CopyResource(srvTexture, uavTexture);
-	//D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-	auto barrier3{ CD3DX12_RESOURCE_BARRIER::Transition(srvTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) };
-	commandList->ResourceBarrier(1, &barrier3);
-	//pDevice->GetDevice()->CreateUnorderedAccessView(srvTexture, nullptr, &uavDesc, m_UAVDesc.GetCPU());
-	m_Texture = srvTexture;
-
-
-	//m_Pipeline.Reset();
-
-	//pDevice->FlushGPU();
-	//pDevice->WaitForGPU();
+	Release();
 }
 
-void ImageBasedLighting::Test2(DeviceContext* pDevice, const std::string_view& Filepath)
+void ImageBasedLighting::Create(DeviceContext* pDevice, const std::string_view& Filepath)
 {
-	//m_Pipeline.AddShader("Assets/Shaders/Compute/CS_Test.hlsl");
-	m_Pipeline.AddShader("Assets/Shaders/Compute/SampleSkybox.hlsl");
+	InitializeTextures(pDevice, Filepath);
+	InitializeBuffers(pDevice);
 
-	std::vector<CD3DX12_DESCRIPTOR_RANGE1> ranges(3);
-	ranges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
-	ranges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-	ranges.at(2).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
-	std::vector<CD3DX12_ROOT_PARAMETER1> params(2);
-	params.at(0).InitAsDescriptorTable(1, &ranges.at(0));
-	params.at(1).InitAsDescriptorTable(1, &ranges.at(1));
+	assert(m_CommandList = pDevice->GetCommandList());
+}
 
-	m_Pipeline.CreateRootSignature(pDevice->GetDevice(), ranges, params);
-	m_Pipeline.CreateState(pDevice->GetDevice(), m_Pipeline.GetRootSignature());
+void ImageBasedLighting::InitializeTextures(DeviceContext* pDevice, const std::string_view& Filepath)
+{
 
-	ID3D12Resource* hdrTexture{ nullptr };
-	ID3D12Resource* uavTexture{ nullptr };
+	ID3D12RootSignature* computeRoot{ nullptr };
 
-	//TextureUtils::CreateFromWIC(pDevice->GetDevice(), srvTexture, Filepath, {});
-	//TextureUtils::CreateResource(pDevice->GetDevice(), uavTexture, {}, { 1024, 1024 });
-	hdrTexture = TextureUtils::CreateFromHDR(pDevice->GetDevice(), pDevice->GetCommandList(), Filepath, {});
-	//uavTexture = TextureUtils::CreateResource(pDevice->GetDevice(), { D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS }, { 6144, 3072 });
-	uavTexture = TextureUtils::CreateResource(pDevice->GetDevice(), { D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS }, { 1600, 800, DXGI_FORMAT_R32G32B32A32_FLOAT });
+	std::array<CD3DX12_DESCRIPTOR_RANGE1, 2> ranges{};
+	ranges.at(0) = { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC };
+	ranges.at(1) = { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE };
+
+	std::array<CD3DX12_ROOT_PARAMETER1, 3> parameters{};
+	parameters.at(0).InitAsDescriptorTable(1, &ranges.at(0));
+	parameters.at(1).InitAsDescriptorTable(1, &ranges.at(1));
+	parameters.at(2).InitAsConstants(1, 0);
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC signatureDesc{};
+	const CD3DX12_STATIC_SAMPLER_DESC computeSamplerDesc{ 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR };
+	signatureDesc.Init_1_1(static_cast<uint32_t>(parameters.size()), parameters.data(), 1, &computeSamplerDesc);
+
+	const D3D12_ROOT_SIGNATURE_FLAGS standardFlags = D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
+
+	ComPtr<ID3DBlob> signature;
+	ComPtr<ID3DBlob> error;
+
+	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&signatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_1, &signature, &error));
+	ThrowIfFailed(pDevice->GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&computeRoot)));
+	computeRoot->SetName(L"Compute Root");
+
+	pDevice->GetMainHeap()->Allocate(m_EnvDescriptor);
+	ID3D12Resource* envUnfiltered = TextureUtils::CreateResource(pDevice->GetDevice(), TextureDesc(D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS), TextureData(1024, 1024, 6));
+	TextureUtils::CreateUAV(pDevice->GetDevice(), envUnfiltered, m_EnvDescriptor, DXGI_FORMAT_R8G8B8A8_UNORM, 6);
+
+	Shader eq2c("Assets/Shaders/Compute/Equirectangular2Cube.hlsl", "cs_5_1");
+
+	ID3D12Resource* resource = TextureUtils::CreateFromHDR(pDevice, Filepath);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	//srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	srvDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	//srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-	//srvDesc.TextureCube.MipLevels = 1;
-	//srvDesc.TextureCube.MostDetailedMip = 0;
 
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-	uavDesc.Texture2D.MipSlice = 0;
-	uavDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	pDevice->GetMainHeap()->Allocate(m_Descriptor);
+	pDevice->GetDevice()->CreateShaderResourceView(resource, &srvDesc, m_Descriptor.GetCPU());
 
-	Descriptor temp;
-	pDevice->GetMainHeap()->Allocate(m_UAVDesc);
-	pDevice->GetMainHeap()->Allocate(temp);
+	ID3D12PipelineState* computePipeline;
+	D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
+	psoDesc.pRootSignature = computeRoot;
+	psoDesc.CS = { eq2c.GetData()->GetBufferPointer(), eq2c.GetData()->GetBufferSize() };
+	pDevice->GetDevice()->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&computePipeline));
 
-	pDevice->GetDevice()->CreateShaderResourceView(hdrTexture, &srvDesc, temp.GetCPU());
-	pDevice->GetDevice()->CreateUnorderedAccessView(uavTexture, nullptr, &uavDesc, m_UAVDesc.GetCPU());
-	auto commandList{ pDevice->GetCommandList() };
+	auto barrier{ CD3DX12_RESOURCE_BARRIER::Transition(envUnfiltered, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS) };
+	envUnfiltered->SetName(L"envUnfiltered");
 
-	//=================== Dispatch ===========================
+	const auto commandList{ pDevice->GetCommandList() };
 	commandList->SetDescriptorHeaps(1, pDevice->GetMainHeap()->GetHeapAddressOf());
-	commandList->SetComputeRootSignature(m_Pipeline.GetRootSignature());
-	commandList->SetPipelineState(m_Pipeline.GetPipelineState());
-	commandList->SetComputeRootDescriptorTable(0, m_UAVDesc.GetGPU());
-	commandList->SetComputeRootDescriptorTable(1, temp.GetGPU());
-
-	m_Pipeline.Dispatch(commandList);
-
-	auto barrier{ CD3DX12_RESOURCE_BARRIER::Transition(uavTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,  D3D12_RESOURCE_STATE_COPY_SOURCE) };
 	commandList->ResourceBarrier(1, &barrier);
-	auto barrier2{ CD3DX12_RESOURCE_BARRIER::Transition(hdrTexture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST) };
-	commandList->ResourceBarrier(1, &barrier2);
-	//commandList->CopyResource(hdrTexture, uavTexture);
+	commandList->SetComputeRootSignature(computeRoot);
+	commandList->SetPipelineState(computePipeline);
+	commandList->SetComputeRootDescriptorTable(0, m_Descriptor.GetGPU());
+	commandList->SetComputeRootDescriptorTable(1, m_EnvDescriptor.GetGPU());
+	commandList->Dispatch(1024 / 32, 1024 / 32, 6);
 
-	// https://github.com/Nadrin/PBR/blob/master/src/d3d12.cpp
-	// Convert from Texture2D to TextureCube here?
-	for (uint32_t arraySlice = 0; arraySlice < 6; ++arraySlice) {
-		const UINT subresourceIndex = D3D12CalcSubresource(0, arraySlice, 0, 1, 6);
+	barrier = CD3DX12_RESOURCE_BARRIER::Transition(envUnfiltered, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON);
+	commandList->ResourceBarrier(1, &barrier);
 
-		auto copyDst{ CD3DX12_TEXTURE_COPY_LOCATION{ hdrTexture, subresourceIndex } };
-		auto copySrc{ CD3DX12_TEXTURE_COPY_LOCATION{ uavTexture, subresourceIndex } };
-		
-		commandList->CopyTextureRegion(&copyDst, 0, 0, 0, &copySrc, nullptr);
-	}
+	barrier = CD3DX12_RESOURCE_BARRIER::Transition(envUnfiltered, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	commandList->ResourceBarrier(1, &barrier);
 
-	//
-	auto barrier3{ CD3DX12_RESOURCE_BARRIER::Transition(hdrTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) };
-	commandList->ResourceBarrier(1, &barrier3);
+	pDevice->GetMainHeap()->Allocate(m_OutputDescriptor);
+	m_OutputResource = TextureUtils::CreateResource(pDevice->GetDevice(), TextureDesc(), { 1024, 1024, 6 });
+	m_OutputResource.Get()->SetName(L"IBL Output Resource");
 
-	// TEST
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvCubeDesc{};
-	//srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	srvCubeDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	srvCubeDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvCubeDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-	srvCubeDesc.TextureCube.MipLevels = 1;
-	srvCubeDesc.TextureCube.MostDetailedMip = 0;
+	std::array<D3D12_RESOURCE_BARRIER, 2> preCopyBarriers{};
+	preCopyBarriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(m_OutputResource.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+	preCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(envUnfiltered, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
+	commandList->ResourceBarrier(static_cast<uint32_t>(preCopyBarriers.size()), preCopyBarriers.data());
 
-	pDevice->GetMainHeap()->Allocate(m_SRVDesc);
-	pDevice->GetDevice()->CreateShaderResourceView(hdrTexture, &srvDesc, m_SRVDesc.GetCPU());
+	commandList->CopyResource(m_OutputResource.Get(), envUnfiltered);
 
-	m_Texture = hdrTexture;
+	std::array<D3D12_RESOURCE_BARRIER, 2> postCopyBarriers{};
+	postCopyBarriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(envUnfiltered, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
+	postCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_OutputResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+	commandList->ResourceBarrier(static_cast<uint32_t>(postCopyBarriers.size()), postCopyBarriers.data());
+
+	pDevice->GetMainHeap()->Allocate(m_OutputDescriptor);
+	D3D12_SHADER_RESOURCE_VIEW_DESC cubeDesc{};
+	cubeDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	cubeDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	cubeDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+	cubeDesc.TextureCube.MipLevels = 1;
+	pDevice->GetDevice()->CreateShaderResourceView(m_OutputResource.Get(), &cubeDesc, m_OutputDescriptor.GetCPU());
+
+}
+
+void ImageBasedLighting::InitializeBuffers(DeviceContext* pDevice)
+{
+	std::vector<SkyboxVertex>* vertices = new std::vector<SkyboxVertex>{
+		{ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) }
+	};
+
+	std::vector<uint32_t>* indices = new std::vector<uint32_t>{
+		0, 1, 2, 0, 2, 3,
+		4, 6, 5, 4, 7, 6,
+		4, 5, 1, 4, 1, 0,
+		3, 2, 6, 3, 6, 7,
+		1, 5, 6, 1, 6, 2,
+		4, 0, 3, 4, 3, 7
+	};
+
+	m_VertexBuffer.Create(pDevice, BufferData(vertices->data(), vertices->size(), vertices->size() * sizeof(vertices->at(0)), sizeof(vertices->at(0))), BufferDesc());
+	m_IndexBuffer.Create(pDevice, BufferData(indices->data(), indices->size(), indices->size() * sizeof(indices->at(0)), sizeof(indices->at(0))), BufferDesc());
+
+	m_ConstBuffer.Create(pDevice, &m_cbData);
+
+}
+
+void ImageBasedLighting::Draw(Camera* pCamera, uint32_t FrameIndex)
+{
+	m_CommandList.Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_CommandList.Get()->IASetVertexBuffers(0, 1, &m_VertexBuffer.View);
+	m_CommandList.Get()->IASetIndexBuffer(&m_IndexBuffer.View);
+
+	UpdateWorld(pCamera);
+	m_ConstBuffer.Update({ XMMatrixTranspose(m_WorldMatrix * pCamera->GetViewProjection()),
+								XMMatrixTranspose(XMMatrixIdentity()) }, FrameIndex);
+	m_CommandList.Get()->SetGraphicsRootConstantBufferView(0, m_ConstBuffer.GetBuffer(FrameIndex)->GetGPUVirtualAddress());
+	m_CommandList.Get()->SetGraphicsRootDescriptorTable(1, m_OutputDescriptor.GetGPU());
+
+	m_CommandList.Get()->DrawIndexedInstanced(m_IndexBuffer.Count, 1, 0, 0, 0);
+}
+
+void ImageBasedLighting::UpdateWorld(Camera* pCamera)
+{
+	m_WorldMatrix = XMMatrixIdentity();
+	m_Translation = XMVectorSet(DirectX::XMVectorGetX(pCamera->GetPosition()),
+		DirectX::XMVectorGetY(pCamera->GetPosition()),
+		DirectX::XMVectorGetZ(pCamera->GetPosition()), 0.0f);
+	m_WorldMatrix = XMMatrixScalingFromVector(m_Scale) * XMMatrixTranslationFromVector(m_Translation);
+}
+
+void ImageBasedLighting::Release()
+{
+	SAFE_RELEASE(m_OutputResource);
+	SAFE_RELEASE(m_CommandList);
 
 }

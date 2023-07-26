@@ -1,33 +1,50 @@
 #pragma once
 #include "../Core/ComputePipelineState.hpp"
-#include "Texture.hpp"
-#include "TextureUtils.hpp"
+#include "Buffer.hpp"
+#include "ConstantBuffer.hpp"
 
-#include "../Core/DescriptorHeap.hpp"
 
 class DeviceContext;
+class Camera;
+struct Descriptor;
 
 class ImageBasedLighting
 {
 public:
 	ImageBasedLighting() {}
-	~ImageBasedLighting() {}
+	~ImageBasedLighting();
 
-	void Create() {}
+	void Create(DeviceContext* pDevice, const std::string_view& Filepath);
+	void InitializeTextures(DeviceContext* pDevice, const std::string_view& Filepath);
+	void InitializeBuffers(DeviceContext* pDevice);
 
-	void Test(DeviceContext* pDevice);
-	void Test2(DeviceContext* pDevice, const std::string_view& Filepath);
+	void Draw(Camera* pCamera, uint32_t FrameIndex);
 
-	// Output texture from UAV
-	ID3D12Resource* m_Texture{ nullptr };
+	void Release();
 
-	Descriptor m_UAVDesc;
-	Descriptor m_SRVDesc;
+	//ID3D12Resource* m_EnvironmentMap{ nullptr };
+	Descriptor m_EnvDescriptor;
+	//ID3D12Resource* m_IrradianceMap{ nullptr };
+	//Descriptor m_IrradianceDescriptor;
+	//ID3D12Resource* m_PrefilteredMap{ nullptr };
+	//Descriptor m_PrefilteredDescriptor;
 
-	ComputePipelineState m_Pipeline;
+	Descriptor m_Descriptor;
+	ComPtr<ID3D12Resource> m_OutputResource;
+	Descriptor m_OutputDescriptor;
 
 private:
+	ComPtr<ID3D12GraphicsCommandList> m_CommandList;
 
+	VertexBuffer m_VertexBuffer;
+	IndexBuffer m_IndexBuffer;
+	ConstantBuffer<cbPerObject> m_ConstBuffer;
+	cbPerObject m_cbData{};
 
+	void UpdateWorld(Camera* pCamera);
 
+	XMMATRIX m_WorldMatrix{ XMMatrixIdentity() };
+	XMVECTOR m_Translation{ XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f) };
+	XMVECTOR m_Scale{ XMVectorSet(500.0f, 500.0f, 500.0f, 0.0f) };
+	
 };

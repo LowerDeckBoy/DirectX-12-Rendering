@@ -4,15 +4,15 @@
 #include "../Graphics/ShaderManager.hpp"
 #include "../Graphics/Shader.hpp"
 #include "../Graphics/ConstantBuffer.hpp"
-#include "../Editor/GUI.hpp"
+#include "../Editor/Editor.hpp"
 #include "ComputePipelineState.hpp"
 #include "../Rendering/Model/Model.hpp"
 #include "../Graphics/Skybox.hpp"
 #include "../Rendering/ScreenQuad.hpp"
 #include "../Utilities/Logger.hpp"
+#include "../Graphics/ImageBasedLighting.hpp"
 
 class Camera;
-class GUI;
 
 using namespace DirectX;
 
@@ -43,12 +43,11 @@ protected:
 	// Wrappers
 	void SetHeap(ID3D12DescriptorHeap** ppHeap);
 	void SetRootSignature(ID3D12RootSignature* pRootSignature);
-	void SetRootSignature(const ComPtr<ID3D12RootSignature>& ppRootSignature);
-	void SetPipelineState(ID3D12PipelineState* pPipelineState);;
-	void SetPipelineState(const ComPtr<ID3D12PipelineState>& ppPipelineState);;
+	void SetPipelineState(ID3D12PipelineState* pPipelineState);
 
 	void SetRenderTarget();
 	void ClearRenderTarget();
+	void ClearDepthStencil();
 
 	void TransitToRender();
 	void TransitToPresent(D3D12_RESOURCE_STATES StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -63,7 +62,7 @@ private:
 
 	Camera* m_Camera{ nullptr };
 
-	std::unique_ptr<GUI> m_GUI;
+	std::unique_ptr<Editor> m_GUI;
 
 private:
 	std::array<const float, 4> m_ClearColor{ 0.5f, 0.5f, 1.0f, 1.0f };
@@ -88,18 +87,21 @@ private:
 	ComPtr<ID3D12RootSignature> m_SkyboxRootSignature;
 	ComPtr<ID3D12PipelineState> m_SkyboxPipelineState;
 	std::unique_ptr<Skybox> m_Skybox;
+	std::unique_ptr<ImageBasedLighting> m_IBL;
 
 	std::unique_ptr<ShaderManager> m_ShaderManager;
 
 	// Deferred Context
 	ScreenQuad m_ScreenQuad;
 
-	static const int32_t m_DeferredRTVCount{ 5 };
+	static const int32_t m_DeferredRTVCount{ 6 };
 	void CreateDeferredRTVs();
 	ComPtr<ID3D12DescriptorHeap> m_DefRTVHeap;
 	ComPtr<ID3D12Resource> m_RTVTextures[m_DeferredRTVCount];
+public:
 	std::array<CD3DX12_CPU_DESCRIPTOR_HANDLE, m_DeferredRTVCount> m_RTVDescriptors;
 	std::array<Descriptor, m_DeferredRTVCount> m_RTSRVDescs;
+private:
 	ComPtr<ID3D12PipelineState> m_DeferredPSO;
 	ComPtr<ID3D12PipelineState> m_DeferredLightPSO;
 
@@ -137,7 +139,6 @@ private:
 
 public:
 	static bool bDrawSky;
-	static bool bRaster;
 	static bool bDeferred;
 
 	Logger m_Logger;

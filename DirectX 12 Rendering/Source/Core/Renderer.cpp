@@ -5,10 +5,8 @@
 #include "GraphicsPipelineState.hpp"
 #include <array>
 
-
 bool Renderer::bDrawSky   = true;
-bool Renderer::bRaster    = true;
-bool Renderer::bDeferred  = true;
+bool Renderer::bDeferred  = false;
 
 Renderer::~Renderer()
 {
@@ -19,7 +17,7 @@ void Renderer::Initialize(Camera* pCamera)
 {
 	m_Device = std::make_unique<DeviceContext>();
 	m_Device->Initialize();
-	m_GUI = std::make_unique<GUI>();
+	m_GUI = std::make_unique<Editor>();
 	m_GUI->Initialize(m_Device.get(), pCamera);
 
 	assert(m_Camera = pCamera);
@@ -33,9 +31,9 @@ void Renderer::Initialize(Camera* pCamera)
 	m_ScreenQuad.Create(m_Device.get());
 
 	LoadAssets();
+	PreRender();
 
 	m_Device->ExecuteCommandList();
-
 }
 
 void Renderer::LoadAssets()
@@ -48,7 +46,7 @@ void Renderer::LoadAssets()
 	m_cbCamera		= std::make_unique<ConstantBuffer<SceneConstData>>(m_Device.get(), &m_cbSceneData);
 	//m_cbMaterial	= std::make_unique<ConstantBuffer<cbMaterial>>(m_Device.get(), &m_cbMaterialData);
 
-	m_Skybox = std::make_unique<Skybox>(m_Device.get());
+	//m_Skybox = std::make_unique<Skybox>(m_Device.get());
 
 	//m_Model = std::make_unique<Model>(m_Device.get(), "Assets/glTF/sponza/Sponza.gltf");
 	m_Model = std::make_unique<Model>(m_Device.get(), "Assets/glTF/damaged_helmet/scene.gltf", "Helmet");
@@ -80,10 +78,10 @@ void Renderer::LoadAssets()
 void Renderer::PreRender()
 {
 	// Dispatching Compute Shaders here
-	//m_IBL.Test(m_Device.get());
-	//m_IBL.Test2(m_Device.get(), "Assets/Textures/newport_loft.hdr");
-	//m_IBL.Test2(m_Device.get(), "Assets/Textures/fantasy_landscape_nightsky.jpeg");
-	//m_IBL.Test2(m_Device.get(), "Assets/Textures/shrek.jpg");
+
+	m_IBL = std::make_unique<ImageBasedLighting>();
+	m_IBL->Create(m_Device.get(), "Assets/Textures/newport_loft.hdr");
+
 }
 
 void Renderer::Update()
@@ -91,7 +89,6 @@ void Renderer::Update()
 	UpdateLights();
 
 	// Update CBVs
-	//XMVECTOR det{};
 	m_cbCamera->Update({ m_Camera->GetPosition(),
 						 XMMatrixTranspose(m_Camera->GetView()),
 						 XMMatrixTranspose(m_Camera->GetProjection()),
@@ -123,26 +120,28 @@ void Renderer::DrawSkybox()
 {
 	if (bDrawSky)
 	{
-		SetPipelineState(m_SkyboxPipelineState);
-		SetRootSignature(m_SkyboxRootSignature);
-		m_Skybox->Draw(m_Camera);
-		
-		//m_Skybox->DrawIBL(pCamera, m_IBL);
+		SetPipelineState(m_SkyboxPipelineState.Get());
+		SetRootSignature(m_SkyboxRootSignature.Get());
+
+		m_IBL->Draw(m_Camera, m_Device->FRAME_INDEX);
+
+		//m_Skybox->Draw(m_Camera);
 	}
 }
 
 void Renderer::Forward()
 {	
 	SetRenderTarget();
-	if (bRaster)
-	{
-		//m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_Skybox->GetTex().m_Descriptor.GetGPU());
+	ClearRenderTarget();
+	ClearDepthStencil();
 
-		ClearRenderTarget();
-		SwitchPSO();
-		m_Model->Draw(m_Camera);
-		//m_Model2->Draw(m_Camera);
-	}
+	SwitchPSO();
+	SetPipelineState(m_PBRPipelineState.Get());
+	SetRootSignature(m_ModelRootSignature.Get());
+	//m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_Skybox->GetTex().m_Descriptor.GetGPU());
+	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_IBL->m_OutputDescriptor.GetGPU());
+	m_Model->Draw(m_Camera);
+	//m_Model2->Draw(m_Camera);
 
 }
 
@@ -154,9 +153,7 @@ void Renderer::Deferred()
 	SwitchPSO();
 	PassGBuffer(m_Camera);
 
-	SetRenderTarget();
-	ClearRenderTarget();
-
+	m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(1, m_cbCamera->GetBuffer(m_Device->FRAME_INDEX)->GetGPUVirtualAddress());
 	ImGui::Begin("Render Targets");
 	const auto rtv0 = m_RTSRVDescs.at(0).GetGPU();
 	const auto rtv1 = m_RTSRVDescs.at(1).GetGPU();
@@ -164,20 +161,22 @@ void Renderer::Deferred()
 	const auto rtv3 = m_RTSRVDescs.at(3).GetGPU();
 	const auto rtv4 = m_RTSRVDescs.at(4).GetGPU();
 
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv0.ptr), { 500, 500 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(rtv0.ptr), { 500, 350 });
 	ImGui::SameLine();
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv1.ptr), { 500, 500 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(rtv1.ptr), { 500, 350 });
 	ImGui::SameLine();
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv2.ptr), { 500, 500 });
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv3.ptr), { 500, 500 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(rtv2.ptr), { 500, 350 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(rtv3.ptr), { 500, 350 });
 	ImGui::SameLine();
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv4.ptr), { 500, 500 });
-	//ImGui::Image(reinterpret_cast<ImTextureID>(depth.ptr), { 500, 500 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(rtv4.ptr), { 500, 350 });
+
 	ImGui::End();
+
+	SetRenderTarget();
+	ClearRenderTarget();
 
 	PassLight(m_Camera);
 
-	
 }
 
 void Renderer::RecordCommandLists(uint32_t CurrentFrame)
@@ -187,8 +186,9 @@ void Renderer::RecordCommandLists(uint32_t CurrentFrame)
 	SetHeap(m_Device->GetMainHeap()->GetHeapAddressOf());
 
 	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(4, m_Device->GetMainHeap()->GetHeap()->GetGPUDescriptorHandleForHeapStart());
-	m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(1, m_cbCamera->GetBuffer(m_Device->FRAME_INDEX)->GetGPUVirtualAddress());
+	//m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(1, m_cbCamera->GetBuffer(m_Device->FRAME_INDEX)->GetGPUVirtualAddress());
 	m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(3, m_cbPointLights->GetBuffer(m_Device->FRAME_INDEX)->GetGPUVirtualAddress());
+
 
 	if (bDeferred)
 	{
@@ -227,19 +227,9 @@ void Renderer::SetRootSignature(ID3D12RootSignature* pRootSignature)
 	m_Device->GetCommandList()->SetGraphicsRootSignature(pRootSignature);
 }
 
-void Renderer::SetRootSignature(const ComPtr<ID3D12RootSignature>& ppRootSignature)
-{
-	m_Device->GetCommandList()->SetGraphicsRootSignature(ppRootSignature.Get());
-}
-
 void Renderer::SetPipelineState(ID3D12PipelineState* pPipelineState)
 {
 	m_Device->GetCommandList()->SetPipelineState(pPipelineState);
-}
-
-void Renderer::SetPipelineState(const ComPtr<ID3D12PipelineState>& ppPipelineState)
-{
-	m_Device->GetCommandList()->SetPipelineState(ppPipelineState.Get());
 }
 
 void Renderer::SetRenderTarget()
@@ -253,37 +243,41 @@ void Renderer::SetRenderTarget()
 
 void Renderer::ClearRenderTarget()
 {
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_Device->GetRenderTargetHeap()->GetCPUDescriptorHandleForHeapStart(), m_Device->FRAME_INDEX, m_Device->GetDescriptorSize());
-	CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle(m_Device->GetDepthHeap()->GetCPUDescriptorHandleForHeapStart());
-
+	const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_Device->GetRenderTargetHeap()->GetCPUDescriptorHandleForHeapStart(), m_Device->FRAME_INDEX, m_Device->GetDescriptorSize());
 	m_Device->GetCommandList()->ClearRenderTargetView(rtvHandle, m_ClearColor.data(), 0, nullptr);
-	//m_Device->GetCommandList()->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+}
+
+void Renderer::ClearDepthStencil()
+{
+	const CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle(m_Device->GetDepthHeap()->GetCPUDescriptorHandleForHeapStart());
+	m_Device->GetCommandList()->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 
 void Renderer::TransitToRender()
 {
-	auto presentToRender = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->GetRenderTarget(),
-																D3D12_RESOURCE_STATE_PRESENT,
-																D3D12_RESOURCE_STATE_RENDER_TARGET);
+	const auto presentToRender = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->GetRenderTarget(),
+																	D3D12_RESOURCE_STATE_PRESENT,
+																	D3D12_RESOURCE_STATE_RENDER_TARGET);
 	m_Device->GetCommandList()->ResourceBarrier(1, &presentToRender);
 }
 
 void Renderer::TransitToPresent(D3D12_RESOURCE_STATES StateBefore)
 {
-	if (bRaster)
-	{
-		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-		m_Device->GetCommandList()->ResourceBarrier(1, &barrier);
-	}
-	else
-	{
-		if (StateBefore != D3D12_RESOURCE_STATE_PRESENT)
-		{
-			D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->GetRenderTarget(), StateBefore, D3D12_RESOURCE_STATE_PRESENT);
-			m_Device->GetCommandList()->ResourceBarrier(1, &barrier);
-		}
-
-	}
+	const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	m_Device->GetCommandList()->ResourceBarrier(1, &barrier);
+	//if (bRaster)
+	//{
+	//	
+	//}
+	//else
+	//{
+	//	if (StateBefore != D3D12_RESOURCE_STATE_PRESENT)
+	//	{
+	//		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_Device->GetRenderTarget(), StateBefore, D3D12_RESOURCE_STATE_PRESENT);
+	//		m_Device->GetCommandList()->ResourceBarrier(1, &barrier);
+	//	}
+	//
+	//}
 }
 
 void Renderer::BeginFrame()
@@ -367,7 +361,6 @@ void Renderer::InitPipelines()
 	ranges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 
 	std::vector<CD3DX12_ROOT_PARAMETER1> params(7);
-	// Vertex Constant Buffer
 	// Per Object matrices
 	params.at(0).InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 	// Camera Position
@@ -380,7 +373,7 @@ void Renderer::InitPipelines()
 	// Material indices
 	params.at(5).InitAsConstants(4 * sizeof(int32_t), 0, 2);
 	// Sky Texture reference
-	params.at(6).InitAsDescriptorTable(1, &ranges.at(1), D3D12_SHADER_VISIBILITY_PIXEL);
+	params.at(6).InitAsDescriptorTable(1, &ranges.at(1), D3D12_SHADER_VISIBILITY_ALL);
 
 	auto layout			{ PSOUtils::CreateInputLayout() };
 	auto rootFlags		{ PSOUtils::SetRootFlags() };
@@ -393,14 +386,14 @@ void Renderer::InitPipelines()
 	builder->AddInputLayout(layout);
 	builder->AddSampler(0);
 	// Base PSO
-	builder->AddShaders("Assets/Shaders/Forward/Global_Vertex.hlsl", "Assets/Shaders/Forward/Normal_Mapping_Pixel.hlsl");
+	//builder->AddShaders("Assets/Shaders/Forward/Global_Vertex.hlsl", "Assets/Shaders/Forward/Normal_Mapping_Pixel.hlsl");
 
 	builder->CreateRootSignature(m_Device->GetDevice(), m_ModelRootSignature.GetAddressOf(), L"Model Root Signature");
 
 	//builder->Create(m_Device->GetDevice(), m_ModelRootSignature.Get(), m_ModelPipelineState.GetAddressOf(), L"Model Pipeline State");
 	
-	//builder->AddShaders("Assets/Shaders/Forward/Global_Vertex.hlsl", "Assets/Shaders/Forward/PBR_Pixel.hlsl");
-	//builder->Create(m_Device->GetDevice(), m_ModelRootSignature.Get(), m_PBRPipelineState.GetAddressOf(), L"Model Pipeline State");
+	builder->AddShaders("Assets/Shaders/Forward/Global_Vertex.hlsl", "Assets/Shaders/Forward/PBR_Pixel.hlsl");
+	builder->Create(m_Device->GetDevice(), m_ModelRootSignature.Get(), m_PBRPipelineState.GetAddressOf(), L"Model Pipeline State");
 	//
 	//builder->AddShaders("Assets/Shaders/Forward/Global_Vertex.hlsl", "Assets/Shaders/Forward/PBR_Pixel_2.hlsl");
 	//builder->Create(m_Device->GetDevice(), m_ModelRootSignature.Get(), m_PBRPipelineState2.GetAddressOf(), L"Model Pipeline State");
@@ -426,6 +419,7 @@ void Renderer::InitPipelines()
 	builder->AddSampler(0);
 	builder->AddInputLayout(skyboxLayout);
 	builder->AddShaders("Assets/Shaders/Sky/Skybox_VS.hlsl", "Assets/Shaders/Sky/Skybox_PS.hlsl");
+	builder->SetCullMode(D3D12_CULL_MODE_FRONT);
 	// IBL
 	//builder->AddShaders("Assets/Shaders/Sky/Skybox_VS.hlsl", "Assets/Shaders/Sky/Skybox_Test.hlsl");
 	builder->CreateRootSignature(m_Device->GetDevice(), m_SkyboxRootSignature.GetAddressOf(), L"Skybox Root Signature");
@@ -494,6 +488,7 @@ void Renderer::InitPipelines()
 		deferredDesc.RTVFormats[2] = m_RTVFormats.at(2);
 		deferredDesc.RTVFormats[3] = m_RTVFormats.at(3);
 		deferredDesc.RTVFormats[4] = m_RTVFormats.at(4);
+		deferredDesc.RTVFormats[5] = m_RTVFormats.at(4);
 		deferredDesc.DSVFormat = m_Device->GetDepthFormat();
 		deferredDesc.SampleDesc.Count = 1;
 
@@ -581,7 +576,6 @@ void Renderer::CreateDeferredRTVs()
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-	//
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_DefRTVHeap->GetCPUDescriptorHandleForHeapStart());
 	const auto heapProps{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
 	for (uint32_t i = 0; i < m_DeferredRTVCount; i++)
@@ -618,10 +612,11 @@ void Renderer::PassGBuffer(Camera* pCamera)
 	for (uint32_t i = 0; i < m_DeferredRTVCount; i++)
 		m_Device->GetCommandList()->ClearRenderTargetView(m_RTVDescriptors.at(i), m_ClearColor.data(), 0, nullptr);
 
-	SetPipelineState(m_DeferredPSO);
+	SetPipelineState(m_DeferredPSO.Get());
 
 	const CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle(m_Device->GetDepthHeap()->GetCPUDescriptorHandleForHeapStart());
 	m_Device->GetCommandList()->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
 	m_Device->GetCommandList()->OMSetRenderTargets(m_DeferredRTVCount, m_RTVDescriptors.data(), false, &depthHandle);
 
 	m_Model->Draw(pCamera);
@@ -641,7 +636,7 @@ void Renderer::PassLight(Camera* pCamera)
 	m_Device->GetCommandList()->ResourceBarrier(1, &depthWriteToRead);
 
 	// Set PSO and Root for deferred
-	SetPipelineState(m_DeferredLightPSO);
+	SetPipelineState(m_DeferredLightPSO.Get());
 	SetRootSignature(m_DeferredRootSignature.Get());
 	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(0, m_RTSRVDescs.at(0).GetGPU());
 	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(1, m_RTSRVDescs.at(1).GetGPU());
@@ -649,7 +644,8 @@ void Renderer::PassLight(Camera* pCamera)
 	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(3, m_RTSRVDescs.at(3).GetGPU());
 	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(4, m_RTSRVDescs.at(4).GetGPU());
 	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(5, m_Device->GetDepthDescriptor().GetGPU());
-	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_Skybox->GetTex().m_Descriptor.GetGPU());
+	//m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_Skybox->GetTex().m_Descriptor.GetGPU());
+	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_IBL->m_OutputDescriptor.GetGPU());
 
 	m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(7, m_cbCamera->GetBuffer(m_Device->FRAME_INDEX)->GetGPUVirtualAddress());
 	m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(8, m_cbPointLights->GetBuffer(m_Device->FRAME_INDEX)->GetGPUVirtualAddress());
@@ -664,10 +660,10 @@ void Renderer::PassLight(Camera* pCamera)
 void Renderer::SetupLights()
 {
 	m_LightPositions = {
-		   XMFLOAT4(-9.0f, +1.0f, 0.0f, 1.0f),
-		   XMFLOAT4(+0.0f, +1.0f, 0.0f, 1.0f),
-		   XMFLOAT4(+5.0f, +1.0f, 0.0f, 1.0f),
-		   XMFLOAT4(+9.0f, +1.0f, 0.0f, 1.0f)
+		   XMFLOAT4(-9.0f, +1.0f, 0.0f, 5.0f),
+		   XMFLOAT4(+0.0f, +1.0f, 0.0f, 5.0f),
+		   XMFLOAT4(+5.0f, +1.0f, 0.0f, 5.0f),
+		   XMFLOAT4(+9.0f, +1.0f, 0.0f, 5.0f)
 	};
 
 	m_LightColors = {
@@ -677,10 +673,10 @@ void Renderer::SetupLights()
 		XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f)
 	};
 
-	m_LightPositionsFloat.at(0) = { -9.0f, +1.0f, 0.0f, 1.0f };
-	m_LightPositionsFloat.at(1) = { +0.0f, +1.0f, 0.0f, 1.0f };
-	m_LightPositionsFloat.at(2) = { +5.0f, +1.0f, 0.0f, 1.0f };
-	m_LightPositionsFloat.at(3) = { +9.0f, +1.0f, 0.0f, 1.0f };
+	m_LightPositionsFloat.at(0) = { -9.0f, +1.0f, 0.0f, 25.0f };
+	m_LightPositionsFloat.at(1) = { +0.0f, +1.0f, 0.0f, 25.0f };
+	m_LightPositionsFloat.at(2) = { +5.0f, +1.0f, 0.0f, 25.0f };
+	m_LightPositionsFloat.at(3) = { +9.0f, +1.0f, 0.0f, 25.0f };
 
 	m_LightColorsFloat.at(0) = { 1.0f, 1.0f, 1.0f, 1.0f };
 	m_LightColorsFloat.at(1) = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -694,10 +690,10 @@ void Renderer::DrawGUI()
 	{
 		ImGui::Begin("Point Lights");
 		ImGui::Text("Positions");
-		ImGui::DragFloat3("Point Light 1", m_LightPositionsFloat.at(0).data());
-		ImGui::DragFloat3("Point Light 2", m_LightPositionsFloat.at(1).data());
-		ImGui::DragFloat3("Point Light 3", m_LightPositionsFloat.at(2).data());
-		ImGui::DragFloat3("Point Light 4", m_LightPositionsFloat.at(3).data());
+		ImGui::DragFloat4("Point Light 1", m_LightPositionsFloat.at(0).data());
+		ImGui::DragFloat4("Point Light 2", m_LightPositionsFloat.at(1).data());
+		ImGui::DragFloat4("Point Light 3", m_LightPositionsFloat.at(2).data());
+		ImGui::DragFloat4("Point Light 4", m_LightPositionsFloat.at(3).data());
 		ImGui::Text("Colors");
 		ImGui::ColorEdit4("Point Light 1", m_LightColorsFloat.at(0).data());
 		ImGui::ColorEdit4("Point Light 2", m_LightColorsFloat.at(1).data());
@@ -728,10 +724,10 @@ void Renderer::UpdateLights()
 
 void Renderer::ResetLights()
 {
-	m_LightPositionsFloat.at(0) = { -9.0f, +1.0f, 0.0f, 1.0f };
-	m_LightPositionsFloat.at(1) = { +0.0f, +1.0f, 0.0f, 1.0f };
-	m_LightPositionsFloat.at(2) = { +5.0f, +1.0f, 0.0f, 1.0f };
-	m_LightPositionsFloat.at(3) = { +9.0f, +1.0f, 0.0f, 1.0f };
+	m_LightPositionsFloat.at(0) = { -9.0f, +1.0f, 0.0f, 25.0f };
+	m_LightPositionsFloat.at(1) = { +0.0f, +1.0f, 0.0f, 25.0f };
+	m_LightPositionsFloat.at(2) = { +5.0f, +1.0f, 0.0f, 25.0f };
+	m_LightPositionsFloat.at(3) = { +9.0f, +1.0f, 0.0f, 25.0f };
 
 	m_LightColorsFloat.at(0) = { 1.0f, 1.0f, 1.0f, 1.0f };
 	m_LightColorsFloat.at(1) = { 1.0f, 1.0f, 1.0f, 1.0f };
