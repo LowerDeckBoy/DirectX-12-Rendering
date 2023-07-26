@@ -14,7 +14,7 @@ cbuffer cbMaterial : register(b0, space1)
     float MetallicFactor;
     float RoughnessFactor;
     float AlphaCutoff;
-    bool bDoubleSided;
+    bool  bDoubleSided;
 
 };
 
@@ -25,8 +25,11 @@ GBuffer_Output main(DeferredOutput pin)
     if (Indices.BaseColorIndex >= 0)
     {
         output.Albedo = bindless_textures[Indices.BaseColorIndex].Sample(texSampler, pin.TexCoord) * BaseColorFactor;
+       
         if (output.Albedo.a < AlphaCutoff)
             discard;
+        
+        output.Albedo = pow(output.Albedo, 2.2f);
     }
     else
     {
@@ -39,19 +42,14 @@ GBuffer_Output main(DeferredOutput pin)
         float3 tangent = normalize(pin.Tangent - dot(pin.Tangent, pin.Normal) * pin.Normal);
         float3 bitangent = cross(pin.Normal, tangent);
         float3x3 texSpace = float3x3(tangent, bitangent, pin.Normal);
-        //output.Normal = float4(normalize(mul(normalMap.xyz, texSpace)), normalMap.w);
-        output.Normal = float4(normalize(mul(normalMap.xyz, texSpace)), 1.0f);
-    }
-    else
-    {
-        output.Normal = float4(0.0f, 0.0f, 0.0f, 1.0f);
+        output.Normal = float4(normalize(mul(normalMap.xyz, texSpace)), normalMap.w);
     }
 
     if (Indices.MetallicRoughnessIndex >= 0)
     {
         float4 metallic = bindless_textures[Indices.MetallicRoughnessIndex].Sample(texSampler, pin.TexCoord);
-        metallic.g *= MetallicFactor;
-        metallic.b *= RoughnessFactor;
+        metallic.b *= MetallicFactor;
+        metallic.g *= RoughnessFactor;
         output.Metallic = metallic;
     }
     else
@@ -61,13 +59,12 @@ GBuffer_Output main(DeferredOutput pin)
     {
         output.Emissive = bindless_textures[Indices.EmissiveIndex].Sample(texSampler, pin.TexCoord) * EmissiveFactor;
     }
-    else
-    {
-        output.Emissive = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    }
-    
+
     output.WorldPosition = pin.WorldPosition;
     //output.WorldPosition = pin.Position;
+    
+    // light positions here
+    //
     
 	return output;
 }

@@ -48,10 +48,10 @@ void Model::Draw(Camera* pCamera)
 								XMMatrixTranspose(m_WorldMatrix) }, frameIndex);
 		m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(0, m_cbPerObject->GetBuffer(frameIndex)->GetGPUVirtualAddress());
 
-		m_cbCamera->Update({ XMFLOAT3(XMVectorGetX(pCamera->GetPosition()),
-									  XMVectorGetY(pCamera->GetPosition()),
-									  XMVectorGetZ(pCamera->GetPosition())) },
-			frameIndex);
+		//m_cbCamera->Update({ XMFLOAT3(XMVectorGetX(pCamera->GetPosition()),
+		//							  XMVectorGetY(pCamera->GetPosition()),
+		//							  XMVectorGetZ(pCamera->GetPosition())) },
+		//	frameIndex);
 		//m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(1, m_cbCamera->GetBuffer(frameIndex)->GetGPUVirtualAddress());
 
 		auto currentMaterial{ m_Materials.at(i) };

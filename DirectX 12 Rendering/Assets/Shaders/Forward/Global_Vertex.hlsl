@@ -11,8 +11,8 @@ cbuffer cbPerObject : register(b0, space0)
 
 cbuffer cbCamera : register(b1, space0)
 {
-    float3 CameraPosition;
-    float cameraPadding;
+    float4 CameraPosition;
+   
 }
 
 struct VS_Input
@@ -46,7 +46,7 @@ VS_Output main(VS_Input vin)
     output.Tangent          = normalize(mul((float3x3)World, vin.Tangent));
     output.Bitangent        = normalize(mul((float3x3)World, vin.Bitangent));
     
-    output.ViewDirection = normalize(CameraPosition - output.WorldPosition.xyz);
+    output.ViewDirection    = normalize(CameraPosition.xyz - output.WorldPosition.xyz);
     
 	return output;
 }

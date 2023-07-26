@@ -78,7 +78,7 @@
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>NativeMinimumRules.ruleset</CodeAnalysisRuleSet>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
@@ -188,7 +188,7 @@
     <ClCompile Include="Source\Core\GraphicsPipelineState.cpp" />
     <ClCompile Include="Source\Core\Renderer.cpp" />
     <ClCompile Include="Source\Core\Window.cpp" />
-    <ClCompile Include="Source\Editor\GUI.cpp" />
+    <ClCompile Include="Source\Editor\Editor.cpp" />
     <ClCompile Include="Source\Engine\Engine.cpp" />
     <ClCompile Include="Source\Graphics\Texture.cpp" />
     <ClCompile Include="Source\Inputs\Inputs.cpp" />
@@ -215,7 +215,7 @@
     <ClInclude Include="Source\Core\GraphicsPipelineState.hpp" />
     <ClInclude Include="Source\Core\Renderer.hpp" />
     <ClInclude Include="Source\Core\Window.hpp" />
-    <ClInclude Include="Source\Editor\GUI.hpp" />
+    <ClInclude Include="Source\Editor\Editor.hpp" />
     <ClInclude Include="Source\Engine\Engine.hpp" />
     <ClInclude Include="Source\Graphics\Buffer.hpp" />
     <ClInclude Include="Source\Graphics\ConstantBuffer.hpp" />

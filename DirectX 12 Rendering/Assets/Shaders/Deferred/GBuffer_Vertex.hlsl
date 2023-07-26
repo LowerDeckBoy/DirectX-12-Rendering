@@ -19,14 +19,13 @@ cbuffer cbCamera : register(b1, space0)
     float2   ScreenDimension;
 }
 
-// add material here
-
 DeferredOutput main(DeferredInput vin)
 {
     DeferredOutput output = (DeferredOutput) 0;
     output.Position = mul(WVP, float4(vin.Position, 1.0f));
-    //output.WorldPosition = mul(World * View, float4(vin.Position, 1.0f));
-    output.WorldPosition = output.Position / output.Position.w;
+    output.WorldPosition = mul(World, float4(vin.Position, 1.0f));
+    //output.WorldPosition = mul(World, output.Position);
+    //output.WorldPosition = normalize(output.Position / output.Position.w);
     output.TexCoord     = vin.TexCoord;
     output.Normal       = normalize(mul((float3x3) World, vin.Normal));
     output.Tangent      = normalize(mul((float3x3) World, vin.Tangent));

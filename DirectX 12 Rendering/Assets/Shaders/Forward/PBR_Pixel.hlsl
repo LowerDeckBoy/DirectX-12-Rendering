@@ -5,7 +5,7 @@
 
 #define LIGHTS 4
 
-cbuffer cbMaterial : register(b0, space0)
+cbuffer cbMaterial : register(b0, space1)
 {
     float3 CameraPosition;
     float padding3;
@@ -17,10 +17,9 @@ cbuffer cbMaterial : register(b0, space0)
     float RoughnessFactor;
     float AlphaCutoff;
     bool bDoubleSided;
-
 };
 
-cbuffer cbLights : register(b1, space0)
+cbuffer cbLights : register(b1, space1)
 {
     float4 LightPositions[4];
     float4 LightColors[4];
@@ -35,11 +34,14 @@ struct MaterialIndices
     int EmissiveIndex;
 };
 
-ConstantBuffer<MaterialIndices> Indices : register(b1, space1);
+//ConstantBuffer<MaterialIndices> Indices : register(b1, space1);
+ConstantBuffer<MaterialIndices> Indices : register(b0, space2);
 Texture2D<float4> TexturesTable[] : register(t0, space1);
 SamplerState texSampler : register(s0);
 
-Texture2D<float4> SkyTexture : register(t4, space0);
+//Texture2D<float4> SkyTexture : register(t4, space0);
+TextureCube SkyTexture : register(t4, space0);
+//Texture2D<float4> SkyTexture : register(t6, space2);
 
 float4 main(PS_INPUT pin) : SV_TARGET
 {
@@ -52,10 +54,10 @@ float4 main(PS_INPUT pin) : SV_TARGET
         if (diffuse.a < AlphaCutoff)
             discard;
         
-        baseColor = diffuse;
+        baseColor = pow(diffuse, 2.2f);
+        //baseColor = diffuse, 2.2f;
     }
 
-    baseColor = pow(baseColor, 2.2f);
     output = baseColor.rgb;
 
     float metalness = 0.0f;
@@ -75,29 +77,26 @@ float4 main(PS_INPUT pin) : SV_TARGET
 
     float3 N = pin.Normal;
     float3 V = normalize(CameraPosition - pin.WorldPosition.xyz);
-
-    //float3 reflection = -normalize(reflect(V, N));
-    float3 reflection =  reflect(-V, N);
+    float NdotV = max(dot(N, V), 0.0f);
 
     float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), baseColor.rgb, metalness);
 
-    float3 sky = saturate(SkyTexture.Sample(texSampler, reflection.xy).rgb);
-
     float3 Lo = float3(0.0f, 0.0f, 0.0f);
+    
+    float3 reflection = reflect(-V, N);
+    float3 sky = saturate(SkyTexture.Sample(texSampler, reflection.xyz).rgb) * metalness;
     
     for (int i = 0; i < LIGHTS; ++i)
     {
         float3 L = normalize(LightPositions[i].xyz - pin.WorldPosition.xyz);
-        float3 H = normalize(L + V);
+        float3 H = normalize(V + L);
 
         float distance = length(LightPositions[i].xyz - pin.WorldPosition.xyz);
         float attenuation = 1.0f / (distance * distance);
-        float3 radiance = LightColors[i].rgb * attenuation * 1000.0f;
-        //float3 radiance = LightColors[i].rgb * attenuation * 50.0f;
-
-        float NdotV = max(dot(N, V), 0.0f);
+        float3 radiance = LightColors[i].rgb * (attenuation * LightPositions[i].w);
+        
         float NdotH = max(dot(N, H), 0.0f);
-        float NdotL = max(dot(N, L), Epsilon);
+        float NdotL = max(dot(N, L), 0.0f);
 
         // Cook-Torrance BRDF
         float NDF = GetDistributionGGX(N, H, roughness);
@@ -105,40 +104,25 @@ float4 main(PS_INPUT pin) : SV_TARGET
         float3 F = GetFresnelSchlick(max(dot(H, V), 0.0f), F0);
 
         float3 kS = F;
-        float3 kD = lerp(float3(1.0f, 1.0f, 1.0f) - kS, float3(.0f, 0.0f, 0.0f), metalness);
-        //kD *= (1.0f - metalness);
+        float3 kD = lerp(float3(1.0f, 1.0f, 1.0f) - kS, float3(0.0f, 0.0f, 0.0f), metalness);
+        kD *= (1.0f - metalness);
+        
         float3 numerator = NDF * G * F;
         float denominator = 4.0f * NdotV * NdotL + Epsilon;
         float3 specular = numerator / max(denominator, Epsilon);
-        //
-        Lo += (kD * baseColor.rgb / PI + specular) * radiance * NdotL;
-        //sky += (kD * baseColor.rgb / PI + specular);
+
+        Lo += (kD * baseColor.rgb + sky / PI + specular) * radiance * NdotL;
     }
  
     float3 ambient = float3(0.03f, 0.03f, 0.03f) * baseColor.rgb * float3(1.0f, 1.0f, 1.0f);
-    output = ambient + Lo;
-    output *= baseColor.rgb;
+    output = (ambient + Lo);
+
     if (Indices.EmissiveIndex >= 0)
     {
         float3 emissive = TexturesTable[Indices.EmissiveIndex].Sample(texSampler, pin.TexCoord).rgb * EmissiveFactor.xyz;
         output += emissive;
     }
     
-    if (Indices.MetallicRoughnessIndex >= 0)
-    {
-        // + sky.rgb
-        float3 m = TexturesTable[Indices.MetallicRoughnessIndex].Sample(texSampler, pin.TexCoord).rgb;
-        float3 metalReflect = m * metalness + sky.rgb;
-        //output += metalReflect;
-        //output *= baseColor.rgb + sky.rgb;
-    }
-    else
-    {
-       // output = lerp(baseColor.rgb, output.rgb, 1.0f);
-        //output *= baseColor.rgb;
-    }
-   // output *= baseColor.rgb;
-
     if (Indices.NormalIndex == -1)
     {
         output = baseColor.rgb * baseColor.rgb + Lo;
