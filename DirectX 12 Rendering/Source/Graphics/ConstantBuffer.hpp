@@ -91,7 +91,7 @@ public:
 		if (bIsInitialized)
 			return;
 
-		size_t structSize{ (sizeof(T) + 255) & ~255 };
+		constexpr size_t structSize{ (sizeof(T) + 255) & ~255 };
 
 		auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD) };
 		auto bufferDesc{ CD3DX12_RESOURCE_DESC::Buffer(structSize) };
@@ -105,22 +105,22 @@ public:
 			allocDesc.Flags = D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_COMMITTED | D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
 
 			D3D12MA::Allocation* allocation{ nullptr };
-			pDevice->GetAllocator()->CreateResource(&allocDesc, &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, &allocation, IID_PPV_ARGS(Buffer.at(i).ReleaseAndGetAddressOf()));
+			ThrowIfFailed(pDevice->GetAllocator()->CreateResource(&allocDesc, &bufferDesc, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, nullptr, &allocation, IID_PPV_ARGS(Buffer.at(i).ReleaseAndGetAddressOf())));
 
-			allocation->Release();
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC bufferView{};
-			bufferView.BufferLocation = Buffer[i].Get()->GetGPUVirtualAddress();
+			bufferView.BufferLocation = Buffer.at(i).Get()->GetGPUVirtualAddress();
 			bufferView.SizeInBytes = static_cast<uint32_t>(structSize);
 
 			pDevice->GetMainHeap()->Allocate(m_Descriptors.at(i));
 			pDevice->GetDevice()->CreateConstantBufferView(&bufferView, m_Descriptors.at(i).GetCPU());
 
-			// Persistent mapping
-			CD3DX12_RANGE readRange(0, 0);
-			ThrowIfFailed(Buffer[i].Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin.at(i))));
+			const CD3DX12_RANGE readRange(0, 0);
+			ThrowIfFailed(Buffer.at(i).Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin.at(i))));
 			std::memcpy(pDataBegin.at(i), &pData, sizeof(T));
-			//Buffer[i].Get()->Unmap(0, nullptr);
+			Buffer[i].Get()->Unmap(0, nullptr);
+
+			allocation->Release();
 		}
 
 		bIsInitialized = true;

@@ -29,14 +29,21 @@ struct BufferDesc
 	DXGI_FORMAT				Format{ DXGI_FORMAT_UNKNOWN };
 };
 
+enum class BufferType : uint8_t
+{
+	eVertex = 0,
+	eIndex,
+	eConstant
+};
+
 class Buffer
 {
 public:
-	Buffer() { }
-	Buffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV);
+	Buffer() noexcept { }
+	Buffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, BufferType TypeOf, bool bSRV);
 	~Buffer();
 
-	void Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV);
+	void Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, BufferType TypeOf, bool bSRV);
 
 	void MapMemory();
 
@@ -50,6 +57,9 @@ public:
 
 protected:
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_Buffer;
+	D3D12MA::Allocation* m_Allocation{ nullptr };
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_UploadHeap;
+	D3D12MA::Allocation* m_UploadAllocation{ nullptr };
 
 	BufferData m_BufferData{};
 };
@@ -60,13 +70,13 @@ public:
 	VertexBuffer() {}
 	VertexBuffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV = false)
 	{
-		Buffer.Create(pDevice, Data, Desc, bSRV);
+		Buffer.Create(pDevice, Data, Desc, BufferType::eVertex, bSRV);
 		SetView();
 	}
 
 	void Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV = false)
 	{
-		Buffer.Create(pDevice, Data, Desc, bSRV);
+		Buffer.Create(pDevice, Data, Desc, BufferType::eVertex, bSRV);
 		SetView();
 	}
 	
@@ -87,13 +97,13 @@ public:
 	IndexBuffer() {}
 	IndexBuffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV = false)
 	{ 
-		Buffer.Create(pDevice, Data, Desc, bSRV);
+		Buffer.Create(pDevice, Data, Desc, BufferType::eIndex, bSRV);
 		SetView();
 	}
 
 	void Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV = false)
 	{
-		Buffer.Create(pDevice, Data, Desc, bSRV);
+		Buffer.Create(pDevice, Data, Desc, BufferType::eIndex, bSRV);
 		SetView();
 	}
 

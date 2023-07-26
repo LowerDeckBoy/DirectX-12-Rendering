@@ -2,29 +2,74 @@
 #include "../Utilities/Utilities.hpp"
 
 
-Buffer::Buffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV)
+Buffer::Buffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, BufferType TypeOf, bool bSRV)
 {
-	Create(pDevice, Data, Desc, bSRV);
+	Create(pDevice, Data, Desc, TypeOf, bSRV);
 }
 
 Buffer::~Buffer()
 {
+	if (m_Allocation)
+	{
+		m_Allocation->Release();
+		m_Allocation = nullptr;
+
+	}
+
+	if (m_UploadAllocation)
+	{
+		m_UploadAllocation->Release();
+		m_UploadAllocation = nullptr;
+	}
+
+
+	SAFE_RELEASE(m_UploadHeap);
 	SAFE_RELEASE(m_Buffer);
 }
 
-void Buffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV)
+void Buffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, BufferType TypeOf, bool bSRV)
 {
 	m_BufferData = Data;
 	const auto heapDesc{ CD3DX12_RESOURCE_DESC::Buffer(Data.Size) };
 
-	D3D12MA::Allocation* allocation{ nullptr };
 	D3D12MA::ALLOCATION_DESC allocDesc{};
-	allocDesc.Flags = D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_COMMITTED | D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
-	allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-	pDevice->GetAllocator()->CreateResource(&allocDesc, &heapDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, &allocation, IID_PPV_ARGS(m_Buffer.ReleaseAndGetAddressOf()));
+	allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+	//allocDesc.Flags = D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_COMMITTED | D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+	ID3D12Resource* bufferPtr{ nullptr };
+	//pDevice->GetAllocator()->CreateResource(&allocDesc, &heapDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, &allocation, IID_PPV_ARGS(m_Buffer.ReleaseAndGetAddressOf()));
+	ThrowIfFailed(pDevice->GetAllocator()->CreateResource(&allocDesc, &heapDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, &m_Allocation, IID_PPV_ARGS(&bufferPtr)));
+	m_Buffer.Attach(bufferPtr);
+	//https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator/blob/master/src/D3D12Sample.cpp
 
-	MapMemory();
-	allocation->Release();
+	D3D12MA::ALLOCATION_DESC uploadDesc{};
+	uploadDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+	uploadDesc.Flags = D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_COMMITTED | D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+	ThrowIfFailed(pDevice->GetAllocator()->CreateResource(&uploadDesc, &heapDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, &m_UploadAllocation, IID_PPV_ARGS(m_UploadHeap.ReleaseAndGetAddressOf())));
+
+	D3D12_SUBRESOURCE_DATA subresource{};
+	subresource.pData		= Data.pData;
+	subresource.RowPitch	= Data.Size;
+	subresource.SlicePitch	= Data.Size;
+
+	::UpdateSubresources(pDevice->GetCommandList(), m_Buffer.Get(), m_UploadHeap.Get(), 0, 0, 1, &subresource);
+	
+	if (TypeOf == BufferType::eVertex || TypeOf == BufferType::eConstant)
+	{
+		const auto barrier{ CD3DX12_RESOURCE_BARRIER::Transition(m_Buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER) };
+		pDevice->GetCommandList()->ResourceBarrier(1, &barrier);
+
+	}
+	else if (TypeOf == BufferType::eIndex)
+	{
+		const auto barrier{ CD3DX12_RESOURCE_BARRIER::Transition(m_Buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER) };
+		pDevice->GetCommandList()->ResourceBarrier(1, &barrier);
+	}
+	else
+	{
+		std::logic_error("Invalid buffer type!");
+	}
+
+	//MapMemory();
 
 	if (bSRV)
 	{
