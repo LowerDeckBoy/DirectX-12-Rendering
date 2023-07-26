@@ -54,10 +54,10 @@ bool Window::Initialize()
     }
 
     //test
-    constexpr auto borderless{ WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX };
-    //const auto windowFlags{ WS_OVERLAPPED };
+    //constexpr auto borderless{ WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX };
+    constexpr auto windowFlags{ WS_OVERLAPPED };
     m_WindowRect = { 0, 0, static_cast<LONG>(GetDisplay().Width), static_cast<LONG>(GetDisplay().Height)};
-    ::AdjustWindowRect(&m_WindowRect, borderless, false);
+    ::AdjustWindowRect(&m_WindowRect, windowFlags, false);
 
     const int32_t width  = m_WindowRect.right  - m_WindowRect.left;
     const int32_t height = m_WindowRect.bottom - m_WindowRect.top;

@@ -81,6 +81,7 @@ void Engine::OnDestroy()
 }
 
 //test
+/*
 void AdjustRect(RECT& Rect)
 {
 	auto monitor = ::MonitorFromWindow(Window::m_hWnd, MONITOR_DEFAULTTONULL);
@@ -141,16 +142,16 @@ LRESULT HitTest(POINT Cursor)
 	default: return HTNOWHERE;
 	}
 }
-
+*/
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	if (ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam))
 		return true;
 
-	// For debug purposes uncomment OutputDebugStringA
 	switch (Msg)
 	{
+		/*
 	case WM_NCCREATE:
 	{
 		auto userdata = reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams;
@@ -172,7 +173,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 		break;
 	}
-
+	*/
 	case WM_ACTIVATE:
 	{
 		if (LOWORD(wParam) == WA_INACTIVE)
@@ -238,22 +239,11 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 		return 0;
 	}
-	// Temporal
-	case WM_KEYDOWN:
-	{
-		if (GetKeyState(VK_SPACE) & 0x800)
-		{
-			m_Renderer->bRaster = !m_Renderer->bRaster;
-		}
-
-		return 0;
-	}
-
 	case WM_ENTERSIZEMOVE:
 	{
 		bAppPaused = true;
 		bIsResizing = true;
-		Timer::Stop();;
+		Timer::Stop();
 
 		return 0;
 	}
@@ -262,9 +252,9 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 	{
 		bAppPaused = false;
 		bIsResizing = false;
-		Timer::Start();
 
 		OnResize();
+		Timer::Start();
 
 		return 0;
 	}
