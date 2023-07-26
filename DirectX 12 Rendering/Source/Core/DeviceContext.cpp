@@ -21,8 +21,8 @@ bool DeviceContext::Initialize()
 	CreateCommandList();
 	CreateFences();
 	CreateSwapChain();
-	CreateBackbuffer();
 	CreateDescriptorHeaps();
+	CreateBackbuffer();
 	//CreateDepthStencil();
 
 	return true;
@@ -107,7 +107,7 @@ void DeviceContext::CreateDevice()
 	D3D12MA::ALLOCATOR_DESC allocatorDesc{};
 	allocatorDesc.pDevice = m_Device.Get();
 	allocatorDesc.pAdapter = adapter.Get();
-	D3D12MA::CreateAllocator(&allocatorDesc, &m_Allocator);
+	D3D12MA::CreateAllocator(&allocatorDesc, m_Allocator.ReleaseAndGetAddressOf());
 
 }
 
@@ -157,7 +157,6 @@ void DeviceContext::CreateBackbuffer()
 	m_DescriptorSize = m_Device.Get()->GetDescriptorHandleIncrementSize(heapDesc.Type);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RenderTargetHeap.Get()->GetCPUDescriptorHandleForHeapStart());
-
 	for (uint32_t i = 0; i < DeviceContext::FRAME_COUNT; i++)
 	{
 		ThrowIfFailed(m_SwapChain.Get()->GetBuffer(i, IID_PPV_ARGS(m_RenderTargets.at(i).GetAddressOf())));
@@ -369,6 +368,7 @@ void DeviceContext::OnResize()
 												static_cast<uint32_t>(Window::GetDisplay().Width),
 												static_cast<uint32_t>(Window::GetDisplay().Height),
 												DXGI_FORMAT_R8G8B8A8_UNORM, 0) };
+
 	if (hResult == DXGI_ERROR_DEVICE_REMOVED || hResult == DXGI_ERROR_DEVICE_RESET)
 	{
 		::OutputDebugStringA("Device removed!\n");
@@ -386,8 +386,6 @@ void DeviceContext::OnResize()
 
 void DeviceContext::Release()
 {
-	//SAFE_RELEASE(m_PipelineState);
-
 	SAFE_RELEASE(m_DepthStencil);
 	SAFE_RELEASE(m_DepthHeap);
 
@@ -408,7 +406,7 @@ void DeviceContext::Release()
 	SAFE_RELEASE(m_RenderTargetHeap);
 	SAFE_RELEASE(m_SwapChain);
 
-	m_Allocator->Release();
+	SAFE_RELEASE(m_Allocator);
 
 	SAFE_RELEASE(m_DebugDevice);
 	SAFE_RELEASE(m_Device);
@@ -516,7 +514,9 @@ void DeviceContext::ReleaseRenderTargets()
 {
 	for (auto& target : m_RenderTargets)
 	{
-		target->Release();
+		//target.Reset();
+		target = nullptr;
+		//target->Release();
 	}
 }
 
@@ -532,5 +532,5 @@ DescriptorHeap* DeviceContext::GetMainHeap() noexcept
 
 D3D12MA::Allocator* DeviceContext::GetAllocator() const noexcept
 {
-	return m_Allocator;
+	return m_Allocator.Get();
 }

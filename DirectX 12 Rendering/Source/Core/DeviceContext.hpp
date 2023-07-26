@@ -92,7 +92,6 @@ public:
 
 	D3D12MA::Allocator* GetAllocator() const noexcept;
 
-
 private:
 	ComPtr<IDXGIFactory4> m_Factory;
 	ComPtr<ID3D12Device5> m_Device;
@@ -107,6 +106,7 @@ private:
 	ComPtr<IDXGISwapChain3> m_SwapChain;
 	ComPtr<ID3D12DescriptorHeap> m_RenderTargetHeap;
 	std::array<ComPtr<ID3D12Resource>, FRAME_COUNT> m_RenderTargets;
+
 	uint32_t m_DescriptorSize{ 0 };
 
 	DXGI_FORMAT m_RenderTargetFormat{ DXGI_FORMAT_R8G8B8A8_UNORM };
@@ -129,7 +129,7 @@ private:
 	std::unique_ptr<DescriptorHeap> m_MainHeap;
 
 	// 3rd-party allocator
-	D3D12MA::Allocator* m_Allocator{ nullptr };
+	ComPtr<D3D12MA::Allocator> m_Allocator;
 
 	// For ImGui
 	ComPtr<ID3D12DescriptorHeap> m_guiAllocator;
