@@ -1,8 +1,8 @@
-#include "GUI.hpp"
+#include "Editor.hpp"
+//#include "../Core/DeviceContext.hpp"
 #include "../Utilities/Utilities.hpp"
 #include "../Core/Window.hpp"
 #include "../Core/Renderer.hpp"
-//#include "../Core/DeviceContext.hpp"
 
 #include "../Utilities/Timer.hpp"
 #include "../Rendering/Camera.hpp"
@@ -10,16 +10,16 @@
 #include "../Utilities/Logger.hpp"
 
 
-GUI::~GUI()
+Editor::~Editor()
 {
 	Release();
 }
 
-void GUI::Initialize(DeviceContext* pDevice, Camera* pCamera)
+void Editor::Initialize(DeviceContext* pDevice, Camera* pCamera)
 {
 
 	assert(m_Device = pDevice);
-	m_Camera = pCamera;
+	assert(m_Camera = pCamera);
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
@@ -62,7 +62,7 @@ void GUI::Initialize(DeviceContext* pDevice, Camera* pCamera)
 
 }
 
-void GUI::Begin()
+void Editor::Begin()
 {
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplDX12_NewFrame();
@@ -78,14 +78,14 @@ void GUI::Begin()
 	
 }
 
-void GUI::End(ID3D12GraphicsCommandList* pCommandList)
+void Editor::End(ID3D12GraphicsCommandList* pCommandList)
 {
 	{
 		ImGui::BeginMainMenuBar();
 		// Calculate window sizes to get width for right size aligment
 		// for closing button
 		const auto region{ ImGui::GetContentRegionAvail() };
-		const float rightSideAlignment { region.x - 20 };
+		//const float rightSideAlignment { region.x - 20 };
 
 		ImGui::MenuItem("File");
 		ImGui::MenuItem("Window");
@@ -95,17 +95,20 @@ void GUI::End(ID3D12GraphicsCommandList* pCommandList)
 			Logs();
 		}
 
-		ImGui::Text("| FPS: %.2d ms: %.2f", Timer::m_FPS, Timer::m_Miliseconds);
+		const float rightSideAlignment { region.x - 300.f };
+		ImGui::SetCursorPosX(rightSideAlignment);
+		ImGui::Text("FPS: %.2d ms: %.2f", Timer::m_FPS, Timer::m_Miliseconds);
 		ImGui::Text(" | ");
 		MemoryUsage::ReadRAM();
-		ImGui::Text("RAM: %.3f MB | ", MemoryUsage::MemoryInUse);
+		ImGui::Text("RAM: %.3f MB", MemoryUsage::MemoryInUse);
 
+		/*
 		ImGui::SetCursorPosX(rightSideAlignment);
 		if (ImGui::Button(" X ", { 35, 0 }))
 		{
 			::PostQuitMessage(0);
 		}
-
+		*/
 		ImGui::EndMainMenuBar();
 	}
 
@@ -123,18 +126,15 @@ void GUI::End(ID3D12GraphicsCommandList* pCommandList)
 			m_Camera->DrawGUI();
 		}
 		ImGui::Checkbox("Draw Sky", &Renderer::bDrawSky);
-		ImGui::Checkbox("Raster", &Renderer::bRaster);
+		ImGui::SameLine();
+		ImGui::Checkbox("Deferred", &Renderer::bDeferred);
 
 		ImGui::End();
 	}
 
-	{
-
-	}
-
-
 	ImGui::PopFont();
 	ImGui::Render();
+	ImGui::EndFrame();
 
 	//ID3D12DescriptorHeap* ppHeaps[]{ m_Heap.Get() };
 	//pCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
@@ -144,14 +144,14 @@ void GUI::End(ID3D12GraphicsCommandList* pCommandList)
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
 }
 
-void GUI::Logs()
+void Editor::Logs()
 {
 	ImGui::Begin("Logs");
 
 	ImGui::End();
 }
 
-void GUI::Release()
+void Editor::Release()
 {
 	m_MainFont = nullptr;
 

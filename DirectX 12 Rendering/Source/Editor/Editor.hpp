@@ -10,10 +10,10 @@ class DeviceContext;
 class Camera;
 //class Timer;
 
-class GUI
+class Editor
 {
 public:
-	~GUI();
+	~Editor();
 
 	void Initialize(DeviceContext* pDevice, Camera* pCamera);
 	void Begin();
@@ -33,28 +33,5 @@ private:
 	Camera* m_Camera{ nullptr };
 
 	bool bShowLogs{ false };
-};
-
-// TEST
-class GUIObject
-{
-public:
-	void Draw()
-	{
-		if (ImGui::CollapsingHeader(m_Name.c_str()))
-		{
-
-		}
-	}
-
-	void SetName(const std::string_view& Name)
-	{
-		m_Name = Name.data();
-	}
-
-private:
-	std::string m_Name;
-
-
 
 };
