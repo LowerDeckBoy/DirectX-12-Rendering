@@ -1,3 +1,5 @@
+#ifndef SKYBOX_PS_HLSL
+#define SKYBOX_PS_HLSL
 
 struct PS_INPUT
 {
@@ -6,8 +8,10 @@ struct PS_INPUT
 };
 
 static const float2 invAtan = float2(0.1591f, 0.3183f);
+// For non IBL usage
 // Converting equirectangular map (spherical) into cube format
 // required if skybox is of cube shape instead of sphere
+/*
 float2 EquirectangularToCube(float3 v)
 {
     float2 uv = float2(atan2(v.z, v.x), -asin(v.y));
@@ -15,15 +19,17 @@ float2 EquirectangularToCube(float3 v)
     uv += 0.5f;
     return uv;
 }
+*/
 
-//TextureCube skyboxTexture : register(t0);
-Texture2D skyboxTexture : register(t0);
+TextureCube skyboxTexture : register(t0);
 SamplerState texSampler : register(s0);
 
 float4 main(PS_INPUT pin) : SV_TARGET
 {
-    float2 uv = EquirectangularToCube(normalize(pin.TexCoord));
-    float3 skyTexture = skyboxTexture.Sample(texSampler, uv).rgb;
+    //float2 uv = EquirectangularToCube(normalize(pin.TexCoord));
+    //float3 skyTexture = skyboxTexture.Sample(texSampler, uv).rgb;
+    
+    float3 skyTexture = skyboxTexture.Sample(texSampler, pin.TexCoord).rgb;
     
     float3 gamma = float3(1.0f / 2.2f, 1.0f / 2.2f, 1.0f / 2.2f);
     skyTexture = skyTexture / (skyTexture + float3(1.0f, 1.0f, 1.0f));
@@ -31,3 +37,5 @@ float4 main(PS_INPUT pin) : SV_TARGET
     
     return float4(skyTexture, 1.0f);
 }
+
+#endif // SKYBOX_PS_HLSL

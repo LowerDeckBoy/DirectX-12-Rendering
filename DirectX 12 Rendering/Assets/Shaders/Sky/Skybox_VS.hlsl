@@ -1,3 +1,6 @@
+#ifndef SKYBOX_VS_HLSL
+#define SKYBOX_VS_HLSL
+
 
 cbuffer cbPerObject : register(b0)
 {
@@ -26,3 +29,5 @@ VS_OUTPUT main(VS_INPUT vin)
     
     return output;
 };
+
+#endif // SKYBOX_VS_HLSL
