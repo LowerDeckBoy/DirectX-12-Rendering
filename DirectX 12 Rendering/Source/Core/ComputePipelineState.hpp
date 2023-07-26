@@ -40,3 +40,22 @@ private:
     Shader m_ComputeShader;
 
 };
+
+class ComputePipelineStateBuilder
+{
+public:
+    ComputePipelineStateBuilder();
+    ~ComputePipelineStateBuilder();
+
+    void Create(DeviceContext* pDeviceCtx);
+    void CreateState();
+    void CreateRootSignature();
+    void AddShader();
+    
+    void Reset();
+
+    void Dispatch();
+
+
+private:
+};

@@ -47,6 +47,12 @@ public:
 		m_Allocated++;
 	}
 
+	void Override(Descriptor& TargetDescriptor)
+	{
+		TargetDescriptor.SetCPU(GetCPUptr(TargetDescriptor.m_Index));
+		TargetDescriptor.SetGPU(GetGPUptr(TargetDescriptor.m_Index));
+	}
+
 	// TODO
 	//void Release(Descriptor& TargetDescriptor)
 	//{
