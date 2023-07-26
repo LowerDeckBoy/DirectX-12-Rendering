@@ -1,6 +1,5 @@
 #include "Texture.hpp"
 #include "../Rendering/Camera.hpp"
-#include "ImageBasedLighting.hpp"
 #include "Skybox.hpp"
 
 Skybox::Skybox(DeviceContext* pDevice)
@@ -12,8 +11,6 @@ void Skybox::Create(DeviceContext* pDevice)
 {
 	assert(m_Device = pDevice);
 
-	//m_VertexBuffer = std::make_unique<VertexBuffer<SkyboxVertex>>(pDevice, *m_Vertices);
-	//m_IndexBuffer = std::make_unique<IndexBuffer>(pDevice, *m_Indices);
 	m_VertexBuffer = std::make_unique<VertexBuffer>(pDevice, BufferData(m_Vertices->data(), m_Vertices->size(), sizeof(m_Vertices->at(0)) * m_Vertices->size(), sizeof(m_Vertices->at(0))), BufferDesc());
 	m_IndexBuffer  = std::make_unique<IndexBuffer>(pDevice, BufferData(m_Indices->data(), m_Indices->size(), m_Indices->size() * sizeof(uint32_t), sizeof(uint32_t)), BufferDesc());
 	m_ConstBuffer  = std::make_unique<ConstantBuffer<cbPerObject>>(pDevice, &m_cbData);
@@ -44,21 +41,6 @@ void Skybox::Draw(Camera* pCamera)
 								XMMatrixTranspose(XMMatrixIdentity()) }, m_Device->FRAME_INDEX);
 	m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(0, m_ConstBuffer->GetBuffer(m_Device->FRAME_INDEX)->GetGPUVirtualAddress());
 	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(1, m_Texture->m_Descriptor.GetGPU());
-
-	m_Device->GetCommandList()->DrawIndexedInstanced(m_IndexBuffer->Count, 1, 0, 0, 0);
-}
-
-void Skybox::DrawIBL(Camera* pCamera, ImageBasedLighting& IBL)
-{
-	m_Device->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_Device->GetCommandList()->IASetVertexBuffers(0, 1, &m_VertexBuffer->View);
-	m_Device->GetCommandList()->IASetIndexBuffer(&m_IndexBuffer->View);
-
-	UpdateWorld(pCamera);
-	m_ConstBuffer->Update({ XMMatrixTranspose(m_WorldMatrix * pCamera->GetViewProjection()),
-								XMMatrixTranspose(XMMatrixIdentity()) }, m_Device->FRAME_INDEX);
-	m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(0, m_ConstBuffer->GetBuffer(m_Device->FRAME_INDEX)->GetGPUVirtualAddress());
-	m_Device->GetCommandList()->SetGraphicsRootDescriptorTable(1, IBL.m_SRVDesc.GetGPU());
 
 	m_Device->GetCommandList()->DrawIndexedInstanced(m_IndexBuffer->Count, 1, 0, 0, 0);
 }
