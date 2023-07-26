@@ -9,6 +9,7 @@ struct TextureData
 {
 	uint64_t Width;
 	uint32_t Height;
+	uint16_t Depth;
 	DXGI_FORMAT	Format{ DXGI_FORMAT_R8G8B8A8_UNORM };
 	D3D12_RESOURCE_DIMENSION Dimension{ D3D12_RESOURCE_DIMENSION_TEXTURE2D };
 };
@@ -32,18 +33,16 @@ class TextureUtils
 {
 public:
 	// Resource creation
-	static void CreateResource(ID3D12Device* pDevice, ID3D12Resource* pTargetResource, TextureDesc Desc, TextureData Data);
-	static ID3D12Resource* CreateResource(ID3D12Device* pDevice, TextureDesc Desc, TextureData Data);
-	static ID3D12Resource* CreateResource(ID3D12Device* pDevice, CD3DX12_RESOURCE_DESC& Desc);
+	static ID3D12Resource* CreateResource(ID3D12Device5* pDevice, TextureDesc Desc, TextureData Data);
+	static void CreateSRV(ID3D12Device5* pDevice, ID3D12Resource* pResource, Descriptor& TargetDescriptor, DXGI_FORMAT Format, uint16_t Depth);
+	static void CreateUAV(ID3D12Device5* pDevice, ID3D12Resource* pResource, Descriptor& TargetDescriptor, DXGI_FORMAT Format, uint16_t Depth);
 
-	static void CreateFromWIC(ID3D12Device* pDevice, ID3D12Resource* pTargetResource, const std::string_view& Filepath, TextureDesc Desc);
+	// Uploaded Resource from HDR files
+	static ID3D12Resource* CreateFromHDR(DeviceContext* pDeviceContext, const std::string_view& Filepath);
 
-	static ID3D12Resource* CreateFromWIC(ID3D12Device* pDevice, const std::string_view& Filepath, TextureDesc Desc);
-	static ID3D12Resource* CreateFromWIC(DeviceContext* pDevice, ID3D12Resource** ppTarget, const std::string_view& Filepath, TextureDesc Desc);
-	static ID3D12Resource* CreateFromDDS(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, const std::string_view& Filepath, TextureDesc Desc);
-	static ID3D12Resource* CreateFromHDR(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, const std::string_view& Filepath, TextureDesc Desc);
+	static void CreateFromResource();
 
-	static void CreateTextureSRV(ID3D12Resource* pResource, Descriptor& Descriptor);
+
 
 private:
 

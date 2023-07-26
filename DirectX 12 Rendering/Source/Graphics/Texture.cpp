@@ -258,10 +258,10 @@ void Texture::CreateFromHDR(DeviceContext* pDevice, const std::string& TexturePa
 		static_cast<LONG_PTR>(scratchImage->GetImages()->slicePitch)
 	};
 	UpdateSubresources(pDevice->GetCommandList(), m_Texture.Get(), m_TextureUploadHeap.Get(), 0, 0, 1, &subresource);
-
+	//D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 	const auto copyToResourceBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(m_Texture.Get(),
 																	 D3D12_RESOURCE_STATE_COPY_DEST,
-																	 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) };
+																	 D3D12_RESOURCE_STATE_COMMON) };
 	m_Device->GetCommandList()->ResourceBarrier(1, &copyToResourceBarrier);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};

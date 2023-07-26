@@ -29,6 +29,7 @@ public:
 	void CreateFromDDS(DeviceContext* pDevice, const std::string& TexturePath);
 	// HDR Skybox texture
 	// by default without prefiltering -> non IBL
+	// and Equirectangular
 	void CreateFromHDR(DeviceContext* pDevice, const std::string& TexturePath);
 
 	void CreateTexture(DeviceContext* pDevice, uint32_t Width, uint32_t Height, DXGI_FORMAT Format);
