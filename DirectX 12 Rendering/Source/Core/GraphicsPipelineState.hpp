@@ -31,6 +31,7 @@ public:
 	void AddDomainShader(const std::string_view& DomainPath);
 	void AddHullShader(const std::string_view& HullPath);
 	void SetFillMode(D3D12_FILL_MODE FillMode);
+	void SetCullMode(D3D12_CULL_MODE CullMode);
 	//void AddVertexShader(Shader* pShader);
 	//void AddPixelShader(Shader* pShader);
 	void AddRootFlags(D3D12_ROOT_SIGNATURE_FLAGS Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -52,6 +53,7 @@ private:
 
 	D3D12_STATIC_SAMPLER_DESC m_StaticSampler{};
 	D3D12_ROOT_SIGNATURE_FLAGS m_RootFlags{ D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT };
+	D3D12_CULL_MODE m_CullMode{ D3D12_CULL_MODE_BACK };
 	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_SOLID };
 
 private:

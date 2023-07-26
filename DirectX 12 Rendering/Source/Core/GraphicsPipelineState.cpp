@@ -51,7 +51,7 @@ void PSOBuilder::Create(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignatu
 
     desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     desc.RasterizerState.FillMode = m_FillMode;
-    desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    desc.RasterizerState.CullMode = m_CullMode;
     desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     desc.SampleMask = UINT_MAX;
@@ -165,6 +165,11 @@ void PSOBuilder::AddHullShader(const std::string_view& HullPath)
 void PSOBuilder::SetFillMode(D3D12_FILL_MODE FillMode)
 {
     m_FillMode = FillMode;
+}
+
+void PSOBuilder::SetCullMode(D3D12_CULL_MODE CullMode)
+{
+    m_CullMode = CullMode;
 }
 
 void PSOBuilder::AddRootFlags(D3D12_ROOT_SIGNATURE_FLAGS Flags)
