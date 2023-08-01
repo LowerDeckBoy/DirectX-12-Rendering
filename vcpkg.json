@@ -2,8 +2,6 @@
     "name": "dx12-rendering",
     "version-string": "0.1.0",
     "dependencies": [
-        "cgltf",
-        "tinygltf",
         "assimp",
         "spdlog",
         "directxtk12",
