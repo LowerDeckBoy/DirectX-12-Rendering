@@ -19,7 +19,7 @@ Texture2D<float4> EmissiveTexture       : register(t3, space2);
 Texture2D<float4> PositionTexture       : register(t4, space2);
 Texture2D<float4> DepthTexture          : register(t5, space2);
 TextureCube SkyTexture                  : register(t6, space2);
-//Texture2D<float4> SkyTexture            : register(t6, space2);
+TextureCube IrradianceTexture           : register(t7, space2);
 
 SamplerState texSampler : register(s0);
 
@@ -110,6 +110,18 @@ float4 main(ScreenQuadOutput pin) : SV_TARGET
     float3 ambient = float3(0.03f, 0.03f, 0.03f) * albedo.rgb * float3(1.0f, 1.0f, 1.0f);
     float3 output = (ambient.rgb + Lo);
 
+    float3 ambientLighting = float3(0.0f, 0.0f, 0.0f);
+    {
+        float3 irradiance = IrradianceTexture.Sample(texSampler, N).rgb;
+
+        float3 F = GetFresnelSchlick(NdotV, F0);
+        float3 kS = F;
+        float3 kD = lerp(float3(1.0f, 1.0f, 1.0f) - kS, float3(0.0f, 0.0f, 0.0f), metalRoughness.b);
+        
+        float3 diffuseIBL = kD * albedo.rgb * irradiance;
+        ambientLighting = diffuseIBL;
+    }
+   
     if (any(emissive))
     {
         output += emissive;
@@ -119,7 +131,7 @@ float4 main(ScreenQuadOutput pin) : SV_TARGET
     output = output / (output + float3(1.0f, 1.0f, 1.0f));
     output = lerp(output, pow(output, 1.0f / 2.2f), 0.4f);
 
-    return float4(output.rgb, 1.0f);
+    return float4(output.rgb + ambientLighting, 1.0f);
 }
 
 #endif // DEFERRED_PIXEL_HLSL
