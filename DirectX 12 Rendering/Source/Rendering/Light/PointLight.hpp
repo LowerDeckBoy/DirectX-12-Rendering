@@ -1,19 +1,6 @@
 #pragma once
 #include "../../Core/DeviceContext.hpp"
 #include "../../Graphics/ConstantBuffer.hpp"
-//#include <DirectXMath.h>
-//#include "../Model/Model.hpp"
-
-/*
-struct cbPointLight
-{
-	XMFLOAT4 Ambient{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
-	alignas(16) XMFLOAT3 Diffuse{ XMFLOAT3(1.0f, 1.0f, 1.0f) };
-	alignas(16) XMFLOAT3 Position{ XMFLOAT3(0.0f, 0.0f, 0.0f) };
-	float Attenuation;
-	float Range;
-};
-*/
 
 class PointLight
 {

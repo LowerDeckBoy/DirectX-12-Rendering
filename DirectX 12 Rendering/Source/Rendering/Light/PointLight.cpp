@@ -45,17 +45,6 @@ void PointLight::UpdateLights()
 
 		m_cbPointLightsData.LightColors.at(i) = XMFLOAT4(m_LightColorsFloat.at(i).at(0), m_LightColorsFloat.at(i).at(1), m_LightColorsFloat.at(i).at(2), m_LightColorsFloat.at(i).at(3));
 	}
-	/*
-	m_cbPointLightsData.LightPositions.at(0) = XMFLOAT4(m_LightPositionsFloat.at(0).at(0), m_LightPositionsFloat.at(0).at(1), m_LightPositionsFloat.at(0).at(2), m_LightPositionsFloat.at(0).at(3));
-	m_cbPointLightsData.LightPositions.at(1) = XMFLOAT4(m_LightPositionsFloat.at(1).at(0), m_LightPositionsFloat.at(1).at(1), m_LightPositionsFloat.at(1).at(2), m_LightPositionsFloat.at(1).at(3));
-	m_cbPointLightsData.LightPositions.at(2) = XMFLOAT4(m_LightPositionsFloat.at(2).at(0), m_LightPositionsFloat.at(2).at(1), m_LightPositionsFloat.at(2).at(2), m_LightPositionsFloat.at(2).at(3));
-	m_cbPointLightsData.LightPositions.at(3) = XMFLOAT4(m_LightPositionsFloat.at(3).at(0), m_LightPositionsFloat.at(3).at(1), m_LightPositionsFloat.at(3).at(2), m_LightPositionsFloat.at(3).at(3));
-
-	m_cbPointLightsData.LightColors.at(0) = XMFLOAT4(m_LightColorsFloat.at(0).at(0), m_LightColorsFloat.at(0).at(1), m_LightColorsFloat.at(0).at(2), m_LightColorsFloat.at(0).at(3));
-	m_cbPointLightsData.LightColors.at(1) = XMFLOAT4(m_LightColorsFloat.at(1).at(0), m_LightColorsFloat.at(1).at(1), m_LightColorsFloat.at(1).at(2), m_LightColorsFloat.at(1).at(3));
-	m_cbPointLightsData.LightColors.at(2) = XMFLOAT4(m_LightColorsFloat.at(2).at(0), m_LightColorsFloat.at(2).at(1), m_LightColorsFloat.at(2).at(2), m_LightColorsFloat.at(2).at(3));
-	m_cbPointLightsData.LightColors.at(3) = XMFLOAT4(m_LightColorsFloat.at(3).at(0), m_LightColorsFloat.at(3).at(1), m_LightColorsFloat.at(3).at(2), m_LightColorsFloat.at(3).at(3));
-	*/
 
 	m_cbPointLights->Update(m_cbPointLightsData, m_DeviceCtx->FRAME_INDEX);
 }
