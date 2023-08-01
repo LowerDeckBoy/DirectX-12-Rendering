@@ -6,6 +6,7 @@ Most of implemented solutions are either experimental or temporal.<br/>
 <br/>
 ## Techniques: ##
 - Deferred and Forward Rendering
+- PBR with sky reflections
 - Image Based Lighting
 - Simple MipMapping via DirectXTex
 
