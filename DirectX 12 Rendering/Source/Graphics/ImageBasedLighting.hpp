@@ -1,8 +1,7 @@
 #pragma once
-#include "../Core/ComputePipelineState.hpp"
+//#include "../Core/ComputePipelineState.hpp"
 #include "Buffer.hpp"
 #include "ConstantBuffer.hpp"
-
 
 class DeviceContext;
 class Camera;
@@ -15,26 +14,35 @@ public:
 	~ImageBasedLighting();
 
 	void Create(DeviceContext* pDevice, const std::string_view& Filepath);
-	void InitializeTextures(DeviceContext* pDevice, const std::string_view& Filepath);
-	void InitializeBuffers(DeviceContext* pDevice);
+	
 
 	void Draw(Camera* pCamera, uint32_t FrameIndex);
 
 	void Release();
 
-	//ID3D12Resource* m_EnvironmentMap{ nullptr };
+	ComPtr<ID3D12Resource> m_EnvironmentTexture;
 	Descriptor m_EnvDescriptor;
-	//ID3D12Resource* m_IrradianceMap{ nullptr };
+	//ComPtr<ID3D12Resource> m_IrradianceMap;
 	//Descriptor m_IrradianceDescriptor;
-	//ID3D12Resource* m_PrefilteredMap{ nullptr };
-	//Descriptor m_PrefilteredDescriptor;
+	ComPtr<ID3D12Resource> m_PrefilteredMap;
+	Descriptor m_PrefilteredDescriptor;
 
 	Descriptor m_Descriptor;
 	ComPtr<ID3D12Resource> m_OutputResource;
 	Descriptor m_OutputDescriptor;
 
 private:
+	void InitializeTextures(DeviceContext* pDevice, const std::string_view& Filepath);
+	void InitializeBuffers(DeviceContext* pDevice);
+
+	void CreatePipeline();
+
+	void CreateCubeTexture(DeviceContext* pDeviceCtx, const std::string_view& Filepath);
+	void PrefilterSpecular(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
+
 	ComPtr<ID3D12GraphicsCommandList> m_CommandList;
+
+	ComPtr<ID3D12PipelineState> m_Pipeline;
 
 	VertexBuffer m_VertexBuffer;
 	IndexBuffer m_IndexBuffer;

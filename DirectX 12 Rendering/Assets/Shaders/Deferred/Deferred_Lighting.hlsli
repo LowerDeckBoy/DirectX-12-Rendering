@@ -15,8 +15,8 @@ cbuffer cbCamera : register(b1, space0)
     float4 CameraPosition;
     float4x4 View;
     float4x4 Projection;
-    float4x4 InversedView;
-    float4x4 InversedProjection;
+    row_major float4x4 InversedView;
+    row_major float4x4 InversedProjection;
     float2 ScreenDimension;
 }
 

@@ -1,8 +1,10 @@
 #pragma once
 #include "../../Core/DeviceContext.hpp"
-#include <DirectXMath.h>
-#include "../Model/Model.hpp"
+#include "../../Graphics/ConstantBuffer.hpp"
+//#include <DirectXMath.h>
+//#include "../Model/Model.hpp"
 
+/*
 struct cbPointLight
 {
 	XMFLOAT4 Ambient{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
@@ -11,25 +13,33 @@ struct cbPointLight
 	float Attenuation;
 	float Range;
 };
+*/
 
 class PointLight
 {
 public:
 	PointLight() {}
 	
-	void Create(DeviceContext* pDevice, const std::string_view& Filepath);
+	void Create(DeviceContext* pDevice);
+
+	void SetupLights();
+	void UpdateLights();
+	void ResetLights();
+
+	void DrawGUI();
+
+	std::unique_ptr<ConstantBuffer<cbLights>> m_cbPointLights;
+	cbLights m_cbPointLightsData{};
+
+	bool bCastShadows{ false };
 
 private:
-	DeviceContext* m_Device{ nullptr };
+	DeviceContext* m_DeviceCtx{ nullptr };
 
-	float m_Radius;
-	// World position
-	XMMATRIX m_WorldMatrix{ XMMatrixIdentity() };
-	XMVECTOR m_Translate;
-	XMVECTOR m_Scale;
-	std::array<float, 3> m_Position{ 0.0f, 0.0f, 0.0f };
-	std::array<float, 3> m_Scales{ 0.1f, 0.1f, 0.1f };
-
+	std::array<XMFLOAT4, 4>				m_LightPositions;
+	std::array<std::array<float, 4>, 4> m_LightPositionsFloat;
+	std::array<XMFLOAT4, 4>				m_LightColors;
+	std::array<std::array<float, 4>, 4> m_LightColorsFloat;
 
 };
 

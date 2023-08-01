@@ -7,10 +7,11 @@
 #include "../Editor/Editor.hpp"
 #include "ComputePipelineState.hpp"
 #include "../Rendering/Model/Model.hpp"
-#include "../Graphics/Skybox.hpp"
+//#include "../Rendering/DeferredContext.hpp"
 #include "../Rendering/ScreenQuad.hpp"
-#include "../Utilities/Logger.hpp"
+#include "../Graphics/Skybox.hpp"
 #include "../Graphics/ImageBasedLighting.hpp"
+#include "../Rendering/Light/PointLight.hpp"
 
 class Camera;
 
@@ -37,9 +38,12 @@ public:
 
 	void Release();
 
-	inline DeviceContext* GetDeviceContext() noexcept { return m_Device.get(); }
+	inline DeviceContext* GetDeviceContext() noexcept { return m_DeviceCtx.get(); }
 
 protected:
+	void BeginFrame();
+	void EndFrame();
+
 	// Wrappers
 	void SetHeap(ID3D12DescriptorHeap** ppHeap);
 	void SetRootSignature(ID3D12RootSignature* pRootSignature);
@@ -54,11 +58,8 @@ protected:
 
 	ID3D12PipelineState* SetPSO(int32_t Selected = 0) noexcept;
 
-	void BeginFrame();
-	void EndFrame();
-
 private:
-	std::unique_ptr<DeviceContext> m_Device;
+	std::unique_ptr<DeviceContext> m_DeviceCtx;
 
 	Camera* m_Camera{ nullptr };
 
@@ -73,26 +74,28 @@ private:
 	ComPtr<ID3D12PipelineState> m_ModelPipelineState;
 	ComPtr<ID3D12PipelineState> m_PBRPipelineState;
 	ComPtr<ID3D12PipelineState> m_PBRPipelineState2;
-	ComPtr<ID3D12PipelineState> m_PBRPipelineState3;
-	static inline int m_SelectedPSO = 0;
+	static inline int m_SelectedPSO{ 0 };
 	
 	void SwitchPSO();
 	// TODO: Requires some cleanup
 	void InitPipelines();
 
-	std::unique_ptr<Model> m_Model;
-	std::unique_ptr<Model> m_Model2;
+	std::vector<std::unique_ptr<Model>> m_Models;
 
 	// Skybox
 	ComPtr<ID3D12RootSignature> m_SkyboxRootSignature;
 	ComPtr<ID3D12PipelineState> m_SkyboxPipelineState;
 	std::unique_ptr<Skybox> m_Skybox;
+	// IBL uses the same Pipeline State and Root Signature as Skybox
 	std::unique_ptr<ImageBasedLighting> m_IBL;
 
 	std::unique_ptr<ShaderManager> m_ShaderManager;
 
+	// TODO: to finish
+	//std::unique_ptr<DeferredContext> m_DeferredContext;
+
 	// Deferred Context
-	ScreenQuad m_ScreenQuad;
+	std::unique_ptr<ScreenQuad> m_ScreenQuad;
 
 	static const int32_t m_DeferredRTVCount{ 6 };
 	void CreateDeferredRTVs();
@@ -105,7 +108,7 @@ private:
 	ComPtr<ID3D12PipelineState> m_DeferredPSO;
 	ComPtr<ID3D12PipelineState> m_DeferredLightPSO;
 
-	std::array<DXGI_FORMAT, m_DeferredRTVCount> m_RTVFormats{ DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM };
+	std::array<DXGI_FORMAT, m_DeferredRTVCount> m_RTVFormats{ DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM };
 
 	// GBuffer
 	void PassGBuffer(Camera* pCamera);
@@ -115,32 +118,14 @@ private:
 	// Camera Scene data
 	std::unique_ptr<ConstantBuffer<SceneConstData>> m_cbCamera;
 	SceneConstData m_cbSceneData{};
-	// Data for light shading
-	std::unique_ptr<ConstantBuffer<cbMaterial>> m_cbMaterial;
-	cbMaterial m_cbMaterialData{};
+	
 	
 	void DrawGUI();
 
-	// Lighting
-	// Temporal
-	void SetupLights();
-	void UpdateLights();
-	void ResetLights();
-
-	// Const buffer for light positions and colors -> PBR
-	std::unique_ptr<ConstantBuffer<cbLights>> m_cbPointLights;
-	cbLights m_cbPointLightsData{};
-
-	//Light positions
-	std::array<XMFLOAT4, 4>				m_LightPositions;
-	std::array<std::array<float, 4>, 4> m_LightPositionsFloat;
-	std::array<XMFLOAT4, 4>				m_LightColors;
-	std::array<std::array<float, 4>, 4> m_LightColorsFloat;
+	std::unique_ptr<PointLight> m_PointLights;
 
 public:
 	static bool bDrawSky;
 	static bool bDeferred;
-
-	Logger m_Logger;
 
 };

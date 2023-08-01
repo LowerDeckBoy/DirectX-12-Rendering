@@ -37,10 +37,13 @@ public:
 	static void CreateSRV(ID3D12Device5* pDevice, ID3D12Resource* pResource, Descriptor& TargetDescriptor, DXGI_FORMAT Format, uint16_t Depth);
 	static void CreateUAV(ID3D12Device5* pDevice, ID3D12Resource* pResource, Descriptor& TargetDescriptor, DXGI_FORMAT Format, uint16_t Depth);
 
+	static ID3D12Resource* CreateFromWIC(DeviceContext* pDeviceContext, Descriptor& TargetDescriptor, const std::string_view& Filepath);
+	//static ID3D12Resource* CreateFromDDS(DeviceContext* pDeviceContext, Descriptor& TargetDescriptor, const std::string_view& Filepath);
+
 	// Uploaded Resource from HDR files
 	static ID3D12Resource* CreateFromHDR(DeviceContext* pDeviceContext, const std::string_view& Filepath);
 
-	static void CreateFromResource();
+	//static void CreateFromResource();
 
 
 

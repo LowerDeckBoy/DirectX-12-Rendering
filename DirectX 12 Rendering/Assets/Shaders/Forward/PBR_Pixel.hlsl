@@ -34,20 +34,18 @@ struct MaterialIndices
     int EmissiveIndex;
 };
 
-//ConstantBuffer<MaterialIndices> Indices : register(b1, space1);
 ConstantBuffer<MaterialIndices> Indices : register(b0, space2);
 Texture2D<float4> TexturesTable[] : register(t0, space1);
 SamplerState texSampler : register(s0);
 
-//Texture2D<float4> SkyTexture : register(t4, space0);
 TextureCube SkyTexture : register(t4, space0);
-//Texture2D<float4> SkyTexture : register(t6, space2);
+TextureCube PrefilteredSkyTexture : register(t5, space0);
 
 float4 main(PS_INPUT pin) : SV_TARGET
 {
     float3 output = float3(0.0f, 0.0f, 0.0f);
 
-    float4 baseColor = BaseColorFactor;
+    float4 baseColor = float4(0.5f, 0.5f, 0.5f, 1.0f);
     if (Indices.BaseColorIndex >= 0)
     {
         float4 diffuse = TexturesTable[Indices.BaseColorIndex].Sample(texSampler, pin.TexCoord) * BaseColorFactor;
@@ -55,7 +53,6 @@ float4 main(PS_INPUT pin) : SV_TARGET
             discard;
         
         baseColor = pow(diffuse, 2.2f);
-        //baseColor = diffuse, 2.2f;
     }
 
     output = baseColor.rgb;
@@ -75,7 +72,7 @@ float4 main(PS_INPUT pin) : SV_TARGET
     float3x3 texSpace = float3x3(tangent, bitangent, pin.Normal);
     pin.Normal = normalize(mul(normalMap.xyz, texSpace));
 
-    float3 N = pin.Normal;
+    float3 N = normalize(pin.Normal);
     float3 V = normalize(CameraPosition - pin.WorldPosition.xyz);
     float NdotV = max(dot(N, V), 0.0f);
 
@@ -83,8 +80,8 @@ float4 main(PS_INPUT pin) : SV_TARGET
 
     float3 Lo = float3(0.0f, 0.0f, 0.0f);
     
-    float3 reflection = reflect(-V, N);
-    float3 sky = saturate(SkyTexture.Sample(texSampler, reflection.xyz).rgb) * metalness;
+    float3 reflection = normalize(reflect(-V, N));
+    float3 sky = (SkyTexture.Sample(texSampler, reflection.xyz).rgb) * metalness;
     
     for (int i = 0; i < LIGHTS; ++i)
     {
@@ -130,6 +127,7 @@ float4 main(PS_INPUT pin) : SV_TARGET
         output = lerp(output, pow(output, 1.0f / 2.2f), 0.4f);
         return float4(output.rgb, 1.0f);
     }
+    
     
     // Gamma correction
     output = output / (output + float3(1.0f, 1.0f, 1.0f));

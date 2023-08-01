@@ -29,7 +29,7 @@ GBuffer_Output main(DeferredOutput pin)
         if (output.Albedo.a < AlphaCutoff)
             discard;
         
-        output.Albedo = pow(output.Albedo, 2.2f);
+        output.Albedo = output.Albedo;
     }
     else
     {
@@ -60,12 +60,9 @@ GBuffer_Output main(DeferredOutput pin)
         output.Emissive = bindless_textures[Indices.EmissiveIndex].Sample(texSampler, pin.TexCoord) * EmissiveFactor;
     }
 
+    output.WorldPosition = normalize(pin.WorldPosition);
     output.WorldPosition = pin.WorldPosition;
-    //output.WorldPosition = pin.Position;
-    
-    // light positions here
-    //
-    
+
 	return output;
 }
 

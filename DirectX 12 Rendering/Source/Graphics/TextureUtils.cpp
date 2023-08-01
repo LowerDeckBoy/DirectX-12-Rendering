@@ -73,6 +73,64 @@ void TextureUtils::CreateUAV(ID3D12Device5* pDevice, ID3D12Resource* pResource, 
 	pDevice->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, TargetDescriptor.GetCPU());
 }
 
+ID3D12Resource* TextureUtils::CreateFromWIC(DeviceContext* pDeviceContext, Descriptor& TargetDescriptor, const std::string_view& Filepath)
+{
+	std::wstring wpath = std::wstring(Filepath.begin(), Filepath.end());
+	const wchar_t* path = wpath.c_str();
+
+	DirectX::ScratchImage* scratchImage{ new DirectX::ScratchImage() };
+	DirectX::LoadFromWICFile(path,
+		DirectX::WIC_FLAGS_FORCE_RGB,
+		nullptr,
+		*scratchImage);
+
+	// https://github.com/microsoft/DirectXTK12/wiki/ResourceUploadBatch
+	DirectX::ResourceUploadBatch upload(pDeviceContext->GetDevice());
+	upload.Begin();
+
+	std::unique_ptr<uint8_t[]> decodedData;
+	D3D12_SUBRESOURCE_DATA subresource{};
+
+	ID3D12Resource* pResource{ nullptr };
+	DirectX::LoadWICTextureFromFileEx(pDeviceContext->GetDevice(), path, 0, D3D12_RESOURCE_FLAG_NONE, DirectX::DX12::WIC_LOADER_MIP_RESERVE, &pResource, decodedData, subresource);
+
+	const auto desc{ pResource->GetDesc() };
+
+	const auto uploadDesc = CD3DX12_RESOURCE_DESC(
+		D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+		D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+		desc.Width, desc.Height, 1, desc.MipLevels,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		1, 0,
+		D3D12_TEXTURE_LAYOUT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE);
+
+	ThrowIfFailed(pDeviceContext->GetDevice()->CreateCommittedResource(&HeapProps::HeapDefault,
+		D3D12_HEAP_FLAG_NONE,
+		&uploadDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&pResource)));
+
+	upload.Upload(pResource, 0, &subresource, 1);
+	upload.Transition(pResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	upload.GenerateMips(pResource);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+
+	pDeviceContext->GetMainHeap()->Allocate(TargetDescriptor);
+	pDeviceContext->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, TargetDescriptor.GetCPU());
+
+	auto finish{ upload.End(pDeviceContext->GetCommandQueue()) };
+	finish.wait();
+
+	return pResource;
+}
+
 ID3D12Resource* TextureUtils::CreateFromHDR(DeviceContext* pDeviceContext, const std::string_view& Filepath)
 {
 	if (files::GetExtension(Filepath.data()) != ".hdr")

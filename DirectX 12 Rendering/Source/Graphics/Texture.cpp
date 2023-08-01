@@ -2,9 +2,7 @@
 #include "Texture.hpp"
 #include "../Utilities/Utilities.hpp"
 #include "../Utilities/FileUtils.hpp"
-//TEST
-#include "../Core/ComputePipelineState.hpp"
-
+#include <DirectXTex.h>
 #include <directxtk12/ResourceUploadBatch.h>
 #include <directxtk12/DDSTextureLoader.h>
 #include <directxtk12/WICTextureLoader.h>
@@ -16,31 +14,9 @@ Texture::Texture()
 	
 }
 
-Texture::Texture(DeviceContext* pDevice, const std::string& TexturePath)
+Texture::Texture(DeviceContext* pDevice, const std::string_view& TexturePath)
 {
 	Create(pDevice, TexturePath);
-}
-
-Texture::Texture(DeviceContext* pDevice, const std::string& TexturePath, bool bSkyboxHDR)
-{
-	if (files::GetExtension(TexturePath) == ".dds")
-	{
-		CreateFromDDS(pDevice, TexturePath);
-	}
-	else if (files::GetExtension(TexturePath) == ".hdr")
-	{
-		CreateFromHDR(pDevice, TexturePath);
-	}
-	else
-	{
-		CreateFromWIC(pDevice, TexturePath);
-	}
-}
-
-Texture::Texture(DeviceContext* pDevice, const std::string& TexturePath, const std::string& TextureName)
-{
-	CreateFromWIC(pDevice, TexturePath);
-	SetName(TextureName);
 }
 
 Texture::~Texture()
@@ -48,32 +24,33 @@ Texture::~Texture()
 	Release();
 }
 
-void Texture::Create(DeviceContext* pDevice, const std::string& TexturePath)
+void Texture::Create(DeviceContext* pDevice, const std::string_view& TexturePath)
 {
-	if (files::GetExtension(TexturePath) == ".dds")
+	if (files::GetExtension(TexturePath.data()) == ".dds")
 	{
 		CreateFromDDS(pDevice, TexturePath);
 	}
-	else if (files::GetExtension(TexturePath) == ".hdr")
+	else if (files::GetExtension(TexturePath.data()) == ".hdr")
 	{
 		CreateFromHDR(pDevice, TexturePath);
 	}
 	else
 	{
 		CreateFromWIC(pDevice, TexturePath);
+		//m_Texture = TextureUtils::CreateFromWIC(pDevice, m_Descriptor, TexturePath);
 	}
 }
 
-void Texture::CreateFromWIC(DeviceContext* pDevice, const std::string& TexturePath)
+void Texture::CreateFromWIC(DeviceContext* pDevice, const std::string_view& TexturePath)
 {
-	assert(m_Device = pDevice);
+	//assert(m_Device = pDevice);
 
 	std::wstring wpath = std::wstring(TexturePath.begin(), TexturePath.end());
 	const wchar_t* path = wpath.c_str();
 
 	DirectX::ScratchImage* scratchImage{ new DirectX::ScratchImage() };
 	DirectX::LoadFromWICFile(path,
-		DirectX::WIC_FLAGS_NONE,
+		DirectX::WIC_FLAGS_FORCE_RGB,
 		nullptr,
 		*scratchImage);
 
@@ -84,14 +61,16 @@ void Texture::CreateFromWIC(DeviceContext* pDevice, const std::string& TexturePa
 	std::unique_ptr<uint8_t[]> decodedData;
 	D3D12_SUBRESOURCE_DATA subresource{};
 
-	DirectX::LoadWICTextureFromFileEx(pDevice->GetDevice(), path, 0, D3D12_RESOURCE_FLAG_NONE, DirectX::DX12::WIC_LOADER_MIP_AUTOGEN, m_Texture.ReleaseAndGetAddressOf(), decodedData, subresource);
+	DirectX::LoadWICTextureFromFileEx(pDevice->GetDevice(), path, 0, D3D12_RESOURCE_FLAG_NONE, DirectX::DX12::WIC_LOADER_MIP_RESERVE, m_Texture.ReleaseAndGetAddressOf(), decodedData, subresource);
 
-	auto desc{ m_Texture->GetDesc() };
+	const auto desc{ m_Texture->GetDesc() };
 
-	auto uploadDesc = CD3DX12_RESOURCE_DESC(
+	//desc.MipLevels
+	const uint32_t mips = (desc.MipLevels < m_MipLevels) ? desc.MipLevels : m_MipLevels;
+	const auto uploadDesc = CD3DX12_RESOURCE_DESC(
 		D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 		D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		desc.Width, desc.Height, 1, desc.MipLevels,
+		desc.Width, desc.Height, 1, mips,
 		DXGI_FORMAT_R8G8B8A8_UNORM,
 		1, 0,
 		D3D12_TEXTURE_LAYOUT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE);
@@ -111,20 +90,18 @@ void Texture::CreateFromWIC(DeviceContext* pDevice, const std::string& TexturePa
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	srvDesc.Texture2D.MipLevels = mips;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 
-	m_Device->GetMainHeap()->Allocate(m_Descriptor);
-	m_Device->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_Descriptor.GetCPU());
+	pDevice->GetMainHeap()->Allocate(m_Descriptor);
+	pDevice->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_Descriptor.GetCPU());
 	
-	auto finish{ upload.End(m_Device->GetCommandQueue()) };
+	auto finish{ upload.End(pDevice->GetCommandQueue()) };
 	finish.wait();
 }
 
-void Texture::CreateFromDDS(DeviceContext* pDevice, const std::string& TexturePath)
+void Texture::CreateFromDDS(DeviceContext* pDevice, const std::string_view& TexturePath)
 {
-	assert(m_Device = pDevice);
-
 	std::wstring wpath = std::wstring(TexturePath.begin(), TexturePath.end());
 	const wchar_t* path = wpath.c_str();
 
@@ -190,7 +167,7 @@ void Texture::CreateFromDDS(DeviceContext* pDevice, const std::string& TexturePa
 	UpdateSubresources(pDevice->GetCommandList(), m_Texture.Get(), m_TextureUploadHeap.Get(), 0, 0, static_cast<uint32_t>(subresources.size()), subresources.data());
 
 	const auto copyToResourceBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(m_Texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) };
-	m_Device->GetCommandList()->ResourceBarrier(1, &copyToResourceBarrier);
+	pDevice->GetCommandList()->ResourceBarrier(1, &copyToResourceBarrier);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -199,16 +176,14 @@ void Texture::CreateFromDDS(DeviceContext* pDevice, const std::string& TexturePa
 	srvDesc.TextureCube.MipLevels = 1;
 	srvDesc.TextureCube.MostDetailedMip = 0;
 
-	m_Device->GetMainHeap()->Allocate(m_Descriptor);
-	m_Device->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_Descriptor.GetCPU());
+	pDevice->GetMainHeap()->Allocate(m_Descriptor);
+	pDevice->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_Descriptor.GetCPU());
 
 	m_Texture->SetName(L"Texture SRV");
 }
 
-void Texture::CreateFromHDR(DeviceContext* pDevice, const std::string& TexturePath)
+void Texture::CreateFromHDR(DeviceContext* pDevice, const std::string_view& TexturePath)
 {
-	assert(m_Device = pDevice);
-
 	DirectX::ScratchImage* scratchImage{ new DirectX::ScratchImage() };
 	//const wchar_t* path{ ToWchar(TexturePath) };
 	std::wstring wpath = std::wstring(TexturePath.begin(), TexturePath.end());
@@ -262,7 +237,7 @@ void Texture::CreateFromHDR(DeviceContext* pDevice, const std::string& TexturePa
 	const auto copyToResourceBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(m_Texture.Get(),
 																	 D3D12_RESOURCE_STATE_COPY_DEST,
 																	 D3D12_RESOURCE_STATE_COMMON) };
-	m_Device->GetCommandList()->ResourceBarrier(1, &copyToResourceBarrier);
+	pDevice->GetCommandList()->ResourceBarrier(1, &copyToResourceBarrier);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -271,65 +246,14 @@ void Texture::CreateFromHDR(DeviceContext* pDevice, const std::string& TexturePa
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 
-	m_Device->GetMainHeap()->Allocate(m_Descriptor);
-	m_Device->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_Descriptor.GetCPU());
+	pDevice->GetMainHeap()->Allocate(m_Descriptor);
+	pDevice->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_Descriptor.GetCPU());
 
 	m_Texture->SetName(L"HDR Texture SRV");
 }
 
-void Texture::CreateTexture(DeviceContext* pDevice, uint32_t Width, uint32_t Height, DXGI_FORMAT Format)
-{
-	D3D12_RESOURCE_DESC desc{};
-	desc.Width = Width;
-	desc.Height = Height;
-	desc.Format = Format;
-	desc.DepthOrArraySize = 1;
-	desc.MipLevels = 1;
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	desc.SampleDesc = { 1, 0 };
-	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-	ThrowIfFailed(pDevice->GetDevice()->CreateCommittedResource(&HeapProps::HeapDefault, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_Texture)));
-	
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = desc.Format;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	pDevice->GetMainHeap()->Allocate(m_DescriptorSRV);
-	pDevice->GetDevice()->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_DescriptorSRV.GetCPU());
-
-}
-
-void Texture::CreateUAV(ID3D12Resource* pTexture, uint32_t MipSlice)
-{
-	const auto desc{ pTexture->GetDesc() };
-	assert(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-	m_Device->GetMainHeap()->Allocate(m_DescriptorUAV);
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-	uavDesc.Format = desc.Format;
-	
-	if (desc.DepthOrArraySize > 1)
-	{
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-		uavDesc.Texture2DArray.MipSlice = MipSlice;
-		uavDesc.Texture2DArray.FirstArraySlice = 0;
-		uavDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
-	}
-	else
-	{
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		uavDesc.Texture2D.MipSlice = MipSlice;
-	}
-
-	m_Device->GetDevice()->CreateUnorderedAccessView(m_UavView.Get(), nullptr, &uavDesc, m_DescriptorUAV.GetCPU());
-}
-
 void Texture::Release()
 {
-	SAFE_RELEASE(m_UavView);
 	SAFE_RELEASE(m_TextureUploadHeap);
 	SAFE_RELEASE(m_Texture);
 }

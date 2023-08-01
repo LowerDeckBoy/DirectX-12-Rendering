@@ -14,8 +14,8 @@ cbuffer cbCamera : register(b1, space0)
     float4   CameraPosition;
     float4x4 View;
     float4x4 Projection;
-    float4x4 InversedView;
-    float4x4 InversedProjection;
+    row_major float4x4 InversedView;
+    row_major float4x4 InversedProjection;
     float2   ScreenDimension;
 }
 
@@ -23,8 +23,9 @@ DeferredOutput main(DeferredInput vin)
 {
     DeferredOutput output = (DeferredOutput) 0;
     output.Position = mul(WVP, float4(vin.Position, 1.0f));
+    //output.WorldPosition = mul(World, float4(vin.Position, 1.0f));
+    //output.WorldPosition = mul(World * InversedView * InversedProjection, output.Position);
     output.WorldPosition = mul(World, float4(vin.Position, 1.0f));
-    //output.WorldPosition = mul(World, output.Position);
     //output.WorldPosition = normalize(output.Position / output.Position.w);
     output.TexCoord     = vin.TexCoord;
     output.Normal       = normalize(mul((float3x3) World, vin.Normal));
