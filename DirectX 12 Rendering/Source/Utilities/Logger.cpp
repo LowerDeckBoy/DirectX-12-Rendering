@@ -1,5 +1,5 @@
 #include "Logger.hpp"
-
+#include <string>
 
 #if defined (_DEBUG) || (DEBUG)
 	std::string Logger::m_LoggerName = "Debug";
@@ -7,7 +7,6 @@
 
 void Logger::Init()
 {
-
 	auto msvcSink{ std::make_shared<spdlog::sinks::msvc_sink_mt>() };
 	m_Logger = std::make_shared<spdlog::logger>(m_LoggerName, msvcSink);
 	spdlog::register_logger(m_Logger);

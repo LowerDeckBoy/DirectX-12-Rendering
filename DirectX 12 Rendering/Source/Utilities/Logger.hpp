@@ -1,8 +1,7 @@
 #pragma once
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/msvc_sink.h>
-#include <string>
-#include <memory>
+
 
 enum class LogType : uint8_t
 {
