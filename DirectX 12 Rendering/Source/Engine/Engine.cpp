@@ -13,16 +13,20 @@ Engine::Engine(HINSTANCE hInstance) : Window(hInstance)
 
 Engine::~Engine()
 {
-	OnDestroy();
+	Release();
 }
 
 void Engine::Initialize()
 {
+	m_Logger = std::make_unique<Logger>();
+	m_Logger->Init();
+
 	Window::Initialize();
 	m_Camera->Initialize(Window::GetDisplay().AspectRatio);
 	m_Camera->ResetCamera();
 	m_Renderer->Initialize(m_Camera.get());
 	Timer::Initialize();
+
 }
 
 void Engine::Run()
@@ -73,7 +77,7 @@ void Engine::OnResize()
 	m_Camera->OnAspectRatioChange(Window::GetDisplay().AspectRatio);
 }
 
-void Engine::OnDestroy()
+void Engine::Release()
 {
 	Timer::Stop();
 	m_Renderer->GetDeviceContext()->WaitForGPU();
@@ -253,7 +257,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 		bAppPaused = false;
 		bIsResizing = false;
 
-		OnResize();
+		//OnResize();
 		Timer::Start();
 
 		return 0;

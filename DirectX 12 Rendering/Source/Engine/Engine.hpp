@@ -3,6 +3,7 @@
 #include "../Utilities/Timer.hpp"
 #include "../Rendering/Camera.hpp"
 #include "../Core/Renderer.hpp"
+#include "../Utilities/Logger.hpp"
 
 
 class Engine : public Window
@@ -18,9 +19,10 @@ private:
 	LRESULT WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
 	void OnResize() override;
 
-	void OnDestroy();
+	void Release();
 
 private:
+	std::unique_ptr<Logger> m_Logger;
 	std::unique_ptr<Renderer> m_Renderer;
 	std::unique_ptr<Camera> m_Camera;
 
