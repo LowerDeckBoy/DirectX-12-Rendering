@@ -29,8 +29,11 @@ void Model::Create(DeviceContext* pDevice, std::string_view Filepath)
 	m_cbMaterial	= std::make_unique<ConstantBuffer<cbMaterial>>(pDevice, &m_cbMaterialData);
 
 	m_Vertices.clear();
+	m_Vertices.shrink_to_fit();
 	m_Indices.clear();
+	m_Indices.shrink_to_fit();
 
+	UpdateWorld();
 }
 
 void Model::Draw(Camera* pCamera)
@@ -42,17 +45,11 @@ void Model::Draw(Camera* pCamera)
 	{
 		const auto frameIndex{ m_Device->FRAME_INDEX };
 		// World transformations
-		UpdateWorld();
+		//UpdateWorld();
 		// Constant buffers
 		m_cbPerObject->Update({ XMMatrixTranspose(m_Meshes.at(i)->Matrix * m_WorldMatrix * pCamera->GetViewProjection()),
 								XMMatrixTranspose(m_WorldMatrix) }, frameIndex);
 		m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(0, m_cbPerObject->GetBuffer(frameIndex)->GetGPUVirtualAddress());
-
-		//m_cbCamera->Update({ XMFLOAT3(XMVectorGetX(pCamera->GetPosition()),
-		//							  XMVectorGetY(pCamera->GetPosition()),
-		//							  XMVectorGetZ(pCamera->GetPosition())) },
-		//	frameIndex);
-		//m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(1, m_cbCamera->GetBuffer(frameIndex)->GetGPUVirtualAddress());
 
 		auto currentMaterial{ m_Materials.at(i) };
 
@@ -67,10 +64,10 @@ void Model::Draw(Camera* pCamera)
 			}, frameIndex);
 
 		m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(2, m_cbMaterial->GetBuffer(frameIndex)->GetGPUVirtualAddress());
-		model::MaterialIndices indices{ currentMaterial->BaseColorIndex, 
-										currentMaterial->NormalIndex, 
-										currentMaterial->MetallicRoughnessIndex, 
-										currentMaterial->EmissiveIndex };
+		const model::MaterialIndices indices{ currentMaterial->BaseColorIndex, 
+											currentMaterial->NormalIndex, 
+											currentMaterial->MetallicRoughnessIndex, 
+											currentMaterial->EmissiveIndex };
 		m_Device->GetCommandList()->SetGraphicsRoot32BitConstants(5, sizeof(indices) / 4, &indices, 0);
 
 		if (m_Meshes.at(i)->bHasIndices)
@@ -97,19 +94,22 @@ void Model::DrawGUI()
 		if (ImGui::DragFloat3("Translation", m_Translations.data()))
 		{
 			m_Translation = XMVectorSet(m_Translations.at(0), m_Translations.at(1), m_Translations.at(2), 0.0f);
+			UpdateWorld();
 		}
 
-		if (ImGui::DragFloat3("Rotation", m_Rotations.data(), 0.5f, -360.0f, 360.0f))
+		if (ImGui::DragFloat3("Rotation", m_Rotations.data(), 0.5f))
 		{
 			m_Rotation = XMVectorSet(XMConvertToRadians(m_Rotations.at(0)),
 									 XMConvertToRadians(m_Rotations.at(1)),
 									 XMConvertToRadians(m_Rotations.at(2)),
 									 0.0f);
+			UpdateWorld();
 		}
 
 		if (ImGui::DragFloat3("Scale", m_Scales.data(), 0.1f))
 		{
 			m_Scale = XMVectorSet(m_Scales.at(0), m_Scales.at(1), m_Scales.at(2), 0.0f);
+			UpdateWorld();
 		}
 
 		if (ImGui::Button("Reset"))
@@ -121,6 +121,7 @@ void Model::DrawGUI()
 			m_Translation	= XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 			m_Rotation		= XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 			m_Scale			= XMVectorSet(1.0f, 1.0f, 1.0f, 0.0f);
+			UpdateWorld();
 		}
 	}
 	
@@ -129,7 +130,11 @@ void Model::DrawGUI()
 
 void Model::Release()
 {
+	for (auto& mesh : m_Meshes)
+		delete mesh;
 
+	for (auto& material : m_Materials)
+		delete material;
 }
 
 void Model::UpdateWorld()

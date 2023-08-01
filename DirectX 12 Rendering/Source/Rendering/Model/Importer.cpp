@@ -7,9 +7,7 @@
 
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
-#include <assimp/material.h>
 #include <assimp/GltfMaterial.h>
-#include <assimp/anim.h>
 
 Importer::Importer(DeviceContext* pDevice, std::string_view Filepath)
 {
@@ -25,9 +23,8 @@ bool Importer::Import(DeviceContext* pDevice, std::string_view Filepath)
 	auto loadFlags{  
 		aiProcess_Triangulate |
 		aiProcess_ConvertToLeftHanded |
-		aiProcess_GenSmoothNormals |
-		aiProcess_PreTransformVertices |
 		aiProcess_JoinIdenticalVertices |
+		aiProcess_PreTransformVertices |
 		aiProcess_ValidateDataStructure 
 	};
 	importer.SetExtraVerbose(true);
@@ -44,7 +41,7 @@ bool Importer::Import(DeviceContext* pDevice, std::string_view Filepath)
 
 	ProcessNode(scene, scene->mRootNode, nullptr, XMMatrixIdentity());
 	
-	// TODO
+	// TODO:
 	if (scene->HasAnimations())
 	{
 		bHasAnimations = true;
@@ -210,12 +207,9 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 			if (material->GetTexture(aiTextureType_DIFFUSE, i, &materialPath) == aiReturn_SUCCESS)
 			{
 				auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-				//newMaterial->BaseColorTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
 				Texture* BaseColorTexture = new Texture(m_Device, texPath);
 				m_Textures.push_back(BaseColorTexture);
-				//newMaterial->BaseColorIndex = BaseColorTexture->m_Descriptor.m_Index;
 				newMaterial->BaseColorIndex = BaseColorTexture->m_Descriptor.m_Index;
-				//newMaterial->BaseColorIndex = m_Textures.size() - 1;
 
 				aiColor4D colorFactor{};
 				aiGetMaterialColor(material, AI_MATKEY_BASE_COLOR, &colorFactor);
@@ -235,7 +229,6 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 		if (material->GetTexture(aiTextureType_NORMALS, i, &materialPath) == aiReturn_SUCCESS)
 		{
 			auto texPath{ files::glTF::GetTexturePath(m_ModelPath.data(), std::string(materialPath.C_Str())) };
-			//newMaterial->NormalTexture = new Texture(m_Device, texPath, material->GetName().C_Str());
 			Texture* NormalTexture = new Texture(m_Device, texPath);
 			m_Textures.push_back(NormalTexture);
 			newMaterial->NormalIndex = NormalTexture->m_Descriptor.m_Index;
