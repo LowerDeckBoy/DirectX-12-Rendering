@@ -2,11 +2,15 @@
 
 ###
 Playground for learning graphics programming.<br/>
-Most of implemented solutions are either temporal or experimental.<br/>
+Most of implemented solutions are either experimental or temporal.<br/>
 <br/>
-Currently working on Physically Based Rendering and Image-Based Lighting.
-###
-### Build with: ###
+## Techniques: ##
+- Deferred and Forward Rendering
+- PBR with sky reflections
+- Image Based Lighting
+- Simple MipMapping via DirectXTex
+
+### Built with: ###
 <ul>
 <li> C++ 20 </li>
 <li> DirectX 12 </li>
@@ -15,18 +19,13 @@ Currently working on Physically Based Rendering and Image-Based Lighting.
 </ul>
 
 ### Third-party: ###
-<ul> 
-<li>assimp</li>
-<li>cgltf</li>
-<li>tinygltf</li>
-<li>DirectXTex</li>
-<li>DirectXTK12</li>
-<li>ImGui</li>
-</ul>
+- [assimp](https://github.com/assimp/assimp)
+- [imgui](https://github.com/ocornut/imgui)
+- [spdlog](https://github.com/gabime/spdlog)
+- [D3D12MemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator)
+- [DirectXTex](https://github.com/microsoft/DirectXTex)
+- [DirectXTK12](https://github.com/microsoft/DirectXTK12) -> WIC/DDS loaders
 
-#### Some screenshots:
-![Screenshot](screenshots/sponza_pbr.png)
-![Screenshot](screenshots/helmet_pbr.png)
-![Screenshot](screenshots/model_01.png)
-![Screenshot](screenshots/model_02.png)
-![Screenshot](screenshots/model_04.png)
+
+![Screenshot](screenshots/deferred_sponza_ibl.png)
+![Screenshot](screenshots/deferred_helmet_ibl.png)
