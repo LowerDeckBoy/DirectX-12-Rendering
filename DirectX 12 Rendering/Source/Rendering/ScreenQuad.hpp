@@ -1,7 +1,7 @@
 #pragma once
-#include <d3d12.h>
-#include <wrl.h>
+//#include <d3d12.h>
 
+struct ID3D12GraphicsCommandList;
 class DeviceContext;
 class VertexBuffer;
 class IndexBuffer;
@@ -10,12 +10,16 @@ class IndexBuffer;
 class ScreenQuad
 {
 public:
-	void Create(DeviceContext* pDevice);
+	ScreenQuad(DeviceContext* pDeviceCtx);
+	~ScreenQuad();
+
+	void Create(DeviceContext* pDeviceCtx);
 	void Draw(ID3D12GraphicsCommandList* pCommandList);
 
+	void Release();
+
 private:
-	VertexBuffer m_VertexBuffer;
-	IndexBuffer	 m_IndexBuffer;
+	VertexBuffer* m_VertexBuffer{ nullptr };
+	IndexBuffer* m_IndexBuffer{ nullptr };
 
 };
-

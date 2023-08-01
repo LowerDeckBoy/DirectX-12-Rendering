@@ -3,7 +3,17 @@
 #include <array>
 
 
-void ScreenQuad::Create(DeviceContext* pDevice)
+ScreenQuad::ScreenQuad(DeviceContext* pDeviceCtx)
+{
+	Create(pDeviceCtx);
+}
+
+ScreenQuad::~ScreenQuad()
+{
+	Release();
+}
+
+void ScreenQuad::Create(DeviceContext* pDeviceCtx)
 {
 	std::array<ScreenQuadVertex, 4> Vertices =
 	{
@@ -19,16 +29,32 @@ void ScreenQuad::Create(DeviceContext* pDevice)
 	};
 
 	const auto heapType{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD) };
-	m_VertexBuffer.Create(pDevice, BufferData(Vertices.data(), Vertices.size(), Vertices.size() * sizeof(ScreenQuadVertex), sizeof(Vertices.at(0))), BufferDesc(heapType, D3D12_RESOURCE_STATE_GENERIC_READ));
 
-	m_IndexBuffer.Create(pDevice, BufferData(Indices.data(), Indices.size(), Indices.size() * sizeof(uint32_t), sizeof(uint32_t)), BufferDesc(heapType, D3D12_RESOURCE_STATE_GENERIC_READ));
+	m_VertexBuffer = new VertexBuffer();
+	m_VertexBuffer->Create(pDeviceCtx, BufferData(Vertices.data(), Vertices.size(), Vertices.size() * sizeof(ScreenQuadVertex), sizeof(Vertices.at(0))), BufferDesc(heapType, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+	m_IndexBuffer = new IndexBuffer();
+	m_IndexBuffer->Create(pDeviceCtx, BufferData(Indices.data(), Indices.size(), Indices.size() * sizeof(uint32_t), sizeof(uint32_t)), BufferDesc(heapType, D3D12_RESOURCE_STATE_GENERIC_READ));
 
 }
 
 void ScreenQuad::Draw(ID3D12GraphicsCommandList* pCommandList)
 {
 	pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	pCommandList->IASetVertexBuffers(0, 1, &m_VertexBuffer.View);
-	pCommandList->IASetIndexBuffer(&m_IndexBuffer.View);
-	pCommandList->DrawIndexedInstanced(m_IndexBuffer.Count, 1, 0, 0, 0);
+	pCommandList->IASetVertexBuffers(0, 1, &m_VertexBuffer->View);
+	pCommandList->IASetIndexBuffer(&m_IndexBuffer->View);
+	pCommandList->DrawIndexedInstanced(m_IndexBuffer->Count, 1, 0, 0, 0);
+}
+
+void ScreenQuad::Release()
+{
+	if (m_VertexBuffer)
+	{
+		delete m_VertexBuffer;
+	}
+
+	if (m_IndexBuffer)
+	{
+		delete m_IndexBuffer;
+	}
 }
