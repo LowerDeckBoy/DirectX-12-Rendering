@@ -60,7 +60,7 @@ private:
 	XMVECTOR const m_DefaultUpward	{ XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
 
 	float m_zNear{ 0.1f };
-	float m_zFar{ 50000.0f };
+	float m_zFar{ 5'000'000.0f };
 
 	float m_FoV{ XMConvertToRadians(45.0f) };
 
