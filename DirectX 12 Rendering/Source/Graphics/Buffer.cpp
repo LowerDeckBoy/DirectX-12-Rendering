@@ -16,14 +16,6 @@ Buffer::~Buffer()
 
 	}
 
-	if (m_UploadAllocation)
-	{
-		m_UploadAllocation->Release();
-		m_UploadAllocation = nullptr;
-	}
-
-
-	SAFE_RELEASE(m_UploadHeap);
 	SAFE_RELEASE(m_Buffer);
 }
 
@@ -34,24 +26,25 @@ void Buffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, Bu
 
 	D3D12MA::ALLOCATION_DESC allocDesc{};
 	allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
-	//allocDesc.Flags = D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_COMMITTED | D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
-	ID3D12Resource* bufferPtr{ nullptr };
-	//pDevice->GetAllocator()->CreateResource(&allocDesc, &heapDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, &allocation, IID_PPV_ARGS(m_Buffer.ReleaseAndGetAddressOf()));
-	ThrowIfFailed(pDevice->GetAllocator()->CreateResource(&allocDesc, &heapDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, &m_Allocation, IID_PPV_ARGS(&bufferPtr)));
-	m_Buffer.Attach(bufferPtr);
-	//https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator/blob/master/src/D3D12Sample.cpp
+	allocDesc.Flags = D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+	allocDesc.ExtraHeapFlags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+	ThrowIfFailed(pDevice->GetAllocator()->CreateResource(&allocDesc, &heapDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, &m_Allocation, IID_PPV_ARGS(m_Buffer.ReleaseAndGetAddressOf())));
 
 	D3D12MA::ALLOCATION_DESC uploadDesc{};
 	uploadDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-	uploadDesc.Flags = D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_COMMITTED | D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
-	ThrowIfFailed(pDevice->GetAllocator()->CreateResource(&uploadDesc, &heapDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, &m_UploadAllocation, IID_PPV_ARGS(m_UploadHeap.ReleaseAndGetAddressOf())));
+	uploadDesc.Flags = D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_COMMITTED | D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_MIN_MEMORY | D3D12MA::ALLOCATION_FLAGS::ALLOCATION_FLAG_STRATEGY_BEST_FIT;
+	uploadDesc.ExtraHeapFlags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+
+	D3D12MA::Allocation* uploadHeapAllocation{ nullptr };
+	ID3D12Resource* uploadHeap{ nullptr };
+	ThrowIfFailed(pDevice->GetAllocator()->CreateResource(&uploadDesc, &heapDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, &uploadHeapAllocation, IID_PPV_ARGS(&uploadHeap)));
 
 	D3D12_SUBRESOURCE_DATA subresource{};
 	subresource.pData		= Data.pData;
 	subresource.RowPitch	= Data.Size;
 	subresource.SlicePitch	= Data.Size;
 
-	::UpdateSubresources(pDevice->GetCommandList(), m_Buffer.Get(), m_UploadHeap.Get(), 0, 0, 1, &subresource);
+	::UpdateSubresources(pDevice->GetCommandList(), m_Buffer.Get(), uploadHeap, 0, 0, 1, &subresource);
 	
 	if (TypeOf == BufferType::eVertex || TypeOf == BufferType::eConstant)
 	{
@@ -66,9 +59,9 @@ void Buffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, Bu
 	}
 	else
 	{
-		std::logic_error("Invalid buffer type!");
+		throw std::logic_error("Invalid buffer type!");
 	}
-
+	
 	//MapMemory();
 
 	if (bSRV)
@@ -84,6 +77,8 @@ void Buffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, Bu
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 		pDevice->GetDevice()->CreateShaderResourceView(m_Buffer.Get(), &srvDesc, m_Descriptor.GetCPU());
 	}
+
+	uploadHeapAllocation->Release();
 }
 
 void Buffer::MapMemory()
@@ -108,29 +103,4 @@ D3D12_GPU_VIRTUAL_ADDRESS Buffer::GetGPUAddress() const
 BufferData Buffer::GetData() noexcept
 {
 	return m_BufferData;
-}
-
-void BufferUtils::Create(ID3D12Device5* pDevice, ID3D12Resource** ppTarget, const uint64_t Size, const D3D12_RESOURCE_FLAGS Flags, const D3D12_RESOURCE_STATES InitState, const D3D12_HEAP_PROPERTIES& HeapProps, D3D12_HEAP_FLAGS HeapFlags)
-{
-	D3D12_RESOURCE_DESC desc{};
-	desc.Flags = Flags;
-	desc.Format = DXGI_FORMAT_UNKNOWN;
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	desc.MipLevels = 1;
-	desc.DepthOrArraySize = 1;
-	desc.Height = 1;
-	desc.Width = Size;
-	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	desc.SampleDesc = { 1, 0 };
-
-	ThrowIfFailed(pDevice->CreateCommittedResource(&HeapProps, HeapFlags, &desc, InitState, nullptr, IID_PPV_ARGS(&(*(ppTarget)))));
-}
-
-uint8_t* BufferUtils::MapCPU(ID3D12Resource* pResource)
-{
-	uint8_t* pMapped{ nullptr };
-	const CD3DX12_RANGE range(0, 0);
-	ThrowIfFailed(pResource->Map(0, &range, reinterpret_cast<void**>(&pMapped)));
-
-	return pMapped;
 }

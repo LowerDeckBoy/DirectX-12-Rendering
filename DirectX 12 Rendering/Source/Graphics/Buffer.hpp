@@ -53,13 +53,12 @@ public:
 	BufferData GetData() noexcept;
 
 	Descriptor m_Descriptor{};
-	Descriptor DescriptorSRV{};
 
 protected:
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_Buffer;
 	D3D12MA::Allocation* m_Allocation{ nullptr };
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_UploadHeap;
-	D3D12MA::Allocation* m_UploadAllocation{ nullptr };
+	//Microsoft::WRL::ComPtr<ID3D12Resource> m_UploadHeap;
+	//D3D12MA::Allocation* m_UploadAllocation{ nullptr };
 
 	BufferData m_BufferData{};
 };
@@ -119,14 +118,4 @@ public:
 		View.SizeInBytes	= static_cast<uint32_t>(this->Buffer.GetData().Size);
 		Count				= this->Buffer.GetData().ElementsCount;
 	}
-};
-
-class BufferUtils
-{
-public:
-	static void Create(ID3D12Device5* pDevice, ID3D12Resource** ppTarget, const uint64_t Size, const D3D12_RESOURCE_FLAGS Flags, const D3D12_RESOURCE_STATES InitState, const D3D12_HEAP_PROPERTIES& HeapProps, D3D12_HEAP_FLAGS HeapFlags = D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE);
-	
-	// Write only
-	static uint8_t* MapCPU(ID3D12Resource* pResource);
-
 };

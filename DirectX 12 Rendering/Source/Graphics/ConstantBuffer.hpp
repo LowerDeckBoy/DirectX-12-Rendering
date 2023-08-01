@@ -112,13 +112,13 @@ public:
 			bufferView.BufferLocation = Buffer.at(i).Get()->GetGPUVirtualAddress();
 			bufferView.SizeInBytes = static_cast<uint32_t>(structSize);
 
-			pDevice->GetMainHeap()->Allocate(m_Descriptors.at(i));
-			pDevice->GetDevice()->CreateConstantBufferView(&bufferView, m_Descriptors.at(i).GetCPU());
-
 			const CD3DX12_RANGE readRange(0, 0);
 			ThrowIfFailed(Buffer.at(i).Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin.at(i))));
 			std::memcpy(pDataBegin.at(i), &pData, sizeof(T));
-			Buffer[i].Get()->Unmap(0, nullptr);
+			//Buffer.at(i).Get()->Unmap(0, nullptr);
+
+			pDevice->GetMainHeap()->Allocate(m_Descriptors.at(i));
+			pDevice->GetDevice()->CreateConstantBufferView(&bufferView, m_Descriptors.at(i).GetCPU());
 
 			allocation->Release();
 		}
