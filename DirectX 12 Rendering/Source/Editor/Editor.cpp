@@ -82,33 +82,25 @@ void Editor::End(ID3D12GraphicsCommandList* pCommandList)
 {
 	{
 		ImGui::BeginMainMenuBar();
+
 		// Calculate window sizes to get width for right size aligment
-		// for closing button
 		const auto region{ ImGui::GetContentRegionAvail() };
-		//const float rightSideAlignment { region.x - 20 };
 
 		ImGui::MenuItem("File");
 		ImGui::MenuItem("Window");
 		ImGui::MenuItem("Log", nullptr, &bShowLogs);
+		// TODO:
 		if (bShowLogs)
 		{
 			Logs();
 		}
 
-		const float rightSideAlignment { region.x - 300.f };
+		const float rightSideAlignment { region.x - 430.f };
 		ImGui::SetCursorPosX(rightSideAlignment);
-		ImGui::Text("FPS: %.2d ms: %.2f", Timer::m_FPS, Timer::m_Miliseconds);
-		ImGui::Text(" | ");
 		MemoryUsage::ReadRAM();
-		ImGui::Text("RAM: %.3f MB", MemoryUsage::MemoryInUse);
+		const uint32_t VRAM{ DeviceContext::QueryAdapterMemory() };
+		ImGui::Text("FPS: %d ms: %.2f | Memory: %.3f MB | VRAM: %u MB", Timer::m_FPS, Timer::m_Miliseconds, MemoryUsage::MemoryInUse, VRAM);
 
-		/*
-		ImGui::SetCursorPosX(rightSideAlignment);
-		if (ImGui::Button(" X ", { 35, 0 }))
-		{
-			::PostQuitMessage(0);
-		}
-		*/
 		ImGui::EndMainMenuBar();
 	}
 
