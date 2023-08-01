@@ -30,16 +30,13 @@ void Shader::Create(const std::string_view& Filepath, const std::string_view& Ta
 
 	if (Error != nullptr)
 	{
-		Logger::Log(static_cast<char*>(Error->GetBufferPointer()), LogType::eError);
-		///::OutputDebugStringA(static_cast<char*>(Error->GetBufferPointer()));
-		return;
+		Logger::Log(static_cast<char*>(Error->GetBufferPointer()), LogType::eWarning);
 	}
 
 	if (FAILED(hResult) || Blob == nullptr)
 	{
 		Logger::Log("Failed to compile shader!\n", LogType::eError);
-		//::OutputDebugStringA("Failed to compile shader!\n");
-		return;
+		throw std::exception();
 	}
 
 	bIsInitialized = true;

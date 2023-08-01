@@ -11,8 +11,28 @@ void Skybox::Create(DeviceContext* pDevice)
 {
 	assert(m_Device = pDevice);
 
-	m_VertexBuffer = std::make_unique<VertexBuffer>(pDevice, BufferData(m_Vertices->data(), m_Vertices->size(), sizeof(m_Vertices->at(0)) * m_Vertices->size(), sizeof(m_Vertices->at(0))), BufferDesc());
-	m_IndexBuffer  = std::make_unique<IndexBuffer>(pDevice, BufferData(m_Indices->data(), m_Indices->size(), m_Indices->size() * sizeof(uint32_t), sizeof(uint32_t)), BufferDesc());
+	std::vector<SkyboxVertex>* vertices = new std::vector<SkyboxVertex>{
+		{ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT2(1.0f, 1.0f) }
+	};
+
+	std::vector<uint32_t>* indices = new std::vector<uint32_t>{
+		0, 1, 2, 0, 2, 3,
+		4, 6, 5, 4, 7, 6,
+		4, 5, 1, 4, 1, 0,
+		3, 2, 6, 3, 6, 7,
+		1, 5, 6, 1, 6, 2,
+		4, 0, 3, 4, 3, 7
+	};
+
+	m_VertexBuffer = std::make_unique<VertexBuffer>(pDevice, BufferData(vertices->data(), vertices->size(), sizeof(vertices->at(0)) * vertices->size(), sizeof(vertices->at(0))), BufferDesc());
+	m_IndexBuffer  = std::make_unique<IndexBuffer>(pDevice, BufferData(indices->data(), indices->size(), indices->size() * sizeof(uint32_t), sizeof(uint32_t)), BufferDesc());
 	m_ConstBuffer  = std::make_unique<ConstantBuffer<cbPerObject>>(pDevice, &m_cbData);
 
 	//m_Texture = std::make_unique<Texture>(pDevice, "Assets/Textures/earth-cubemap.dds");

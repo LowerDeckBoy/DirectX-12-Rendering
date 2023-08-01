@@ -16,7 +16,7 @@ public:
 	void Reset();
 
 	[[nodiscard]]
-	inline ID3DBlob* GetData() const { return Blob.Get(); }
+	inline ID3DBlob* GetData() const noexcept { return Blob.Get(); }
 
 private:
 	Microsoft::WRL::ComPtr<ID3DBlob> Blob;
