@@ -28,8 +28,6 @@ void Renderer::Initialize(Camera* pCamera)
 	InitPipelines();
 
 	m_ScreenQuad = std::make_unique<ScreenQuad>(m_DeviceCtx.get());
-	//m_DeferredContext = std::make_unique<DeferredContext>(m_DeviceCtx.get(), m_ShaderManager.get(), m_ModelRootSignature.Get());
-
 
 	LoadAssets();
 	PreRender();
@@ -48,18 +46,20 @@ void Renderer::LoadAssets()
 	m_cbCamera = std::make_unique<ConstantBuffer<SceneConstData>>(m_DeviceCtx.get(), &m_cbSceneData);
 
 	//m_Skybox = std::make_unique<Skybox>(m_DeviceCtx.get());
+	
 	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/sponza/Sponza.gltf", "Sponza"));
 	m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/damaged_helmet/scene.gltf", "Helmet"));
-	//m_Models.push_back({ m_DeviceCtx.get(), "Assets/glTF/damaged_helmet/scene.gltf", "Helmet" });
+
+	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/ice_cream_man/scene.gltf", "ice_cream_man"));
 	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/sponza/Sponza.gltf");
 	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/damaged_helmet/scene.gltf", "Helmet");
 
 	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/mathilda/scene.gltf");
 	//m_Model2 = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/damaged_helmet/scene.gltf", "Sponza");
 
+	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/resto_ni_teo/scene.gltf", "resto_ni_teo"));
+	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/ice_cream_man/scene.gltf", "model"));
 	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/witch_apprentice/scene.gltf");
-	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/resto_ni_teo/scene.gltf");
-	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/ice_cream_man/scene.gltf");
 	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/lizard_mage/scene.gltf");
 	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/realistic_armor/scene.gltf");
 	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/smart_littel_robot/scene.gltf");
@@ -405,7 +405,7 @@ void Renderer::InitPipelines()
 
 	// Deferred Root Signature
 	{
-		std::vector<CD3DX12_DESCRIPTOR_RANGE1> deferredRanges(7);
+		std::vector<CD3DX12_DESCRIPTOR_RANGE1> deferredRanges(8);
 		deferredRanges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 		deferredRanges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 		deferredRanges.at(2).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
@@ -413,8 +413,9 @@ void Renderer::InitPipelines()
 		deferredRanges.at(4).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 		deferredRanges.at(5).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 		deferredRanges.at(6).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+		deferredRanges.at(7).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 		
-		std::vector<CD3DX12_ROOT_PARAMETER1> deferredParams(9);
+		std::vector<CD3DX12_ROOT_PARAMETER1> deferredParams(10);
 		// GBuffer output textures
 		// Base Color
 		deferredParams.at(0).InitAsDescriptorTable(1, &deferredRanges.at(0), D3D12_SHADER_VISIBILITY_PIXEL);
@@ -430,9 +431,11 @@ void Renderer::InitPipelines()
 		deferredParams.at(5).InitAsDescriptorTable(1, &deferredRanges.at(5), D3D12_SHADER_VISIBILITY_PIXEL);
 		// Skybox
 		deferredParams.at(6).InitAsDescriptorTable(1, &deferredRanges.at(6), D3D12_SHADER_VISIBILITY_PIXEL);
+		// Image Based Lighting
+		deferredParams.at(7).InitAsDescriptorTable(1, &deferredRanges.at(7), D3D12_SHADER_VISIBILITY_PIXEL);
 		// CBVs
-		deferredParams.at(7).InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
-		deferredParams.at(8).InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
+		deferredParams.at(8).InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
+		deferredParams.at(9).InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
 
 		builder->AddRanges(deferredRanges);
 		builder->AddParameters(deferredParams);
@@ -456,6 +459,7 @@ void Renderer::InitPipelines()
 		deferredDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		deferredDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		deferredDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+		deferredDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 		deferredDesc.SampleMask = UINT_MAX;
 		deferredDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		deferredDesc.NumRenderTargets = m_DeferredRTVCount;
@@ -628,9 +632,10 @@ void Renderer::PassLight(Camera* pCamera)
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(5, m_DeviceCtx->GetDepthDescriptor().GetGPU());
 	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_Skybox->GetTex().m_Descriptor.GetGPU());
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_IBL->m_OutputDescriptor.GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(7, m_IBL->m_PrefilteredDescriptor.GetGPU());
 
-	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(7, m_cbCamera->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
-	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(8, m_PointLights->m_cbPointLights->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(8, m_cbCamera->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(9, m_PointLights->m_cbPointLights->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
 
 	m_ScreenQuad->Draw(m_DeviceCtx->GetCommandList());
 
