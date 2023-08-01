@@ -46,6 +46,7 @@ public:
 	void MoveToNextFrame();
 	void WaitForGPU();
 	void ExecuteCommandList();
+	void ResetCommandList();
 
 	// Release and recreate size dependent resources
 	void OnResize();
@@ -92,6 +93,9 @@ public:
 
 	D3D12MA::Allocator* GetAllocator() const noexcept;
 
+	static uint32_t QueryAdapterMemory();
+	static ComPtr<IDXGIAdapter3> m_Adapter;
+
 private:
 	ComPtr<IDXGIFactory4> m_Factory;
 	ComPtr<ID3D12Device5> m_Device;
@@ -135,5 +139,6 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_guiAllocator;
 
 public:
+
 
 };

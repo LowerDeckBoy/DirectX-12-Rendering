@@ -7,6 +7,7 @@
 #include <dxgidebug.h>
 #endif
 
+ComPtr<IDXGIAdapter3> DeviceContext::m_Adapter = nullptr;
 uint32_t DeviceContext::FRAME_INDEX = 0;
 
 DeviceContext::~DeviceContext()
@@ -79,6 +80,8 @@ void DeviceContext::CreateDevice()
 
 	ThrowIfFailed(device.As(&m_Device));
 
+	DeviceContext::m_Adapter = static_cast<IDXGIAdapter3*>(adapter.Get());
+
 	ThrowIfFailed(m_Device.Get()->QueryInterface(m_DebugDevice.GetAddressOf()));
 
 #if defined (_DEBUG) | (DEBUG)
@@ -135,6 +138,7 @@ void DeviceContext::CreateSwapChain()
 	ComPtr<IDXGISwapChain1> swapchain;
 	ThrowIfFailed(m_Factory.Get()->CreateSwapChainForHwnd(m_CommandQueue.Get(), Window::GetHWND(), &desc, &fullscreenDesc, nullptr, swapchain.GetAddressOf()), "Failed to create SwapChain!");
 
+	// TODO:
 	//swapchain.Get()->SetFullscreenState(TRUE, NULL);
 	
 	ThrowIfFailed(m_Factory.Get()->MakeWindowAssociation(Window::GetHWND(), DXGI_MWA_NO_ALT_ENTER));
@@ -146,20 +150,10 @@ void DeviceContext::CreateSwapChain()
 
 void DeviceContext::CreateBackbuffer()
 {
-	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
-	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	heapDesc.NumDescriptors = DeviceContext::FRAME_COUNT;
-
-	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_RenderTargetHeap.GetAddressOf())),
-				  "Failed to create Descriptor Heap!");
-
-	m_DescriptorSize = m_Device.Get()->GetDescriptorHandleIncrementSize(heapDesc.Type);
-
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RenderTargetHeap.Get()->GetCPUDescriptorHandleForHeapStart());
 	for (uint32_t i = 0; i < DeviceContext::FRAME_COUNT; i++)
 	{
-		ThrowIfFailed(m_SwapChain.Get()->GetBuffer(i, IID_PPV_ARGS(m_RenderTargets.at(i).GetAddressOf())));
+		ThrowIfFailed(m_SwapChain.Get()->GetBuffer(i, IID_PPV_ARGS(m_RenderTargets.at(i).ReleaseAndGetAddressOf())));
 		m_Device.Get()->CreateRenderTargetView(m_RenderTargets.at(i).Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_DescriptorSize);
 
@@ -176,7 +170,18 @@ DXGI_FORMAT DeviceContext::GetRTVFormat() const noexcept
 
 void DeviceContext::CreateDescriptorHeaps()
 {
-	// SRV HEAP
+	// RTV Heap
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	heapDesc.NumDescriptors = DeviceContext::FRAME_COUNT;
+
+	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_RenderTargetHeap.ReleaseAndGetAddressOf())),
+		"Failed to create Descriptor Heap!");
+
+	m_DescriptorSize = m_Device.Get()->GetDescriptorHandleIncrementSize(heapDesc.Type);
+
+	// SRV Heaps
 	D3D12_DESCRIPTOR_HEAP_DESC desc{};
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -185,7 +190,7 @@ void DeviceContext::CreateDescriptorHeaps()
 	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_guiAllocator.GetAddressOf())));
 	m_guiAllocator->SetName(L"GUI_HEAP");
 
-	desc.NumDescriptors = 4096;
+	desc.NumDescriptors = 1024;
 	m_MainHeap = std::make_unique<DescriptorHeap>();
 	ThrowIfFailed(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_MainHeap->GetHeapAddressOf())));
 	m_MainHeap->SetDescriptorSize(m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
@@ -345,14 +350,23 @@ void DeviceContext::WaitForGPU()
 
 void DeviceContext::ExecuteCommandList()
 {
-	ThrowIfFailed(GetCommandList()->Close());
-	std::array<ID3D12CommandList*, 1> ppCommandLists{ GetCommandList() };
+	ThrowIfFailed(m_CommandList.Get()->Close());
+	std::array<ID3D12CommandList*, 1> ppCommandLists{ m_CommandList.Get() };
 	GetCommandQueue()->ExecuteCommandLists(static_cast<uint32_t>(ppCommandLists.size()), ppCommandLists.data());
 	WaitForGPU();
 }
 
+void DeviceContext::ResetCommandList()
+{
+	ThrowIfFailed(GetCommandAllocator()->Reset());
+	ThrowIfFailed(GetCommandList()->Reset(GetCommandAllocator(), nullptr));
+}
+
 void DeviceContext::OnResize()
 {
+	WaitForGPU();
+	//FlushGPU();
+
 	if (!m_Device.Get() || !m_SwapChain.Get() || !GetCommandAllocator())
 		throw std::exception();
 
@@ -362,14 +376,14 @@ void DeviceContext::OnResize()
 	ReleaseRenderTargets();
 
 	if (m_DepthStencil.Get())
-		m_DepthStencil->Release();
+		m_DepthStencil.Reset();
 
 	const HRESULT hResult{ m_SwapChain.Get()->ResizeBuffers(DeviceContext::FRAME_COUNT,
 												static_cast<uint32_t>(Window::GetDisplay().Width),
 												static_cast<uint32_t>(Window::GetDisplay().Height),
-												DXGI_FORMAT_R8G8B8A8_UNORM, 0) };
+												m_RenderTargetFormat, 0) };
 
-	if (hResult == DXGI_ERROR_DEVICE_REMOVED || hResult == DXGI_ERROR_DEVICE_RESET)
+	if (hResult == DXGI_ERROR_DEVICE_REMOVED || hResult == DXGI_ERROR_DEVICE_RESET || FAILED(hResult))
 	{
 		::OutputDebugStringA("Device removed!\n");
 		throw std::exception();
@@ -381,7 +395,7 @@ void DeviceContext::OnResize()
 	CreateBackbuffer();
 	CreateDepthStencil();
 
-	ExecuteCommandList();
+	//ExecuteCommandList();
 }
 
 void DeviceContext::Release()
@@ -512,11 +526,10 @@ Descriptor DeviceContext::GetDepthDescriptor() const noexcept
 
 void DeviceContext::ReleaseRenderTargets()
 {
-	for (auto& target : m_RenderTargets)
+	for (size_t i = 0; i < FRAME_COUNT; i++)
 	{
-		//target.Reset();
-		target = nullptr;
-		//target->Release();
+		m_RenderTargets.at(i).Reset();
+		m_FenceValues.at(i) = m_FenceValues.at(FRAME_INDEX);
 	}
 }
 
@@ -533,4 +546,12 @@ DescriptorHeap* DeviceContext::GetMainHeap() noexcept
 D3D12MA::Allocator* DeviceContext::GetAllocator() const noexcept
 {
 	return m_Allocator.Get();
+}
+
+uint32_t DeviceContext::QueryAdapterMemory()
+{
+	DXGI_QUERY_VIDEO_MEMORY_INFO memoryInfo{};
+	DeviceContext::m_Adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &memoryInfo);
+
+	return static_cast<uint32_t>(memoryInfo.CurrentUsage / 1024 / 1024);
 }
