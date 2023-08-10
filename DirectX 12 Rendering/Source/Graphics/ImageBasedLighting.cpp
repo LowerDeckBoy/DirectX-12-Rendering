@@ -25,9 +25,11 @@ void ImageBasedLighting::InitializeTextures(DeviceContext* pDevice, const std::s
 {
 	ID3D12RootSignature* computeRoot{ nullptr };
 	//D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC
+	//D3D12_DESCRIPTOR_RANGE_FLAG_NONE
+	//D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE
 	std::array<CD3DX12_DESCRIPTOR_RANGE1, 2> ranges{};
 	ranges.at(0) = { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE };
-	ranges.at(1) = { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE };
+	ranges.at(1) = { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE };
 
 	std::array<CD3DX12_ROOT_PARAMETER1, 3> parameters{};
 	parameters.at(0).InitAsDescriptorTable(1, &ranges.at(0));
@@ -51,7 +53,6 @@ void ImageBasedLighting::InitializeTextures(DeviceContext* pDevice, const std::s
 	m_EnvironmentTexture = TextureUtils::CreateResource(pDevice->GetDevice(), TextureDesc(D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS), TextureData(1024, 1024, 6, DXGI_FORMAT_R16G16B16A16_FLOAT));
 	pDevice->GetMainHeap()->Allocate(m_EnvDescriptor);
 	TextureUtils::CreateUAV(pDevice->GetDevice(), m_EnvironmentTexture.Get(), m_EnvDescriptor, DXGI_FORMAT_R16G16B16A16_FLOAT, 6);
-	//TextureUtils::CreateUAV(pDevice->GetDevice(), m_EnvironmentTexture.Get(), m_EnvDescriptor, DXGI_FORMAT_R8G8B8A8_UNORM, 6);
 
 	Shader eq2c("Assets/Shaders/Compute/Equirectangular2Cube.hlsl", "cs_5_1");
 
@@ -105,12 +106,15 @@ void ImageBasedLighting::InitializeTextures(DeviceContext* pDevice, const std::s
 	D3D12_SHADER_RESOURCE_VIEW_DESC cubeDesc{};
 	cubeDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	cubeDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	//cubeDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	cubeDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 	cubeDesc.TextureCube.MipLevels = 1;
 	pDevice->GetDevice()->CreateShaderResourceView(m_OutputResource.Get(), &cubeDesc, m_OutputDescriptor.GetCPU());
 
+	pDevice->ExecuteCommandList(true);
+
 	PrefilterSpecular(pDevice, computeRoot);
+	PrefilterIrradiance(pDevice, computeRoot);
+	CreateSpecularBRDF(pDevice, computeRoot);
 
 
 }
@@ -148,52 +152,154 @@ void ImageBasedLighting::CreateCubeTexture(DeviceContext* pDeviceCtx, const std:
 {
 }
 
-void ImageBasedLighting::PrefilterSpecular(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot)
+void ImageBasedLighting::PrefilterIrradiance(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot)
 {
 	ID3D12PipelineState* pipelineState{ nullptr };
-	Shader cs("Assets/Shaders/Compute/SpecularMap.hlsl", "cs_5_1");
+	// Pipeline
+	{
+		Shader cs("Assets/Shaders/Compute/IrradianceMap.hlsl", "cs_5_1");
 
-	D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
-	psoDesc.pRootSignature = pComputeRoot;
-	psoDesc.CS = CD3DX12_SHADER_BYTECODE(cs.GetData());
-	ThrowIfFailed(pDeviceCtx->GetDevice()->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
+		D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
+		psoDesc.pRootSignature = pComputeRoot;
+		psoDesc.CS = CD3DX12_SHADER_BYTECODE(cs.GetData());
+		ThrowIfFailed(pDeviceCtx->GetDevice()->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
+	}
 
-	m_PrefilteredMap = TextureUtils::CreateResource(pDeviceCtx->GetDevice(), TextureDesc(), TextureData(1024, 1024, 6, DXGI_FORMAT_R16G16B16A16_FLOAT));
+	m_IrradianceMap = TextureUtils::CreateResource(pDeviceCtx->GetDevice(), TextureDesc(D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS), TextureData(1024, 1024, 6, DXGI_FORMAT_R16G16B16A16_FLOAT));
+	pDeviceCtx->GetMainHeap()->Allocate(m_IrradianceDescriptor);
+	TextureUtils::CreateUAV(pDeviceCtx->GetDevice(), m_IrradianceMap.Get(), m_IrradianceDescriptor, DXGI_FORMAT_R16G16B16A16_FLOAT, 6);
+	m_IrradianceMap.Get()->SetName(L"ID3D12Resource* Irradiance Map");
 
 	const auto commandList{ pDeviceCtx->GetCommandList() };
 
 	std::array<D3D12_RESOURCE_BARRIER, 2> preCopyBarriers{};
 	preCopyBarriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(m_EnvironmentTexture.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	preCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_PrefilteredMap.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	preCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_IrradianceMap.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	commandList->ResourceBarrier(static_cast<uint32_t>(preCopyBarriers.size()), preCopyBarriers.data());
 
 	commandList->SetDescriptorHeaps(1, pDeviceCtx->GetMainHeap()->GetHeapAddressOf());
 	commandList->SetComputeRootSignature(pComputeRoot);
 	commandList->SetPipelineState(pipelineState);
 	commandList->SetComputeRootDescriptorTable(0, m_OutputDescriptor.GetGPU());
-	commandList->SetComputeRootDescriptorTable(1, m_EnvDescriptor.GetGPU());
+	commandList->SetComputeRootDescriptorTable(1, m_IrradianceDescriptor.GetGPU());
 	commandList->Dispatch(1024 / 32, 1024 / 32, 6);
-
+	
 	preCopyBarriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(m_EnvironmentTexture.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	preCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_PrefilteredMap.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+	preCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_IrradianceMap.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
 	commandList->ResourceBarrier(static_cast<uint32_t>(preCopyBarriers.size()), preCopyBarriers.data());
 
-	commandList->CopyResource(m_PrefilteredMap.Get(), m_EnvironmentTexture.Get());
+	//commandList->CopyResource(m_IrradianceMap.Get(), m_EnvironmentTexture.Get());
 
 	std::array<D3D12_RESOURCE_BARRIER, 2> postCopyBarriers{};
-	postCopyBarriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(m_EnvironmentTexture.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_GENERIC_READ);
-	postCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_PrefilteredMap.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+	postCopyBarriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(m_EnvironmentTexture.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
+	postCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_IrradianceMap.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
 	commandList->ResourceBarrier(static_cast<uint32_t>(postCopyBarriers.size()), postCopyBarriers.data());
 
-	pDeviceCtx->GetMainHeap()->Allocate(m_PrefilteredDescriptor);
 	D3D12_SHADER_RESOURCE_VIEW_DESC cubeDesc{};
 	cubeDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	//cubeDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	cubeDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	cubeDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 	cubeDesc.TextureCube.MipLevels = 1;
-	pDeviceCtx->GetDevice()->CreateShaderResourceView(m_PrefilteredMap.Get(), &cubeDesc, m_PrefilteredDescriptor.GetCPU());
+	pDeviceCtx->GetDevice()->CreateShaderResourceView(m_IrradianceMap.Get(), &cubeDesc, m_IrradianceDescriptor.GetCPU());
 
+	pDeviceCtx->ExecuteCommandList(true);
+
+}
+
+void ImageBasedLighting::PrefilterSpecular(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot)
+{
+	ID3D12PipelineState* pipelineState{ nullptr };
+	// Pipeline
+	{
+		Shader cs("Assets/Shaders/Compute/SpecularMap.hlsl", "cs_5_1");
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
+		psoDesc.pRootSignature = pComputeRoot;
+		psoDesc.CS = CD3DX12_SHADER_BYTECODE(cs.GetData());
+		ThrowIfFailed(pDeviceCtx->GetDevice()->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
+	}
+
+	m_SpecularMap = TextureUtils::CreateResource(pDeviceCtx->GetDevice(), TextureDesc(D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS), TextureData(1024, 1024, 6, DXGI_FORMAT_R16G16B16A16_FLOAT));
+	pDeviceCtx->GetMainHeap()->Allocate(m_SpecularDescriptor);
+	TextureUtils::CreateUAV(pDeviceCtx->GetDevice(), m_SpecularMap.Get(), m_SpecularDescriptor, DXGI_FORMAT_R16G16B16A16_FLOAT, 6);
+
+	const auto commandList{ pDeviceCtx->GetCommandList() };
+
+	std::array<D3D12_RESOURCE_BARRIER, 2> preCopyBarriers{};
+	preCopyBarriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(m_EnvironmentTexture.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	preCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_SpecularMap.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	commandList->ResourceBarrier(static_cast<uint32_t>(preCopyBarriers.size()), preCopyBarriers.data());
+
+	commandList->SetDescriptorHeaps(1, pDeviceCtx->GetMainHeap()->GetHeapAddressOf());
+	commandList->SetComputeRootSignature(pComputeRoot);
+	commandList->SetPipelineState(pipelineState);
+	commandList->SetComputeRootDescriptorTable(0, m_OutputDescriptor.GetGPU());
+	commandList->SetComputeRootDescriptorTable(1, m_SpecularDescriptor.GetGPU());
+	commandList->Dispatch(1024 / 32, 1024 / 32, 6);
+
+	preCopyBarriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(m_EnvironmentTexture.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	preCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_SpecularMap.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+	commandList->ResourceBarrier(static_cast<uint32_t>(preCopyBarriers.size()), preCopyBarriers.data());
+
+	commandList->CopyResource(m_SpecularMap.Get(), m_EnvironmentTexture.Get());
+
+	std::array<D3D12_RESOURCE_BARRIER, 2> postCopyBarriers{};
+	postCopyBarriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(m_EnvironmentTexture.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
+	postCopyBarriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_SpecularMap.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+	commandList->ResourceBarrier(static_cast<uint32_t>(postCopyBarriers.size()), postCopyBarriers.data());
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC cubeDesc{};
+	cubeDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	cubeDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	cubeDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+	cubeDesc.TextureCube.MipLevels = 1;
+	pDeviceCtx->GetDevice()->CreateShaderResourceView(m_SpecularMap.Get(), &cubeDesc, m_SpecularDescriptor.GetCPU());
+
+	pDeviceCtx->ExecuteCommandList(true);
+
+}
+
+void ImageBasedLighting::CreateSpecularBRDF(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot)
+{
+	ID3D12PipelineState* pipelineState{ nullptr };
+	// Pipeline
+	{
+		Shader cs("Assets/Shaders/Compute/SpBRDF_LUT.hlsl", "cs_5_1");
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
+		psoDesc.pRootSignature = pComputeRoot;
+		psoDesc.CS = CD3DX12_SHADER_BYTECODE(cs.GetData());
+		ThrowIfFailed(pDeviceCtx->GetDevice()->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
+	}
+
+	m_SpecularBRDF_LUT = TextureUtils::CreateResource(pDeviceCtx->GetDevice(), TextureDesc(D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS), TextureData(256, 256, 1, DXGI_FORMAT_R16G16_FLOAT));
+	pDeviceCtx->GetMainHeap()->Allocate(m_SpBRDFDescriptor);
+	TextureUtils::CreateUAV(pDeviceCtx->GetDevice(), m_SpecularBRDF_LUT.Get(), m_SpBRDFDescriptor, DXGI_FORMAT_R16G16_FLOAT, 1);
+
+	const auto commandList{ pDeviceCtx->GetCommandList() };
+
+	std::array<D3D12_RESOURCE_BARRIER, 2> preCopyBarriers{};
+	const auto toUAV{ CD3DX12_RESOURCE_BARRIER::Transition(m_SpecularBRDF_LUT.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS) };
+	commandList->ResourceBarrier(1, &toUAV);
+
+	commandList->SetDescriptorHeaps(1, pDeviceCtx->GetMainHeap()->GetHeapAddressOf());
+	commandList->SetComputeRootSignature(pComputeRoot);
+	commandList->SetPipelineState(pipelineState);
+	//commandList->SetComputeRootDescriptorTable(0, m_OutputDescriptor.GetGPU());
+	commandList->SetComputeRootDescriptorTable(1, m_SpBRDFDescriptor.GetGPU());
+	commandList->Dispatch(256 / 32, 256 / 32, 6);
+
+	const auto toGeneric{ CD3DX12_RESOURCE_BARRIER::Transition(m_SpecularBRDF_LUT.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_GENERIC_READ) };
+	commandList->ResourceBarrier(1, &toGeneric);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC cubeDesc{};
+	cubeDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	cubeDesc.Format = DXGI_FORMAT_R16G16_FLOAT;
+	cubeDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	cubeDesc.Texture2D.MipLevels = 1;
+	pDeviceCtx->GetDevice()->CreateShaderResourceView(m_SpecularBRDF_LUT.Get(), &cubeDesc, m_SpBRDFDescriptor.GetCPU());
+
+	pDeviceCtx->ExecuteCommandList(true);
 }
 
 void ImageBasedLighting::Draw(Camera* pCamera, uint32_t FrameIndex)
@@ -222,7 +328,9 @@ void ImageBasedLighting::UpdateWorld(Camera* pCamera)
 
 void ImageBasedLighting::Release()
 {
-	SAFE_RELEASE(m_PrefilteredMap);
+	SAFE_RELEASE(m_IrradianceMap);
+	SAFE_RELEASE(m_SpecularBRDF_LUT);
+	SAFE_RELEASE(m_SpecularMap);
 	SAFE_RELEASE(m_EnvironmentTexture);
 	SAFE_RELEASE(m_OutputResource);
 	SAFE_RELEASE(m_CommandList);

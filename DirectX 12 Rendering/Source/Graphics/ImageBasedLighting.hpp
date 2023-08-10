@@ -22,10 +22,15 @@ public:
 
 	ComPtr<ID3D12Resource> m_EnvironmentTexture;
 	Descriptor m_EnvDescriptor;
-	//ComPtr<ID3D12Resource> m_IrradianceMap;
-	//Descriptor m_IrradianceDescriptor;
-	ComPtr<ID3D12Resource> m_PrefilteredMap;
-	Descriptor m_PrefilteredDescriptor;
+
+	ComPtr<ID3D12Resource> m_IrradianceMap;
+	Descriptor m_IrradianceDescriptor;
+
+	ComPtr<ID3D12Resource> m_SpecularMap;
+	Descriptor m_SpecularDescriptor;
+
+	ComPtr<ID3D12Resource> m_SpecularBRDF_LUT;
+	Descriptor m_SpBRDFDescriptor;
 
 	Descriptor m_Descriptor;
 	ComPtr<ID3D12Resource> m_OutputResource;
@@ -35,10 +40,12 @@ private:
 	void InitializeTextures(DeviceContext* pDevice, const std::string_view& Filepath);
 	void InitializeBuffers(DeviceContext* pDevice);
 
-	void CreatePipeline();
+	//void CreatePipeline();
 
 	void CreateCubeTexture(DeviceContext* pDeviceCtx, const std::string_view& Filepath);
+	void PrefilterIrradiance(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
 	void PrefilterSpecular(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
+	void CreateSpecularBRDF(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
 
 	ComPtr<ID3D12GraphicsCommandList> m_CommandList;
 
