@@ -10,19 +10,15 @@ struct Descriptor;
 class ImageBasedLighting
 {
 public:
-	ImageBasedLighting() {}
+	ImageBasedLighting() noexcept {}
 	~ImageBasedLighting();
 
 	void Create(DeviceContext* pDevice, const std::string_view& Filepath);
 	
-
 	void Draw(Camera* pCamera, uint32_t FrameIndex);
 
 	void Release();
-
-	ComPtr<ID3D12Resource> m_EnvironmentTexture;
-	Descriptor m_EnvDescriptor;
-
+	
 	ComPtr<ID3D12Resource> m_IrradianceMap;
 	Descriptor m_IrradianceDescriptor;
 
@@ -32,24 +28,22 @@ public:
 	ComPtr<ID3D12Resource> m_SpecularBRDF_LUT;
 	Descriptor m_SpBRDFDescriptor;
 
-	Descriptor m_Descriptor;
 	ComPtr<ID3D12Resource> m_OutputResource;
 	Descriptor m_OutputDescriptor;
 
 private:
-	void InitializeTextures(DeviceContext* pDevice, const std::string_view& Filepath);
-	void InitializeBuffers(DeviceContext* pDevice);
+	void CreateTextures(DeviceContext* pDevice, const std::string_view& Filepath);
+	void CreateBuffers(DeviceContext* pDevice);
 
-	//void CreatePipeline();
-
-	void CreateCubeTexture(DeviceContext* pDeviceCtx, const std::string_view& Filepath);
-	void PrefilterIrradiance(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
-	void PrefilterSpecular(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
+	// Convert equirectangular HDR texture into TextureCube
+	void CreateCubeTexture(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot, const std::string_view& Filepath);
+	// Create 32x32 Irradiance TextureCube
+	void CreateIrradiance(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
+	// 
+	void CreateSpecular(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
 	void CreateSpecularBRDF(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
 
 	ComPtr<ID3D12GraphicsCommandList> m_CommandList;
-
-	ComPtr<ID3D12PipelineState> m_Pipeline;
 
 	VertexBuffer m_VertexBuffer;
 	IndexBuffer m_IndexBuffer;
