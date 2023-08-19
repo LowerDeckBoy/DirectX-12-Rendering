@@ -10,7 +10,8 @@ class IndexBuffer;
 class ScreenQuad
 {
 public:
-	ScreenQuad(DeviceContext* pDeviceCtx);
+	ScreenQuad() {}
+	//ScreenQuad(DeviceContext* pDeviceCtx);
 	~ScreenQuad();
 
 	void Create(DeviceContext* pDeviceCtx);

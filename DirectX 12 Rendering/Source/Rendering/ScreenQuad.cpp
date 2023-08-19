@@ -3,10 +3,10 @@
 #include <array>
 
 
-ScreenQuad::ScreenQuad(DeviceContext* pDeviceCtx)
-{
-	Create(pDeviceCtx);
-}
+//ScreenQuad::ScreenQuad(DeviceContext* pDeviceCtx)
+//{
+//	Create(pDeviceCtx);
+//}
 
 ScreenQuad::~ScreenQuad()
 {
