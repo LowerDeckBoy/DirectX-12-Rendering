@@ -7,17 +7,17 @@
 #include "../Editor/Editor.hpp"
 #include "ComputePipelineState.hpp"
 #include "../Rendering/Model/Model.hpp"
-//#include "../Rendering/DeferredContext.hpp"
+#include "../Rendering/DeferredContext.hpp"
 #include "../Rendering/ScreenQuad.hpp"
 #include "../Graphics/Skybox.hpp"
 #include "../Graphics/ImageBasedLighting.hpp"
-#include "../Rendering/Light/PointLight.hpp"
+#include "../Rendering/Light/PointLights.hpp"
 
 class Camera;
 
 using namespace DirectX;
 
-class Renderer 
+class Renderer
 {
 public:
 	~Renderer();
@@ -27,7 +27,7 @@ public:
 
 	void PreRender();
 	void Update();
-	void Draw();
+	void Render();
 	void DrawSkybox();
 	void Forward();
 	void Deferred();
@@ -70,10 +70,11 @@ private:
 
 	ComPtr<ID3D12RootSignature> m_ModelRootSignature;
 	ComPtr<ID3D12RootSignature> m_DeferredRootSignature;
+	
 	// PSO
-	ComPtr<ID3D12PipelineState> m_ModelPipelineState;
 	ComPtr<ID3D12PipelineState> m_PBRPipelineState;
-	ComPtr<ID3D12PipelineState> m_PBRPipelineState2;
+	ComPtr<ID3D12PipelineState> m_IBLPipelineState;
+
 	static inline int m_SelectedPSO{ 0 };
 	
 	void SwitchPSO();
@@ -89,42 +90,32 @@ private:
 	// IBL uses the same Pipeline State and Root Signature as Skybox
 	std::unique_ptr<ImageBasedLighting> m_IBL;
 
-	std::unique_ptr<ShaderManager> m_ShaderManager;
-
-	// TODO: to finish
-	//std::unique_ptr<DeferredContext> m_DeferredContext;
+	std::shared_ptr<ShaderManager> m_ShaderManager;
 
 	// Deferred Context
-	std::unique_ptr<ScreenQuad> m_ScreenQuad;
+	std::unique_ptr<DeferredContext> m_DeferredCtx;
 
-	static const int32_t m_DeferredRTVCount{ 6 };
-	void CreateDeferredRTVs();
-	ComPtr<ID3D12DescriptorHeap> m_DefRTVHeap;
-	ComPtr<ID3D12Resource> m_RTVTextures[m_DeferredRTVCount];
-public:
-	std::array<CD3DX12_CPU_DESCRIPTOR_HANDLE, m_DeferredRTVCount> m_RTVDescriptors;
-	std::array<Descriptor, m_DeferredRTVCount> m_RTSRVDescs;
-private:
-	ComPtr<ID3D12PipelineState> m_DeferredPSO;
-	ComPtr<ID3D12PipelineState> m_DeferredLightPSO;
-
-	std::array<DXGI_FORMAT, m_DeferredRTVCount> m_RTVFormats{ DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM };
-
-	// GBuffer
-	void PassGBuffer(Camera* pCamera);
-	void PassLight(Camera* pCamera);
-
+	void PassShadows(Camera* pCamera);
 	// Deferred CBVs
 	// Camera Scene data
 	std::unique_ptr<ConstantBuffer<SceneConstData>> m_cbCamera;
 	SceneConstData m_cbSceneData{};
 	
-	
 	void DrawGUI();
 
-	std::unique_ptr<PointLight> m_PointLights;
+	std::unique_ptr<PointLights> m_PointLights;
+	//TEST
+	ComPtr<ID3D12RootSignature> m_ShadowsRootSignature;
+	ComPtr<ID3D12PipelineState> m_ShadowsPipelineState;
+
+	void CreateShadowMap();
+	ComPtr<ID3D12Resource> m_ShadowMap;
+	Descriptor m_ShadowMapDescriptor;
+	D3D12_VIEWPORT m_ShadowViewport{};
+	D3D12_RECT m_ShadowScrissor{};
 
 public:
+	static bool bVsync;
 	static bool bDrawSky;
 	static bool bDeferred;
 
