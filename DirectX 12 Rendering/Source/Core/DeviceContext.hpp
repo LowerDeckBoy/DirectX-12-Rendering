@@ -3,7 +3,7 @@
 #include <d3dx12.h> // 3rd-party
 #include <d3d12sdklayers.h>
 #include <dxgi1_6.h>
-#include <wrl.h>
+#include <wrl/client.h>
 #include <cstdint>
 #include <array>
 
@@ -46,6 +46,7 @@ public:
 	void MoveToNextFrame();
 	void WaitForGPU();
 	void ExecuteCommandList();
+	void ExecuteCommandList(bool bResetAllocator);
 	void ResetCommandList();
 
 	// Release and recreate size dependent resources
@@ -55,7 +56,7 @@ public:
 
 public:
 	// Getters
-	IDXGIFactory4* GetFactory() const noexcept;
+	IDXGIFactory6* GetFactory() const noexcept;
 	ID3D12Device5* GetDevice() noexcept;
 	IDXGISwapChain3* GetSwapChain() noexcept;
 
@@ -86,18 +87,16 @@ public:
 	// For window resizing
 	void ReleaseRenderTargets();
 
-	[[maybe_unused]]
-	ID3D12DescriptorHeap* GetGUIHeap() const noexcept;
-
 	DescriptorHeap* GetMainHeap() noexcept;
 
 	D3D12MA::Allocator* GetAllocator() const noexcept;
 
+	// VRAM querying for GUI Debug info
 	static uint32_t QueryAdapterMemory();
 	static ComPtr<IDXGIAdapter3> m_Adapter;
 
 private:
-	ComPtr<IDXGIFactory4> m_Factory;
+	ComPtr<IDXGIFactory6> m_Factory;
 	ComPtr<ID3D12Device5> m_Device;
 	ComPtr<ID3D12DebugDevice> m_DebugDevice;
 
@@ -134,11 +133,5 @@ private:
 
 	// 3rd-party allocator
 	ComPtr<D3D12MA::Allocator> m_Allocator;
-
-	// For ImGui
-	ComPtr<ID3D12DescriptorHeap> m_guiAllocator;
-
-public:
-
 
 };

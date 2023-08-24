@@ -45,12 +45,20 @@ void DeviceContext::CreateDevice()
 	ThrowIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(dxgiInfoQueue.GetAddressOf())));
 	dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, TRUE);
 	dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-
+	SAFE_RELEASE(dxgiInfoQueue);
 #endif
 
-	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(m_Factory.GetAddressOf())));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(m_Factory.GetAddressOf())), "Failed to CreateDXGIFactory2!");
 
 	ComPtr<IDXGIAdapter1> adapter;
+	m_Factory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter));
+
+	if (FAILED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
+	{
+		SAFE_RELEASE(adapter);
+		throw std::exception();
+	}
+	/*
 	for (uint32_t i = 0; i < static_cast<uint32_t>(m_Factory->EnumAdapters1(i, &adapter)); i++)
 	{
 		DXGI_ADAPTER_DESC1 desc{};
@@ -65,9 +73,9 @@ void DeviceContext::CreateDevice()
 			break;
 		}
 	}
-
-	if (!adapter)
-		throw std::exception();
+	*/
+	//if (!adapter)
+	//	throw std::exception();
 
 	// Get some debug data here
 	//DXGI_ADAPTER_DESC1 adapterInfo{};
@@ -82,28 +90,25 @@ void DeviceContext::CreateDevice()
 
 	DeviceContext::m_Adapter = static_cast<IDXGIAdapter3*>(adapter.Get());
 
-	ThrowIfFailed(m_Device.Get()->QueryInterface(m_DebugDevice.GetAddressOf()));
-
 #if defined (_DEBUG) | (DEBUG)
+	ThrowIfFailed(m_Device.Get()->QueryInterface(m_DebugDevice.GetAddressOf()), "Failed to Query D3D Debug Device!");
+
 
 	ComPtr<IDXGIDebug1> dxgiDebug;
-	ThrowIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug)));
-	dxgiDebug.Get()->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_IGNORE_INTERNAL);
-	//dxgiDebug->EnableLeakTrackingForThread();
+	ThrowIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug)), "Failed to get DXGI Debug Interface!");
+	dxgiDebug.Get()->ReportLiveObjects(DXGI_DEBUG_DX, DXGI_DEBUG_RLO_SUMMARY);
+	dxgiDebug.Get()->DisableLeakTrackingForThread();
 
 	SAFE_RELEASE(dxgiDebug);
-#else
-	m_DebugDevice.Get()->ReportLiveDeviceObjects(D3D12_RLDO_NONE);
 #endif
 
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
 	{
-		ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-					  IID_PPV_ARGS(m_CommandAllocators.at(i).GetAddressOf())));
+		ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_CommandAllocators.at(i).GetAddressOf())), 
+			"Failed to Create Command Allocators!");
 
-		std::wstring nm{ L"Alloc" + std::to_wstring(i) };
-		LPCWSTR name{ nm.c_str() };
-		m_CommandAllocators.at(i)->SetName(name);
+		std::wstring wname{ L"Command Allocator #" + std::to_wstring(i) };
+		m_CommandAllocators.at(i)->SetName(wname.c_str());
 	}
 
 	// Allocator
@@ -111,6 +116,9 @@ void DeviceContext::CreateDevice()
 	allocatorDesc.pDevice = m_Device.Get();
 	allocatorDesc.pAdapter = adapter.Get();
 	D3D12MA::CreateAllocator(&allocatorDesc, m_Allocator.ReleaseAndGetAddressOf());
+
+	SAFE_RELEASE(device);
+	SAFE_RELEASE(adapter);
 
 }
 
@@ -124,7 +132,7 @@ void DeviceContext::CreateSwapChain()
 	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	desc.BufferCount = DeviceContext::FRAME_COUNT;
-	desc.Width = static_cast<uint32_t>(m_Viewport.Width);
+	desc.Width  = static_cast<uint32_t>(m_Viewport.Width);
 	desc.Height = static_cast<uint32_t>(m_Viewport.Height);
 	desc.SampleDesc.Count = 1;
 
@@ -136,14 +144,14 @@ void DeviceContext::CreateSwapChain()
 	fullscreenDesc.RefreshRate.Denominator = 0;
 
 	ComPtr<IDXGISwapChain1> swapchain;
-	ThrowIfFailed(m_Factory.Get()->CreateSwapChainForHwnd(m_CommandQueue.Get(), Window::GetHWND(), &desc, &fullscreenDesc, nullptr, swapchain.GetAddressOf()), "Failed to create SwapChain!");
+	ThrowIfFailed(m_Factory.Get()->CreateSwapChainForHwnd(m_CommandQueue.Get(), Window::GetHWND(), &desc, &fullscreenDesc, nullptr, swapchain.GetAddressOf()), "Failed to create DXGI SwapChain!");
 
 	// TODO:
 	//swapchain.Get()->SetFullscreenState(TRUE, NULL);
 	
 	ThrowIfFailed(m_Factory.Get()->MakeWindowAssociation(Window::GetHWND(), DXGI_MWA_NO_ALT_ENTER));
 
-	ThrowIfFailed(swapchain.As(&m_SwapChain));
+	ThrowIfFailed(swapchain.As(&m_SwapChain), "Failed to cast DXGI SwapChain!");
 
 	FRAME_INDEX = m_SwapChain.Get()->GetCurrentBackBufferIndex();
 }
@@ -153,13 +161,12 @@ void DeviceContext::CreateBackbuffer()
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RenderTargetHeap.Get()->GetCPUDescriptorHandleForHeapStart());
 	for (uint32_t i = 0; i < DeviceContext::FRAME_COUNT; i++)
 	{
-		ThrowIfFailed(m_SwapChain.Get()->GetBuffer(i, IID_PPV_ARGS(m_RenderTargets.at(i).ReleaseAndGetAddressOf())));
+		ThrowIfFailed(m_SwapChain.Get()->GetBuffer(i, IID_PPV_ARGS(m_RenderTargets.at(i).ReleaseAndGetAddressOf())), "Failed to create Render Targets!");
 		m_Device.Get()->CreateRenderTargetView(m_RenderTargets.at(i).Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_DescriptorSize);
 
-		std::wstring nm{ L"RTV" + std::to_wstring(i) };
-		LPCWSTR name{ nm.c_str() };
-		m_RenderTargets.at(i)->SetName(name);
+		std::wstring wname{ L"RTV #" + std::to_wstring(i) };
+		m_RenderTargets.at(i)->SetName(wname.c_str());
 	}
 }
 
@@ -177,7 +184,7 @@ void DeviceContext::CreateDescriptorHeaps()
 	heapDesc.NumDescriptors = DeviceContext::FRAME_COUNT;
 
 	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_RenderTargetHeap.ReleaseAndGetAddressOf())),
-		"Failed to create Descriptor Heap!");
+		"Failed to create RTV Descriptor Heap!");
 
 	m_DescriptorSize = m_Device.Get()->GetDescriptorHandleIncrementSize(heapDesc.Type);
 
@@ -187,12 +194,9 @@ void DeviceContext::CreateDescriptorHeaps()
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	desc.NumDescriptors = FRAME_COUNT;
 
-	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_guiAllocator.GetAddressOf())));
-	m_guiAllocator->SetName(L"GUI_HEAP");
-
 	desc.NumDescriptors = 1024;
 	m_MainHeap = std::make_unique<DescriptorHeap>();
-	ThrowIfFailed(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_MainHeap->GetHeapAddressOf())));
+	ThrowIfFailed(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_MainHeap->GetHeapAddressOf())), "Failed to create Main Descriptor Heap!");
 	m_MainHeap->SetDescriptorSize(m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 	m_MainHeap->GetHeap()->SetName(L"Main Descriptor Heap");
 	m_MainHeap->SetDescriptorsCount(desc.NumDescriptors);
@@ -201,7 +205,7 @@ void DeviceContext::CreateDescriptorHeaps()
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	desc.NumDescriptors = 1;
-	ThrowIfFailed(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_DepthHeap.ReleaseAndGetAddressOf())));
+	ThrowIfFailed(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_DepthHeap.ReleaseAndGetAddressOf())), "Failed to create Depth Heap!");
 }
 
 void DeviceContext::CreateCommandList(ID3D12PipelineState* pPipelineState)
@@ -215,21 +219,21 @@ void DeviceContext::CreateCommandQueue()
 	D3D12_COMMAND_QUEUE_DESC desc{};
 	desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	ThrowIfFailed(m_Device.Get()->CreateCommandQueue(&desc, IID_PPV_ARGS(m_CommandQueue.GetAddressOf())), "Failed to create Command Queue!\n");
+	ThrowIfFailed(m_Device.Get()->CreateCommandQueue(&desc, IID_PPV_ARGS(m_CommandQueue.GetAddressOf())), "Failed to create Command Queue!");
 	m_CommandQueue->SetName(L"Direct Command Queue");
 
 	desc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-	ThrowIfFailed(m_Device.Get()->CreateCommandQueue(&desc, IID_PPV_ARGS(m_ComputeQueue.GetAddressOf())), "Failed to create Compute Queue!\n");
+	ThrowIfFailed(m_Device.Get()->CreateCommandQueue(&desc, IID_PPV_ARGS(m_ComputeQueue.GetAddressOf())), "Failed to create Compute Queue!");
 	m_ComputeQueue->SetName(L"Compute Command Queue");
 
 }
 
 void DeviceContext::CreateFences(D3D12_FENCE_FLAGS Flags)
 {
-	ThrowIfFailed(m_Device.Get()->CreateFence(0, Flags, IID_PPV_ARGS(m_Fence.GetAddressOf())));
+	ThrowIfFailed(m_Device.Get()->CreateFence(0, Flags, IID_PPV_ARGS(m_Fence.GetAddressOf())), "Failed to create Fence object!");
 	m_FenceValues.at(FRAME_INDEX)++;
 
-	m_FenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	m_FenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	assert(m_FenceEvent != nullptr);
 }
 
@@ -238,8 +242,8 @@ void DeviceContext::CreateDepthStencil()
 	D3D12_DESCRIPTOR_HEAP_DESC dsHeap{};
 	dsHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	dsHeap.NumDescriptors = 1;
-	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&dsHeap, IID_PPV_ARGS(m_DepthHeap.GetAddressOf())));
+	dsHeap.NumDescriptors = 2;
+	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&dsHeap, IID_PPV_ARGS(m_DepthHeap.GetAddressOf())), "Failed to create Depth Stencil Heap!");
 	m_DepthHeap.Get()->SetName(L"Depth Heap");
 
 	D3D12_CLEAR_VALUE clearValue{};
@@ -262,7 +266,8 @@ void DeviceContext::CreateDepthStencil()
 		&heapDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&clearValue,
-		IID_PPV_ARGS(m_DepthStencil.ReleaseAndGetAddressOf())));
+		IID_PPV_ARGS(m_DepthStencil.ReleaseAndGetAddressOf())),
+		"Failed to create DepthStencil!");
 	m_DepthStencil.Get()->SetName(L"Depth Stencil");
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsView{};
@@ -287,8 +292,8 @@ void DeviceContext::CreateDepthStencil()
 
 void DeviceContext::SetViewport()
 {
-	m_ViewportRect.left   = 0;
-	m_ViewportRect.top	  = 0;
+	m_ViewportRect.left   = 0L;
+	m_ViewportRect.top	  = 0L;
 	m_ViewportRect.right  = static_cast<uint64_t>(Window::GetDisplay().Width);
 	m_ViewportRect.bottom = static_cast<uint64_t>(Window::GetDisplay().Height);
 
@@ -313,7 +318,7 @@ void DeviceContext::FlushGPU()
 		{
 			ThrowIfFailed(GetFence()->SetEventOnCompletion(currentValue, m_FenceEvent));
 
-			WaitForSingleObject(m_FenceEvent, INFINITE);
+			::WaitForSingleObject(m_FenceEvent, INFINITE);
 		}
 	}
 
@@ -332,7 +337,7 @@ void DeviceContext::MoveToNextFrame()
 	if (m_Fence->GetCompletedValue() < m_FenceValues.at(FRAME_INDEX))
 	{
 		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_FenceValues.at(FRAME_INDEX), m_FenceEvent));
-		WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
+		::WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
 	}
 
 	m_FenceValues.at(FRAME_INDEX) = currentFenceValue + 1;
@@ -350,16 +355,28 @@ void DeviceContext::WaitForGPU()
 
 void DeviceContext::ExecuteCommandList()
 {
-	ThrowIfFailed(m_CommandList.Get()->Close());
+	ThrowIfFailed(m_CommandList.Get()->Close(), "Failed to close ID3D12GraphicsCommandList!");
 	std::array<ID3D12CommandList*, 1> ppCommandLists{ m_CommandList.Get() };
 	GetCommandQueue()->ExecuteCommandLists(static_cast<uint32_t>(ppCommandLists.size()), ppCommandLists.data());
 	WaitForGPU();
 }
 
+void DeviceContext::ExecuteCommandList(bool bResetAllocator)
+{
+	ThrowIfFailed(m_CommandList.Get()->Close(), "Failed to close ID3D12GraphicsCommandList!");
+	std::array<ID3D12CommandList*, 1> ppCommandLists{ m_CommandList.Get() };
+	GetCommandQueue()->ExecuteCommandLists(static_cast<uint32_t>(ppCommandLists.size()), ppCommandLists.data());
+
+	if (bResetAllocator)
+		ThrowIfFailed(GetCommandList()->Reset(GetCommandAllocator(), nullptr));
+
+	WaitForGPU();
+}
+
 void DeviceContext::ResetCommandList()
 {
-	ThrowIfFailed(GetCommandAllocator()->Reset());
-	ThrowIfFailed(GetCommandList()->Reset(GetCommandAllocator(), nullptr));
+	ThrowIfFailed(GetCommandAllocator()->Reset(), "Failed to Reset Command Allocator!");
+	ThrowIfFailed(GetCommandList()->Reset(GetCommandAllocator(), nullptr), "Failed to Reset Command List!");
 }
 
 void DeviceContext::OnResize()
@@ -386,6 +403,7 @@ void DeviceContext::OnResize()
 	if (hResult == DXGI_ERROR_DEVICE_REMOVED || hResult == DXGI_ERROR_DEVICE_RESET || FAILED(hResult))
 	{
 		::OutputDebugStringA("Device removed!\n");
+		::MessageBoxA(nullptr, "Resize failed!", "Error", MB_OK);
 		throw std::exception();
 	}
 
@@ -403,15 +421,6 @@ void DeviceContext::Release()
 	SAFE_RELEASE(m_DepthStencil);
 	SAFE_RELEASE(m_DepthHeap);
 
-	SAFE_RELEASE(m_ComputeQueue);
-	SAFE_RELEASE(m_CommandQueue);
-	SAFE_RELEASE(m_CommandList);
-
-	SAFE_RELEASE(m_guiAllocator);
-
-	for (auto& allocator : m_CommandAllocators)
-		SAFE_RELEASE(allocator);
-
 	SAFE_RELEASE(m_Fence);
 
 	for (auto& buffer : m_RenderTargets)
@@ -419,6 +428,14 @@ void DeviceContext::Release()
 
 	SAFE_RELEASE(m_RenderTargetHeap);
 	SAFE_RELEASE(m_SwapChain);
+
+	SAFE_RELEASE(m_CommandList);
+
+	SAFE_RELEASE(m_ComputeQueue);
+	SAFE_RELEASE(m_CommandQueue);
+
+	for (auto& allocator : m_CommandAllocators)
+		SAFE_RELEASE(allocator);
 
 	SAFE_RELEASE(m_Allocator);
 
@@ -429,7 +446,7 @@ void DeviceContext::Release()
 	Logger::Log("DeviceContext released.");
 }
 
-IDXGIFactory4* DeviceContext::GetFactory() const noexcept
+IDXGIFactory6* DeviceContext::GetFactory() const noexcept
 {
 	return m_Factory.Get();
 }
@@ -531,11 +548,6 @@ void DeviceContext::ReleaseRenderTargets()
 		m_RenderTargets.at(i).Reset();
 		m_FenceValues.at(i) = m_FenceValues.at(FRAME_INDEX);
 	}
-}
-
-inline ID3D12DescriptorHeap* DeviceContext::GetGUIHeap() const noexcept
-{
-	return m_guiAllocator.Get();
 }
 
 DescriptorHeap* DeviceContext::GetMainHeap() noexcept
