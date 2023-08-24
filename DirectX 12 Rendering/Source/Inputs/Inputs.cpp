@@ -14,7 +14,7 @@ void Inputs::Initialize()
 	ThrowIfFailed(DxMouse->SetCooperativeLevel(Window::GetHWND(), DISCL_NONEXCLUSIVE | DISCL_NOWINKEY | DISCL_FOREGROUND));
 }
 
-void Inputs::CameraInputs(Camera* pCamera, const float DeltaTime)
+void Inputs::CameraInputs(Camera* pCamera, float DeltaTime)
 {
 	DIMOUSESTATE mouseState{};
 	constexpr int keys{ 256 };
@@ -30,7 +30,7 @@ void Inputs::CameraInputs(Camera* pCamera, const float DeltaTime)
 
 	if (keyboardState.at(DIK_ESCAPE) & state)
 	{
-		// Add closing fullscreen state here later
+		// TODO: Add closing fullscreen state here later
 		::PostMessage(Window::GetHWND(), WM_QUIT, 0, 0);
 	}
 
@@ -52,14 +52,6 @@ void Inputs::CameraInputs(Camera* pCamera, const float DeltaTime)
 		pCamera->m_Pitch += mouseState.lY * intensity;
 		DxLastMouseState = mouseState;
 	}
-	if (keyboardState.at(DIK_A) & state)
-	{
-		pCamera->MoveRightLeft -= speed;
-	}
-	if (keyboardState.at(DIK_D) & state)
-	{
-		pCamera->MoveRightLeft += speed;
-	}
 	if (keyboardState.at(DIK_W) & state)
 	{
 		pCamera->MoveForwardBack += speed;
@@ -67,6 +59,14 @@ void Inputs::CameraInputs(Camera* pCamera, const float DeltaTime)
 	if (keyboardState.at(DIK_S) & state)
 	{
 		pCamera->MoveForwardBack -= speed;
+	}
+	if (keyboardState.at(DIK_A) & state)
+	{
+		pCamera->MoveRightLeft -= speed;
+	}
+	if (keyboardState.at(DIK_D) & state)
+	{
+		pCamera->MoveRightLeft += speed;
 	}
 	if (keyboardState.at(DIK_Q) & state)
 	{
@@ -88,12 +88,14 @@ void Inputs::Release() noexcept
 	if (DxKeyboard)
 	{
 		DxKeyboard->Unacquire();
+		DxKeyboard->Release();
 		DxKeyboard = nullptr;
 	}
 
 	if (DxMouse)
 	{
 		DxMouse->Unacquire();
+		DxMouse->Release();
 		DxMouse = nullptr;
 	}
 

@@ -10,7 +10,7 @@ class Inputs
 {
 public:
 	static void Initialize();
-	static void CameraInputs(Camera* pCamera, const float DeltaTime);
+	static void CameraInputs(Camera* pCamera, float DeltaTime);
 	static void Release() noexcept;
 	
 private:
