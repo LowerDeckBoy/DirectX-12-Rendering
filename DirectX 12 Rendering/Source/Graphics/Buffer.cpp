@@ -9,14 +9,12 @@ Buffer::Buffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, BufferT
 
 Buffer::~Buffer()
 {
+	SAFE_RELEASE(m_Buffer);
 	if (m_Allocation)
 	{
 		m_Allocation->Release();
 		m_Allocation = nullptr;
-
 	}
-
-	SAFE_RELEASE(m_Buffer);
 }
 
 void Buffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, BufferType TypeOf, bool bSRV)
@@ -58,11 +56,11 @@ void Buffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, Bu
 		pDevice->GetCommandList()->ResourceBarrier(1, &barrier);
 	}
 	else
-	{
 		throw std::logic_error("Invalid buffer type!");
-	}
-	
-	//MapMemory();
+
+	pDevice->ExecuteCommandList(true);
+
+	uploadHeapAllocation->Release();
 
 	if (bSRV)
 	{
@@ -77,8 +75,6 @@ void Buffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, Bu
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 		pDevice->GetDevice()->CreateShaderResourceView(m_Buffer.Get(), &srvDesc, m_Descriptor.GetCPU());
 	}
-
-	uploadHeapAllocation->Release();
 }
 
 void Buffer::MapMemory()
@@ -103,4 +99,43 @@ D3D12_GPU_VIRTUAL_ADDRESS Buffer::GetGPUAddress() const
 BufferData Buffer::GetData() noexcept
 {
 	return m_BufferData;
+}
+
+VertexBuffer::VertexBuffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV)
+{
+	Buffer::Create(pDevice, Data, Desc, BufferType::eVertex, bSRV);
+	SetView();
+}
+
+void VertexBuffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV)
+{
+	Buffer::Create(pDevice, Data, Desc, BufferType::eVertex, bSRV);
+	SetView();
+}
+
+void VertexBuffer::SetView()
+{
+	View.BufferLocation = Buffer::GetGPUAddress();
+	View.SizeInBytes = static_cast<uint32_t>(Buffer::GetData().Size);
+	View.StrideInBytes = static_cast<uint32_t>(Buffer::GetData().Size) / Buffer::GetData().ElementsCount;
+}
+
+IndexBuffer::IndexBuffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV)
+{
+	Buffer::Create(pDevice, Data, Desc, BufferType::eIndex, bSRV);
+	SetView();
+}
+
+void IndexBuffer::Create(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, bool bSRV)
+{
+	Buffer::Create(pDevice, Data, Desc, BufferType::eIndex, bSRV);
+	SetView();
+}
+
+void IndexBuffer::SetView()
+{
+	View.BufferLocation = Buffer::GetGPUAddress();
+	View.Format = DXGI_FORMAT_R32_UINT;
+	View.SizeInBytes = static_cast<uint32_t>(Buffer::GetData().Size);
+	Count = Buffer::GetData().ElementsCount;
 }
