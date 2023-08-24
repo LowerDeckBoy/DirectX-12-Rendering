@@ -3,79 +3,9 @@
 #include "../Utilities/Utilities.hpp"
 #include "../Core/DescriptorHeap.hpp"
 #include <DirectXMath.h>
+
 using namespace DirectX;
-
-// Const Types
-struct cbPerObject
-{
-	XMMATRIX WVP	{ XMMatrixIdentity() };
-	XMMATRIX World	{ XMMatrixIdentity() };
-	float padding[32]{};
-};
-
-struct cbCamera
-{
-	alignas(16) XMFLOAT3 CameraPosition;
-};
-
-struct SceneConstData
-{
-	XMVECTOR Position;
-	XMMATRIX View;
-	XMMATRIX Projection;
-	XMMATRIX InversedView;
-	XMMATRIX InversedProjection;
-	XMFLOAT2 ScreenDimension;
-};
-
-// Mainly for glTF model purposes
-struct cbMaterial
-{
-	XMFLOAT4 CameraPosition	{ XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f) };
-
-	XMFLOAT4 BaseColorFactor	{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0) };
-	XMFLOAT4 EmissiveColorFactor{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0) };
-
-	float MetallicFactor{ 1.0f };
-	float RougnessFactor{ 1.0f };
-	float AlphaCutoff	{ 0.5f };
-	BOOL bDoubleSided	{ FALSE };
-
-	//test
-	int32_t BaseColorIndex{ -1 };
-	int32_t NormalIndex{ -1 };
-	int32_t MetallicRoughnessIndex{ -1 };
-	int32_t EmissiveIndex{ -1 };
-
-	//XMFLOAT4 padding[8]{};
-};
-
-struct cbLights
-{
-	std::array<XMFLOAT4, 4> LightPositions;
-	std::array<XMFLOAT4, 4> LightColors;
-	float Radius{ 25.0f };
-	float padding[32];
-};
-
-struct cb_pbrMaterial
-{
-	XMFLOAT4 Ambient{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
-	XMFLOAT4 Diffuse { XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f) };
-	XMFLOAT4 Specular{ XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f) };
-	float SpecularIntensity{ 32.0f };
-	alignas(16) XMFLOAT3 Direction { XMFLOAT3(1.0f, 1.0f, 1.0f) };
-
-	XMFLOAT4 BaseColorFactor{ XMFLOAT4(1.0f, 1.0f,1.0f, 1.0f) };
-	XMFLOAT4 EmissiveFactor { XMFLOAT4(1.0f, 1.0f,1.0f, 1.0f) };
-
-	float MetallicFactor { 1.0f };
-	float RoughnessFactor{ 1.0f };
-	float AlphaCutoff	 { 0.5f };
-	float padding;
-
-	XMFLOAT4 padding2[9];
-};
+#include "ConstantTypes.hpp"
 
 template<typename T>
 class ConstantBuffer
@@ -93,7 +23,7 @@ public:
 
 		constexpr size_t structSize{ (sizeof(T) + 255) & ~255 };
 
-		auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD) };
+		//const auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD) };
 		auto bufferDesc{ CD3DX12_RESOURCE_DESC::Buffer(structSize) };
 
 		for (uint32_t i = 0; i < FRAME_COUNT; i++)
@@ -106,7 +36,6 @@ public:
 
 			D3D12MA::Allocation* allocation{ nullptr };
 			ThrowIfFailed(pDevice->GetAllocator()->CreateResource(&allocDesc, &bufferDesc, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, nullptr, &allocation, IID_PPV_ARGS(Buffer.at(i).ReleaseAndGetAddressOf())));
-
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC bufferView{};
 			bufferView.BufferLocation = Buffer.at(i).Get()->GetGPUVirtualAddress();
@@ -159,12 +88,12 @@ public:
 		return m_Descriptors.at(Index);
 	}
 
-	std::array<uint8_t*, FRAME_COUNT> pDataBegin{ nullptr, nullptr };
+	std::array<uint8_t*, FRAME_COUNT> pDataBegin{ };
 
 private:
 
 	std::array<ComPtr<ID3D12Resource>, FRAME_COUNT> Buffer;
-	std::array<T*, FRAME_COUNT> Data{ nullptr, nullptr };
+	std::array<T*, FRAME_COUNT> Data{ };
 	std::array<Descriptor, FRAME_COUNT> m_Descriptors;
 
 	bool bIsInitialized{ false };
