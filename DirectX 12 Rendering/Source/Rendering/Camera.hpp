@@ -16,6 +16,7 @@ public:
 
 	void ResetPitch() noexcept;
 	void ResetYaw() noexcept;
+	void ResetFieldOfView() noexcept;
 
 	void ResetCamera() noexcept;
 
@@ -32,7 +33,7 @@ public:
 
 	// Required when window is resizing
 	// thus Render Targets change their aspect ratio
-	void OnAspectRatioChange(float NewAspectRatio);
+	void OnAspectRatioChange(float NewAspectRatio) noexcept;
 
 private:
 	XMMATRIX m_View			 { XMMATRIX() };
@@ -62,7 +63,8 @@ private:
 	float m_zNear{ 0.1f };
 	float m_zFar{ 5'000'000.0f };
 
-	float m_FoV{ XMConvertToRadians(45.0f) };
+	float m_AspectRatio{ };
+	float m_FieldOfView{ 45.0f };
 
 public:
 	// For calling camera movement from keyboard inputs
@@ -71,7 +73,7 @@ public:
 	float MoveUpDown	 { 0.0f };
 
 	float m_Pitch{ 0.0f };
-	float m_Yaw{ 0.0f };
+	float m_Yaw	 { 0.0f };
 
 	float GetCameraSpeed() const noexcept;
 	void SetCameraSpeed(float NewSpeed) noexcept;

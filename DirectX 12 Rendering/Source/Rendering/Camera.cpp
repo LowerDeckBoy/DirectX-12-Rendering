@@ -9,8 +9,9 @@ void Camera::Initialize(float AspectRatio) noexcept
 	m_Target	= m_DefaultTarget;
 	m_Up		= m_DefaultUp;
 
+	m_AspectRatio = AspectRatio;
 	m_View = XMMatrixLookAtLH(m_Position, m_Target, m_Up);
-	m_Projection = XMMatrixPerspectiveFovLH(m_FoV, AspectRatio, m_zNear, m_zFar);
+	m_Projection = XMMatrixPerspectiveFovLH(m_FieldOfView, m_AspectRatio, m_zNear, m_zFar);
 	
 	m_CameraSlider = { XMVectorGetX(m_Position), XMVectorGetY(m_Position), XMVectorGetZ(m_Position) };
 }
@@ -58,6 +59,12 @@ void Camera::ResetPitch() noexcept
 void Camera::ResetYaw() noexcept
 {
 	m_Yaw = 0.0f;
+}
+
+void Camera::ResetFieldOfView() noexcept
+{
+	m_FieldOfView = 45.0f;
+	m_Projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(m_FieldOfView), m_AspectRatio, m_zNear, m_zFar);
 }
 
 void Camera::ResetCamera() noexcept
@@ -115,9 +122,12 @@ void Camera::DrawGUI()
 	}
 
 	ImGui::SliderFloat("Speed", &m_CameraSpeed, 1.0f, 500.0f, "%.2f");
+	if (ImGui::SliderFloat("FoV", &m_FieldOfView, 1.0f, 160.0f, "%.2f"))
+		m_Projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(m_FieldOfView), m_AspectRatio, m_zNear, m_zFar);
 
 	if (ImGui::Button("Reset"))
 	{
+		ResetFieldOfView();
 		ResetCamera();
 		Update();
 	}
@@ -125,9 +135,10 @@ void Camera::DrawGUI()
 	//ImGui::End();
 }
 
-void Camera::OnAspectRatioChange(float NewAspectRatio)
+void Camera::OnAspectRatioChange(float NewAspectRatio) noexcept
 {
-	m_Projection = XMMatrixPerspectiveFovLH(m_FoV, NewAspectRatio, m_zNear, m_zFar);
+	m_AspectRatio = NewAspectRatio;
+	m_Projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(m_FieldOfView), m_AspectRatio, m_zNear, m_zFar);
 }
 
 float Camera::GetCameraSpeed() const noexcept
