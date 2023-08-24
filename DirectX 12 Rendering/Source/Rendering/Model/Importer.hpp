@@ -30,7 +30,7 @@ protected:
 	std::vector<Vertex> m_Vertices;
 	std::vector<uint32_t> m_Indices;
 
-	std::vector<model::Node*> m_Nodes;
+	//std::vector<model::Node*> m_Nodes;
 	std::vector<model::Mesh*> m_Meshes;
 
 	//std::vector<model::Material*> m_Materials;

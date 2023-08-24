@@ -15,17 +15,16 @@ Importer::Importer(DeviceContext* pDevice, std::string_view Filepath)
 
 bool Importer::Import(DeviceContext* pDevice, std::string_view Filepath)
 {
-	Logger::Log("Loading model...");
 	TimeUtils timer{};
 	timer.Timer_Start();
 
 	Assimp::Importer importer;
-	auto loadFlags{  
+	const auto loadFlags{  
 		aiProcess_Triangulate |
 		aiProcess_ConvertToLeftHanded |
 		aiProcess_JoinIdenticalVertices |
 		aiProcess_PreTransformVertices |
-		aiProcess_ValidateDataStructure 
+		aiProcess_ValidateDataStructure
 	};
 	importer.SetExtraVerbose(true);
 	const aiScene* scene{ importer.ReadFile(Filepath.data(), loadFlags) };
@@ -41,15 +40,21 @@ bool Importer::Import(DeviceContext* pDevice, std::string_view Filepath)
 
 	ProcessNode(scene, scene->mRootNode, nullptr, XMMatrixIdentity());
 	
+	if (scene->HasMaterials())
+		m_Materials.reserve(scene->mNumMaterials);
+	
+	if (scene->HasTextures())
+		m_Textures.reserve(scene->mNumTextures);
+	
 	// TODO:
 	if (scene->HasAnimations())
 	{
-		bHasAnimations = true;
 		ProcessAnimations(scene);
+		bHasAnimations = true;
 	}
 	
 	importer.FreeScene();
-	timer.Timer_End(true);
+	timer.Timer_End("Model load time");
 
 	return true;
 }
@@ -60,38 +65,42 @@ void Importer::ProcessNode(const aiScene* pScene, const aiNode* pNode, model::No
 	newNode->Parent = ParentNode;
 	newNode->Name = std::string(pNode->mName.C_Str());
 
-	if (!pNode->mTransformation.IsIdentity())
-	{
-		XMFLOAT4X4 temp{ XMFLOAT4X4() };
-		temp._11 = static_cast<float>(pNode->mTransformation.a1);
-		temp._12 = static_cast<float>(pNode->mTransformation.a2);
-		temp._13 = static_cast<float>(pNode->mTransformation.a3);
-		temp._14 = static_cast<float>(pNode->mTransformation.a4);
-		temp._21 = static_cast<float>(pNode->mTransformation.b1);
-		temp._22 = static_cast<float>(pNode->mTransformation.b2);
-		temp._23 = static_cast<float>(pNode->mTransformation.b3);
-		temp._24 = static_cast<float>(pNode->mTransformation.b4);
-		temp._31 = static_cast<float>(pNode->mTransformation.c1);
-		temp._32 = static_cast<float>(pNode->mTransformation.c2);
-		temp._33 = static_cast<float>(pNode->mTransformation.c3);
-		temp._34 = static_cast<float>(pNode->mTransformation.c4);
-		temp._41 = static_cast<float>(pNode->mTransformation.d1);
-		temp._42 = static_cast<float>(pNode->mTransformation.d2);
-		temp._43 = static_cast<float>(pNode->mTransformation.d3);
-		temp._44 = static_cast<float>(pNode->mTransformation.d4);
-		newNode->Matrix = XMLoadFloat4x4(&temp);
-	}
-	else
-	{
-		aiVector3D translation;
-		aiQuaternion rotation;
-		aiVector3D scale;
+	const auto transform = [&]() {
+		if (!pNode->mTransformation.IsIdentity())
+		{
+			XMFLOAT4X4 temp{ XMFLOAT4X4() };
+			temp._11 = static_cast<float>(pNode->mTransformation.a1);
+			temp._12 = static_cast<float>(pNode->mTransformation.a2);
+			temp._13 = static_cast<float>(pNode->mTransformation.a3);
+			temp._14 = static_cast<float>(pNode->mTransformation.a4);
+			temp._21 = static_cast<float>(pNode->mTransformation.b1);
+			temp._22 = static_cast<float>(pNode->mTransformation.b2);
+			temp._23 = static_cast<float>(pNode->mTransformation.b3);
+			temp._24 = static_cast<float>(pNode->mTransformation.b4);
+			temp._31 = static_cast<float>(pNode->mTransformation.c1);
+			temp._32 = static_cast<float>(pNode->mTransformation.c2);
+			temp._33 = static_cast<float>(pNode->mTransformation.c3);
+			temp._34 = static_cast<float>(pNode->mTransformation.c4);
+			temp._41 = static_cast<float>(pNode->mTransformation.d1);
+			temp._42 = static_cast<float>(pNode->mTransformation.d2);
+			temp._43 = static_cast<float>(pNode->mTransformation.d3);
+			temp._44 = static_cast<float>(pNode->mTransformation.d4);
+			newNode->Matrix = XMLoadFloat4x4(&temp);
+		}
+		else
+		{
+			aiVector3D translation;
+			aiQuaternion rotation;
+			aiVector3D scale;
 
-		pNode->mTransformation.Decompose(scale, rotation, translation);
-		newNode->Translation = XMFLOAT3(translation.x, translation.y, translation.z);
-		newNode->Rotation = XMFLOAT4(rotation.x, rotation.y, rotation.z, rotation.w);
-		newNode->Scale = XMFLOAT3(scale.x, scale.y, scale.z);
-	}
+			pNode->mTransformation.Decompose(scale, rotation, translation);
+			newNode->Translation = XMFLOAT3(translation.x, translation.y, translation.z);
+			newNode->Rotation = XMFLOAT4(rotation.x, rotation.y, rotation.z, rotation.w);
+			newNode->Scale = XMFLOAT3(scale.x, scale.y, scale.z);
+		}
+		};
+	transform();
+	
 
 	XMMATRIX local{ XMMatrixScalingFromVector(XMLoadFloat3(&newNode->Scale)) * XMMatrixRotationQuaternion(XMLoadFloat4(&newNode->Rotation)) * XMMatrixTranslationFromVector(XMLoadFloat3(&newNode->Translation))  };
 	XMMATRIX next{ local * ParentMatrix };
@@ -107,11 +116,6 @@ void Importer::ProcessNode(const aiScene* pScene, const aiNode* pNode, model::No
 		for (uint32_t i = 0; i < pNode->mNumMeshes; i++)
 			m_Meshes.emplace_back(ProcessMesh(pScene, pScene->mMeshes[pNode->mMeshes[i]], next));
 	}
-
-	//if (ParentNode)
-	//	ParentNode->Children.emplace_back(newNode);
-	//else
-	//	m_Nodes.emplace_back(newNode);
 }
 
 model::Mesh* Importer::ProcessMesh(const aiScene* pScene, const aiMesh* pMesh, XMMATRIX Matrix)
@@ -125,10 +129,10 @@ model::Mesh* Importer::ProcessMesh(const aiScene* pScene, const aiMesh* pMesh, X
 	model::Mesh* newMesh{ new model::Mesh() };
 
 	newMesh->Matrix = Matrix;
-	newMesh->Name = pMesh->mName.data;
+	newMesh->Name = std::string(pMesh->mName.data);
 
-	newMesh->BaseVertexLocation = static_cast<uint32_t>(m_Vertices.size());
-	newMesh->FirstIndexLocation = static_cast<uint32_t>(m_Indices.size());
+	newMesh->BaseVertexLocation  = static_cast<uint32_t>(m_Vertices.size());
+	newMesh->FirstIndexLocation  = static_cast<uint32_t>(m_Indices.size());
 	newMesh->StartVertexLocation = static_cast<uint32_t>(m_Vertices.size());
 
 	newMesh->VertexCount = static_cast<uint32_t>(pMesh->mNumVertices);
@@ -214,9 +218,6 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 				aiColor4D colorFactor{};
 				aiGetMaterialColor(material, AI_MATKEY_BASE_COLOR, &colorFactor);
 				newMaterial->BaseColorFactor = XMFLOAT4(colorFactor.r, colorFactor.g, colorFactor.b, colorFactor.a);
-
-				std::string path{ "Loaded: " + texPath };
-				Logger::Log(path);
 			}
 			else
 				Logger::Log("Failed to get Diffuse texture!");
@@ -232,9 +233,6 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 			Texture* NormalTexture = new Texture(m_Device, texPath);
 			m_Textures.push_back(NormalTexture);
 			newMaterial->NormalIndex = NormalTexture->m_Descriptor.m_Index;
-
-			std::string path{ "Loaded: " + texPath };
-			Logger::Log(path);
 		}
 		else
 			Logger::Log("Failed to get Normal texture!", LogType::eError);
@@ -252,9 +250,6 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 
 			aiGetMaterialFloat(material, AI_MATKEY_METALLIC_FACTOR, &newMaterial->MetallicFactor);
 			aiGetMaterialFloat(material, AI_MATKEY_ROUGHNESS_FACTOR, &newMaterial->RoughnessFactor);
-			
-			std::string path{ "Loaded: " + texPath };
-			Logger::Log(path.c_str());
 		}
 		else
 			Logger::Log("Failed to get MetalRoughness texture!", LogType::eError);
@@ -273,9 +268,6 @@ void Importer::ProcessMaterials(const aiScene* pScene, const aiMesh* pMesh)
 			aiColor4D colorFactor{};
 			aiGetMaterialColor(material, AI_MATKEY_COLOR_EMISSIVE, &colorFactor);
 			newMaterial->EmissiveFactor = XMFLOAT4(colorFactor.r, colorFactor.g, colorFactor.b, colorFactor.a);
-
-			std::string path{ "Loaded: " + texPath };
-			Logger::Log(path.c_str());
 		}
 		else
 			Logger::Log("Failed to get Emissive texture!", LogType::eError);

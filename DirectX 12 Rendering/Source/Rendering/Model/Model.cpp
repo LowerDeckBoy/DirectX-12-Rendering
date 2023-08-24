@@ -24,6 +24,7 @@ void Model::Create(DeviceContext* pDevice, std::string_view Filepath)
 
 	m_VertexBuffer	= std::make_unique<VertexBuffer>(pDevice, BufferData(m_Vertices.data(), m_Vertices.size(), sizeof(m_Vertices.at(0)) * m_Vertices.size(), sizeof(m_Vertices.at(0))), BufferDesc(), true);
 	m_IndexBuffer	= std::make_unique<IndexBuffer>(pDevice, BufferData(m_Indices.data(), m_Indices.size(), sizeof(uint32_t) * m_Indices.size(), sizeof(uint32_t)), BufferDesc(), true);
+
 	m_cbPerObject	= std::make_unique<ConstantBuffer<cbPerObject>>(pDevice, &m_cbPerObjectData);
 	m_cbCamera		= std::make_unique<ConstantBuffer<cbCamera>>(pDevice, &m_cbCameraData);
 	m_cbMaterial	= std::make_unique<ConstantBuffer<cbMaterial>>(pDevice, &m_cbMaterialData);
@@ -32,6 +33,8 @@ void Model::Create(DeviceContext* pDevice, std::string_view Filepath)
 	m_Vertices.shrink_to_fit();
 	m_Indices.clear();
 	m_Indices.shrink_to_fit();
+
+	pDevice->ExecuteCommandList(true);
 
 	UpdateWorld();
 }
@@ -137,7 +140,7 @@ void Model::Release()
 		delete material;
 }
 
-void Model::UpdateWorld()
+void Model::UpdateWorld() noexcept
 {
 	m_WorldMatrix = XMMatrixIdentity();
 	m_WorldMatrix = XMMatrixScalingFromVector(m_Scale) * XMMatrixRotationRollPitchYawFromVector(m_Rotation) * XMMatrixTranslationFromVector(m_Translation);
