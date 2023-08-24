@@ -1,12 +1,15 @@
 #pragma once
 #include <d3d12.h>
 #include <d3dx12.h>
-//#include <dxcapi.h>
 #include <span>
+//#include <dxcapi.h>
+//#include <wrl.h>
 
 class Shader;
 class ShaderManager;
 struct IDxcBlob;
+
+using Microsoft::WRL::ComPtr;
 
 class PSOBuilder
 {
@@ -30,12 +33,13 @@ public:
 	void AddGeometryShader(const std::string_view& GeometryPath);
 	void AddDomainShader(const std::string_view& DomainPath);
 	void AddHullShader(const std::string_view& HullPath);
+	void SetRasterizerState(CD3DX12_RASTERIZER_DESC RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
 	void SetFillMode(D3D12_FILL_MODE FillMode);
 	void SetCullMode(D3D12_CULL_MODE CullMode);
-	//void AddVertexShader(Shader* pShader);
-	//void AddPixelShader(Shader* pShader);
 	void AddRootFlags(D3D12_ROOT_SIGNATURE_FLAGS Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	void AddDepthStencil(CD3DX12_DEPTH_STENCIL_DESC DepthDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
 	void Reset();
+	
 
 private:
 	std::vector<CD3DX12_DESCRIPTOR_RANGE1>	m_Ranges;
@@ -48,13 +52,13 @@ private:
 	IDxcBlob* m_HullShader	  { nullptr };
 	IDxcBlob* m_GeometryShader{ nullptr };
 
-	//Shader m_VertexShader;
-	//Shader m_PixelShader;
-
 	D3D12_STATIC_SAMPLER_DESC m_StaticSampler{};
 	D3D12_ROOT_SIGNATURE_FLAGS m_RootFlags{ D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT };
 	D3D12_CULL_MODE m_CullMode{ D3D12_CULL_MODE_BACK };
 	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_SOLID };
+
+	CD3DX12_DEPTH_STENCIL_DESC m_DepthDesc{ CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT) };
+	CD3DX12_RASTERIZER_DESC m_RasterizerState{ CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT) };
 
 private:
 	ShaderManager* m_ShaderManager{ nullptr };
@@ -90,5 +94,3 @@ public:
 	static std::array<D3D12_INPUT_ELEMENT_DESC, 2> CreateScreenQuadLayout();
 
 };
-
-
