@@ -1,9 +1,19 @@
 #include "Logger.hpp"
+#include <spdlog/sinks/msvc_sink.h>
+
 #include <string>
 
 #if defined (_DEBUG) || (DEBUG)
 	std::string Logger::m_LoggerName = "Debug";
+#else
+	std::string Logger::m_LoggerName = "Release";
 #endif
+
+Logger::~Logger()
+{
+	m_Logger.reset();
+	m_Logger = nullptr;
+}
 
 void Logger::Init()
 {
@@ -13,6 +23,8 @@ void Logger::Init()
 	
 #if defined (_DEBUG) || (DEBUG)
 	spdlog::set_level(spdlog::level::debug);
+#else
+	spdlog::set_level(spdlog::level::info);
 #endif
 
 }

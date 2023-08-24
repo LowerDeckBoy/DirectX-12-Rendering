@@ -1,5 +1,5 @@
 #pragma once
-
+//#include <Windows.h>
 
 class Timer
 {
@@ -14,9 +14,7 @@ public:
 	static float TotalTime()
 	{
 		if (bIsStopped)
-		{
 			return static_cast<float>(((m_StopTime - m_PausedTime) - m_BaseTime) * m_SecondsPerCount);
-		}
 
 		return static_cast<float>(((m_CurrentTime - m_PausedTime) - m_BaseTime) * m_SecondsPerCount);
 	}
@@ -116,8 +114,8 @@ private:
 	inline static bool bIsStopped{ false };
 
 public:
-	inline static int m_FrameCount{};
+	inline static uint32_t m_FrameCount{};
 	inline static float m_TimeElapsed{};
-	inline static int m_FPS{};
+	inline static uint32_t m_FPS{};
 	inline static float m_Miliseconds{};
 };

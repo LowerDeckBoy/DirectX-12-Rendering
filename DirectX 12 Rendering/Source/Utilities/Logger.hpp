@@ -1,7 +1,5 @@
 #pragma once
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/msvc_sink.h>
-
 
 enum class LogType : uint8_t
 {
@@ -17,10 +15,11 @@ private:
 	std::shared_ptr<spdlog::logger> m_Logger;
 
 public:
+	~Logger();
+
 	static std::string m_LoggerName;
 	void Init();
 
 	static void Log(const std::string& Message, LogType Type = LogType::eInfo);
 
 };
-

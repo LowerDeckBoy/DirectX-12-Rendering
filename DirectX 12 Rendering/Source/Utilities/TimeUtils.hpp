@@ -13,12 +13,13 @@ public:
 	auto Timer_Start() {
 		Start = std::chrono::high_resolution_clock::now();
 	}
-	auto Timer_End(bool bPrint = false) {
+
+	auto Timer_End(const std::string& Message) {
 		End = std::chrono::high_resolution_clock::now();
 		Duration = End - Start;
-		if (bPrint) {
-			auto msg{ "Load time:\t" + std::to_string(Duration.count()) + "ms" };
-			Logger::Log(msg);
-		}
+		if (!Message.empty()) 
+			Logger::Log(Message + ": " + std::to_string(Duration.count()) + "ms");
+		else
+			Logger::Log(std::string("Time result: " + std::to_string(Duration.count()) + "ms"));
 	}
 };
