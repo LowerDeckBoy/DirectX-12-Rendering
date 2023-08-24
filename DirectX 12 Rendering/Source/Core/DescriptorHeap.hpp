@@ -1,16 +1,14 @@
 #pragma once
-
 #include <d3d12.h>
 #include <wrl.h>
 #include <cstdint>
 
-struct Descriptor
+class Descriptor
 {
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_cpuHandle{};
 	D3D12_GPU_DESCRIPTOR_HANDLE m_gpuHandle{};
 	
-
 public:
 	// Setter for CPU descriptor  handle
 	[[maybe_unused]] void SetCPU(D3D12_CPU_DESCRIPTOR_HANDLE Handle) noexcept { m_cpuHandle = Handle; }
@@ -18,16 +16,14 @@ public:
 	[[maybe_unused]] void SetGPU(D3D12_GPU_DESCRIPTOR_HANDLE Handle)noexcept { m_gpuHandle = Handle; }
 
 	// Get CPU descriptor handle
-	[[nodiscard]] inline D3D12_CPU_DESCRIPTOR_HANDLE GetCPU() const { return m_cpuHandle; }
+	[[nodiscard]] inline D3D12_CPU_DESCRIPTOR_HANDLE GetCPU() const noexcept { return m_cpuHandle; }
 
 	// Get GPU descriptor handle
-	[[nodiscard]] inline D3D12_GPU_DESCRIPTOR_HANDLE GetGPU() const { return m_gpuHandle; }
+	[[nodiscard]] inline D3D12_GPU_DESCRIPTOR_HANDLE GetGPU() const noexcept { return m_gpuHandle; }
 
 	constexpr bool bIsValid() const { return m_cpuHandle.ptr != 0; }
-	//void GetIndex();
+
 	int32_t m_Index{};
-	// TODO
-	//~Descriptor() {}
 };
 
 class DescriptorHeap
@@ -41,10 +37,17 @@ public:
 
 	void Allocate(Descriptor& TargetDescriptor)
 	{
-		TargetDescriptor.SetCPU(GetCPUptr(m_Allocated));
-		TargetDescriptor.SetGPU(GetGPUptr(m_Allocated));
-		TargetDescriptor.m_Index = m_Allocated;
-		m_Allocated++;
+		if (TargetDescriptor.bIsValid())
+		{
+			Override(TargetDescriptor);
+		}
+		else
+		{
+			TargetDescriptor.SetCPU(GetCPUptr(m_Allocated));
+			TargetDescriptor.SetGPU(GetGPUptr(m_Allocated));
+			TargetDescriptor.m_Index = m_Allocated;
+			m_Allocated++;
+		}
 	}
 
 	void Override(Descriptor& TargetDescriptor)
