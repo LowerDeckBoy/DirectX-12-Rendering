@@ -361,7 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/DirectX 12 Rendering/Assets/Fonts/
+/DirectX 12 Rendering/Assets/
 /vcpkg_installed/x64-windows
 /DirectX 12 Rendering/packages.config
 /DirectX 12 Rendering/Assets/glTF
+/DirectX 12 Rendering/Assets/Textures/
