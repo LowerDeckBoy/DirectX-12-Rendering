@@ -57,7 +57,7 @@
     <ClCompile Include="Source\Rendering\Model\Model.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Rendering\Light\PointLight.cpp">
+    <ClCompile Include="Source\Rendering\Light\PointLights.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Graphics\Skybox.cpp">
@@ -90,7 +90,16 @@
     <ClCompile Include="Source\Graphics\Shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\RenderPass.cpp">
+    <ClCompile Include="Source\Rendering\RenderPass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Rendering\SSAO.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Graphics\TextureManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Rendering\DeferredContext.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -164,7 +173,7 @@
     <ClInclude Include="Source\Rendering\Model\Model.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Rendering\Light\PointLight.hpp">
+    <ClInclude Include="Source\Rendering\Light\PointLights.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Utilities\MemoryUsage.hpp">
@@ -194,11 +203,71 @@
     <ClInclude Include="Source\Core\Viewport.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Core\RenderPass.hpp">
+    <ClInclude Include="Source\Rendering\RenderPass.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Rendering\SSAO.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Graphics\TextureManager.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Graphics\ConstantTypes.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Rendering\DeferredContext.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Assets\Shaders\Forward\Common.hlsli" />
+    <None Include="Assets\Shaders\Forward\Lighting_PBR.hlsli" />
+    <None Include="Assets\Shaders\Deferred\Deferred_Lighting.hlsli" />
+    <None Include="Assets\Shaders\Deferred\GBuffer.hlsli" />
     <None Include="packages.config" />
+    <None Include="Assets\Shaders\Compute\Common_Compute.hlsli" />
+    <None Include="Assets\glTF\damaged_helmet\scene.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Assets\glTF\damaged_helmet\scene.gltf" />
+    <None Include="Assets\Textures\HDR\newport_loft.hdr" />
+    <None Include="imgui.ini" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Assets\Shaders\Forward\Global_Vertex.hlsl" />
+    <FxCompile Include="Assets\Shaders\Forward\PBR_Pixel.hlsl" />
+    <FxCompile Include="Assets\Shaders\Forward\IBL_Pixel.hlsl" />
+    <FxCompile Include="Assets\Shaders\Forward\PBR_Pixel_2.hlsl" />
+    <FxCompile Include="Assets\Shaders\Deferred\Deferred_Pixel.hlsl" />
+    <FxCompile Include="Assets\Shaders\Deferred\Deferred_Vertex.hlsl" />
+    <FxCompile Include="Assets\Shaders\Deferred\GBuffer_Pixel.hlsl" />
+    <FxCompile Include="Assets\Shaders\Deferred\GBuffer_Vertex.hlsl" />
+    <FxCompile Include="Assets\Shaders\Sky\Skybox_VS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Sky\Skybox_PS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Compute\SpBRDF_LUT.hlsl" />
+    <FxCompile Include="Assets\Shaders\Compute\Equirectangular2Cube.hlsl" />
+    <FxCompile Include="Assets\Shaders\Compute\IrradianceMap.hlsl" />
+    <FxCompile Include="Assets\Shaders\Compute\SpecularMap.hlsl" />
+    <FxCompile Include="Assets\Shaders\Forward\Shadows_VS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Forward\Shadows_PS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Forward\Point_Shadows_VS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Forward\Point_Shadows_PS.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="Assets\Fonts\CascadiaCode-Bold.ttf" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\glTF\damaged_helmet\textures\Material_MR_baseColor.jpeg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Assets\glTF\damaged_helmet\textures\Material_MR_emissive.jpeg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Assets\glTF\damaged_helmet\textures\Material_MR_metallicRoughness.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Assets\glTF\damaged_helmet\textures\Material_MR_normal.jpeg">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

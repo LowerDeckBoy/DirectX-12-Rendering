@@ -1,8 +1,8 @@
 #pragma once
-#include <d3d12.h>
-//#include <d3dcompiler.h>
-#include <wrl.h>
+#include <d3dcommon.h>
+#include <wrl/client.h>
 #include <string_view>
+//#include <d3dcompiler.h>
 
 // Shader Model 5.x
 class Shader

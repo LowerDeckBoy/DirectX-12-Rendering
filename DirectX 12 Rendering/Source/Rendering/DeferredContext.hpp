@@ -1,12 +1,11 @@
 #pragma once
 #include <d3d12.h>
-#include <wrl.h>
 #include "../Graphics/ConstantBuffer.hpp"
 #include "ScreenQuad.hpp"
 
 class DeviceContext;
 class Camera;
-struct Descriptor;
+class Descriptor;
 class ShaderManager;
 class Model;
 class ImageBasedLighting;
@@ -43,8 +42,8 @@ public:
 	std::array<Descriptor, RenderTargetsCount> m_ShaderDescriptors;
 
 private:
-	void BeginPass();
-	void EndPass();
+	//void BeginPass();
+	//void EndPass();
 
 	void Release();
 

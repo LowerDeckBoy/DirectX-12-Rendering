@@ -23,14 +23,14 @@ void Shader::Create(const std::string_view& Filepath, const std::string_view& Ta
 #if defined (_DEBUG) || DEBUG
 	compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
-	ID3DBlob* Error{ nullptr };
+	ID3DBlob* error{ nullptr };
 	std::wstring path{ std::wstring(Filepath.begin(), Filepath.end()) };
 
-	HRESULT hResult{ D3DCompileFromFile(path.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, Entrypoint.data(), Target.data(), compileFlags, 0, Blob.GetAddressOf(), &Error) };
+	const HRESULT hResult{ D3DCompileFromFile(path.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, Entrypoint.data(), Target.data(), compileFlags, 0, Blob.GetAddressOf(), &error) };
 
-	if (Error != nullptr)
+	if (error != nullptr)
 	{
-		Logger::Log(static_cast<char*>(Error->GetBufferPointer()), LogType::eWarning);
+		Logger::Log(static_cast<char*>(error->GetBufferPointer()), LogType::eWarning);
 	}
 
 	if (FAILED(hResult) || Blob == nullptr)
@@ -39,6 +39,7 @@ void Shader::Create(const std::string_view& Filepath, const std::string_view& Ta
 		throw std::exception();
 	}
 
+	SAFE_DELETE(error);
 	bIsInitialized = true;
 }
 
