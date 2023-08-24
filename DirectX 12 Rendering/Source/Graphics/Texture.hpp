@@ -50,3 +50,18 @@ private:
 	DXGI_FORMAT m_Format{ DXGI_FORMAT_R8G8B8A8_UNORM };
 	D3D12_RESOURCE_DIMENSION m_Dimension{ D3D12_RESOURCE_DIMENSION_TEXTURE2D };
 };
+
+// WIC Textures
+// Also loading HDR equirectangular maps
+// or perhaps not, idk
+class Texture2D : public Texture
+{
+
+};
+
+// DDS Cubemap textures
+class Texture3D : public Texture
+{
+
+};
+

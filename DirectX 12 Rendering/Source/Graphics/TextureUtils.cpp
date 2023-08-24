@@ -3,7 +3,7 @@
 #include "TextureUtils.hpp"
 #include <DirectXTex.h>
 #include <directxtk12/WICTextureLoader.h>
-#include <directxtk12/DDSTextureLoader.h>
+//#include <directxtk12/DDSTextureLoader.h>
 #include <directxtk12/ResourceUploadBatch.h>
 #include "../Utilities/Utilities.hpp"
 #include "../Utilities/FileUtils.hpp"
@@ -193,4 +193,8 @@ ID3D12Resource* TextureUtils::CreateFromHDR(DeviceContext* pDeviceContext, const
 	pDeviceContext->GetCommandList()->ResourceBarrier(1, &copyToResourceBarrier);
 
 	return pResource;
+}
+
+void TextureUtils::GenerateMipChain(const class Texture& Texture, uint16_t MipLevels)
+{
 }

@@ -3,7 +3,7 @@
 #include <d3dx12.h>
 #include <string>
 
-struct Descriptor;
+class Descriptor;
 
 struct TextureData
 {
@@ -11,6 +11,7 @@ struct TextureData
 	uint32_t Height;
 	uint16_t Depth;
 	DXGI_FORMAT	Format{ DXGI_FORMAT_R8G8B8A8_UNORM };
+	uint16_t MipLevels{ 1 };
 	D3D12_RESOURCE_DIMENSION Dimension{ D3D12_RESOURCE_DIMENSION_TEXTURE2D };
 };
 
@@ -45,6 +46,7 @@ public:
 
 	//static void CreateFromResource();
 
+	static void GenerateMipChain(const class Texture& Texture, uint16_t MipLevels = 4);
 
 
 private:

@@ -1,6 +1,6 @@
 #pragma once
 #include <dxcapi.h>
-#include <wrl.h>
+#include <wrl/client.h>
 #include <string_view>
 
 // Single instance for creating and compiling shader model 6.x

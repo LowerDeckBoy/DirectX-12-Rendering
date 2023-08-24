@@ -4,7 +4,7 @@
 #include "../Utilities/FileUtils.hpp"
 #include <DirectXTex.h>
 #include <directxtk12/ResourceUploadBatch.h>
-#include <directxtk12/DDSTextureLoader.h>
+//#include <directxtk12/DDSTextureLoader.h>
 #include <directxtk12/WICTextureLoader.h>
 #include "TextureUtils.hpp"
 
@@ -98,6 +98,8 @@ void Texture::CreateFromWIC(DeviceContext* pDevice, const std::string_view& Text
 	
 	auto finish{ upload.End(pDevice->GetCommandQueue()) };
 	finish.wait();
+
+	pDevice->ExecuteCommandList(true);
 }
 
 void Texture::CreateFromDDS(DeviceContext* pDevice, const std::string_view& TexturePath)

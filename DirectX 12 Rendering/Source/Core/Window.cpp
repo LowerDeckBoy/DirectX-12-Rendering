@@ -1,7 +1,6 @@
 #include "Window.hpp"
 #include "../Utilities/Logger.hpp"
 #include <dwmapi.h>
-//#include <imgui_impl_win32.h>
 
 #pragma comment(lib, "dwmapi")
 
@@ -93,10 +92,10 @@ void Window::Show()
         throw std::exception();
 
     //test
-    constexpr auto borderless{ WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX };
-    ::SetWindowLongPtrW(m_hWnd, GWL_STYLE, static_cast<LONG>(borderless));
+    //constexpr auto borderless{ WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX };
+    //::SetWindowLongPtrW(m_hWnd, GWL_STYLE, static_cast<LONG>(borderless));
 
-    ::SendMessage(m_hWnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+    //::SendMessage(m_hWnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
     ::ShowWindow(m_hWnd, SW_SHOW);
     ::SetForegroundWindow(m_hWnd);
     ::SetFocus(m_hWnd);

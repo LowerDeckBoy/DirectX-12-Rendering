@@ -29,7 +29,6 @@ void Renderer::Initialize(Camera* pCamera)
 	CreateShadowMap();
 	InitPipelines();
 
-	//m_ScreenQuad = std::make_unique<ScreenQuad>(m_DeviceCtx.get());
 	m_DeferredCtx = std::make_unique<DeferredContext>(m_DeviceCtx.get(), m_ShaderManager.get(), m_ModelRootSignature.Get());
 
 	PreRender();
@@ -81,12 +80,8 @@ void Renderer::PreRender()
 
 	m_IBL = std::make_unique<ImageBasedLighting>();
 	m_IBL->Create(m_DeviceCtx.get(), "Assets/Textures/HDR/newport_loft.hdr");
+	//m_IBL->Create(m_DeviceCtx.get(), "Assets/Textures/HDR/kloppenheim_06_puresky_4k.hdr");
 	//m_IBL->Create(m_DeviceCtx.get(), "Assets/Textures/HDR/environment.hdr");
-	//m_IBL->Create(m_DeviceCtx.get(), "Assets/Textures/HDR/kiara_1_dawn_4k.hdr");
-	//m_IBL->Create(m_DeviceCtx.get(), "Assets/Textures/HDR/nagoya_wall_path_4k.hdr");
-	//m_IBL->Create(m_DeviceCtx.get(), "Assets/Textures/HDR/photo_studio_london_hall_4k.hdr");
-	//m_IBL->Create(m_DeviceCtx.get(), "Assets/Textures/HDR/spaichingen_hill_4k.hdr");
-	//m_IBL->Create(m_DeviceCtx.get(), "Assets/Textures/HDR/studio_small_08_4k.hdr");
 
 }
 
@@ -443,7 +438,7 @@ void Renderer::InitPipelines()
 		builder->AddRanges(deferredRanges);
 		builder->AddParameters(deferredParams);
 		builder->AddSampler(0);
-		builder->CreateRootSignature(m_DeviceCtx->GetDevice(), m_DeferredRootSignature.GetAddressOf(), L"Deferred Root Signature");
+		//builder->CreateRootSignature(m_DeviceCtx->GetDevice(), m_DeferredRootSignature.GetAddressOf(), L"Deferred Root Signature");
 
 		// Light Matrices for Shadows
 		CD3DX12_ROOT_PARAMETER1 param{}; 
@@ -463,6 +458,11 @@ void Renderer::InitPipelines()
 
 void Renderer::Release()
 {
+	// Shadows - temporal
+	SAFE_RELEASE(m_ShadowMap);
+	SAFE_RELEASE(m_ShadowsPipelineState);
+	SAFE_RELEASE(m_ShadowsRootSignature);
+
 	// PSO
 	SAFE_RELEASE(m_SkyboxRootSignature);
 	SAFE_RELEASE(m_SkyboxPipelineState);

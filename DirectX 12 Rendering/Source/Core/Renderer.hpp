@@ -2,14 +2,11 @@
 #include "DeviceContext.hpp"
 #include <memory>
 #include "../Graphics/ShaderManager.hpp"
-#include "../Graphics/Shader.hpp"
 #include "../Graphics/ConstantBuffer.hpp"
 #include "../Editor/Editor.hpp"
-#include "ComputePipelineState.hpp"
 #include "../Rendering/Model/Model.hpp"
 #include "../Rendering/DeferredContext.hpp"
-#include "../Rendering/ScreenQuad.hpp"
-#include "../Graphics/Skybox.hpp"
+//#include "../Graphics/Skybox.hpp"
 #include "../Graphics/ImageBasedLighting.hpp"
 #include "../Rendering/Light/PointLights.hpp"
 
@@ -69,7 +66,6 @@ private:
 	std::array<const float, 4> m_ClearColor{ 0.5f, 0.5f, 1.0f, 1.0f };
 
 	ComPtr<ID3D12RootSignature> m_ModelRootSignature;
-	ComPtr<ID3D12RootSignature> m_DeferredRootSignature;
 	
 	// PSO
 	ComPtr<ID3D12PipelineState> m_PBRPipelineState;
@@ -86,7 +82,7 @@ private:
 	// Skybox
 	ComPtr<ID3D12RootSignature> m_SkyboxRootSignature;
 	ComPtr<ID3D12PipelineState> m_SkyboxPipelineState;
-	std::unique_ptr<Skybox> m_Skybox;
+	//std::unique_ptr<Skybox> m_Skybox;
 	// IBL uses the same Pipeline State and Root Signature as Skybox
 	std::unique_ptr<ImageBasedLighting> m_IBL;
 

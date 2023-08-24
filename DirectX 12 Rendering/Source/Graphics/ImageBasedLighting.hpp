@@ -1,11 +1,10 @@
 #pragma once
-//#include "../Core/ComputePipelineState.hpp"
 #include "Buffer.hpp"
 #include "ConstantBuffer.hpp"
 
 class DeviceContext;
 class Camera;
-struct Descriptor;
+class Descriptor;
 
 class ImageBasedLighting
 {
@@ -39,7 +38,8 @@ private:
 	void CreateCubeTexture(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot, const std::string_view& Filepath);
 	// Create 32x32 Irradiance TextureCube
 	void CreateIrradiance(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
-	// 
+	// https://learnopengl.com/PBR/IBL/Specular-IBL
+	// 256x256 specular reflection map
 	void CreateSpecular(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
 	void CreateSpecularBRDF(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot);
 

@@ -25,9 +25,9 @@ void ShaderManager::Initialize()
 		return;
 	}
 
-	ThrowIfFailed(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(m_Compiler.ReleaseAndGetAddressOf())));
-	ThrowIfFailed(DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(m_Library.ReleaseAndGetAddressOf())));
-	ThrowIfFailed(m_Library.Get()->CreateIncludeHandler(m_IncludeHandler.ReleaseAndGetAddressOf()));
+	ThrowIfFailed(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(m_Compiler.ReleaseAndGetAddressOf())), "Failed to create Dxc Compiler Instance!");
+	ThrowIfFailed(DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(m_Library.ReleaseAndGetAddressOf())), "Failed to create Dxc Library Instance!");
+	ThrowIfFailed(m_Library.Get()->CreateIncludeHandler(m_IncludeHandler.ReleaseAndGetAddressOf()), "Failed to create Dxc Include Handler!");
 }
 
 IDxcBlob* ShaderManager::CreateDXIL(const std::string_view& Filepath, LPCWSTR Target, LPCWSTR EntryPoint)
@@ -47,10 +47,10 @@ IDxcBlob* ShaderManager::CreateDXIL(const std::string_view& Filepath, LPCWSTR Ta
 
 	std::wstring wstr{ std::wstring(Filepath.begin(), Filepath.end()) };
 	LPCWSTR filepath{ wstr.c_str() };
-	ThrowIfFailed(m_Compiler.Get()->Compile(textBlob, filepath, EntryPoint, Target, nullptr, 0, nullptr, 0, m_IncludeHandler.Get(), &result));
+	ThrowIfFailed(m_Compiler.Get()->Compile(textBlob, filepath, EntryPoint, Target, nullptr, 0, nullptr, 0, m_IncludeHandler.Get(), &result), "Failed to compile shader 6.x!");
 
 	HRESULT resultCode{};
-	ThrowIfFailed(result->GetStatus(&resultCode));
+	ThrowIfFailed(result->GetStatus(&resultCode), "Failed to get shader 6.x Status!");
 	if (FAILED(resultCode))
 	{
 		IDxcBlobEncoding* error{};
@@ -69,11 +69,18 @@ IDxcBlob* ShaderManager::CreateDXIL(const std::string_view& Filepath, LPCWSTR Ta
 
 		::OutputDebugStringA(errorMsg.c_str());
 		Logger::Log(errorMsg.c_str(), LogType::eError);
+
+		SAFE_DELETE(error);
+		::MessageBoxA(nullptr, "Failed to compile shader!", "ERROR", MB_OK);
 		throw std::exception();
 	}
 
 	IDxcBlob* blob{ nullptr };
-	ThrowIfFailed(result->GetResult(&blob));
+	ThrowIfFailed(result->GetResult(&blob), "Failed to get shader 6.x IDxcBlob*!");
+
+	SAFE_DELETE(result);
+	SAFE_DELETE(textBlob);
+
 	return blob;
 }
 
