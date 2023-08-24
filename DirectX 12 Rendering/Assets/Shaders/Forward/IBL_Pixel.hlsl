@@ -26,20 +26,16 @@ cbuffer cbLights : register(b1, space1)
     float lightsPadding[32];
 }
 
-struct MaterialIndices
-{
-    int BaseColorIndex;
-    int NormalIndex;
-    int MetallicRoughnessIndex;
-    int EmissiveIndex;
-};
-
 ConstantBuffer<MaterialIndices> Indices : register(b0, space2);
-Texture2D<float4> TexturesTable[] : register(t0, space1);
-SamplerState texSampler : register(s0);
 
-TextureCube SkyTexture : register(t4, space0);
-TextureCube PrefilteredSkyTexture : register(t5, space0);
+Texture2D<float4> TexturesTable[]       : register(t0, space1);
+SamplerState texSampler                 : register(s0, space0);
+
+//Texture2D<float4> DepthTexture : register(t4, space0);
+TextureCube SkyTexture                  : register(t5, space0);
+TextureCube IrradianceTexture           : register(t6, space0);
+TextureCube SpecularTexture             : register(t7, space0);
+Texture2D<float4> SpecularBRDFTexture   : register(t8, space0);
 
 float4 main(PS_INPUT pin) : SV_TARGET
 {
@@ -48,11 +44,11 @@ float4 main(PS_INPUT pin) : SV_TARGET
     float4 baseColor = BaseColorFactor;
     if (Indices.BaseColorIndex >= 0)
     {
-        float4 diffuse = TexturesTable[Indices.BaseColorIndex].Sample(texSampler, pin.TexCoord) * BaseColorFactor;
+        float4 diffuse = TexturesTable[Indices.BaseColorIndex].Sample(texSampler, pin.TexCoord);
         if (diffuse.a < AlphaCutoff)
             discard;
         
-        baseColor = pow(diffuse, 2.2f);
+        baseColor = pow(diffuse * BaseColorFactor, 2.2f);
     }
 
     output = baseColor.rgb;
@@ -80,8 +76,7 @@ float4 main(PS_INPUT pin) : SV_TARGET
 
     float3 Lo = float3(0.0f, 0.0f, 0.0f);
     
-    float3 reflection = normalize(reflect(-V, N));
-    float3 sky = (SkyTexture.Sample(texSampler, reflection.xyz).rgb) * metalness;
+    float3 reflection = reflect(-V, N);
     
     for (int i = 0; i < LIGHTS; ++i)
     {
@@ -108,8 +103,8 @@ float4 main(PS_INPUT pin) : SV_TARGET
         float denominator = 4.0f * NdotV * NdotL + Epsilon;
         float3 specular = numerator / max(denominator, Epsilon);
 
-        Lo += (kD * baseColor.rgb + sky / PI + specular) * radiance * NdotL;
         //Lo += (kD * baseColor.rgb / PI + specular) * radiance * NdotL;
+        Lo += (kD * baseColor.rgb + specular) * radiance * NdotL;
     }
  
     float3 ambient = float3(0.03f, 0.03f, 0.03f) * baseColor.rgb * float3(1.0f, 1.0f, 1.0f);
@@ -132,21 +127,28 @@ float4 main(PS_INPUT pin) : SV_TARGET
     
     float3 ambientLighting = float3(0.0f, 0.0f, 0.0f);
     {
-        float3 irradiance = PrefilteredSkyTexture.Sample(texSampler, N).rgb;
-
+        float3 irradiance = IrradianceTexture.Sample(texSampler, N).rgb;
+        
         float3 F = GetFresnelSchlick(NdotV, F0);
         float3 kS = F;
         float3 kD = lerp(float3(1.0f, 1.0f, 1.0f) - kS, float3(0.0f, 0.0f, 0.0f), metalness);
+        kD *= (1.0f - metalness);
+        
+        float3 specular = SpecularTexture.Sample(texSampler, reflection).rgb;
+        float2 specularBRDF = SpecularBRDFTexture.Sample(texSampler, float2(NdotV, roughness)).rg;
+        float3 specularIBL = (F0 * specularBRDF.x + specularBRDF.y) * specular;
         
         float3 diffuseIBL = kD * baseColor.rgb * irradiance;
-        ambientLighting = diffuseIBL;
+        ambientLighting = (diffuseIBL + specularIBL) * metalness;
     }
     
     // Gamma correction
+    //output += ambientLighting;
     output = output / (output + float3(1.0f, 1.0f, 1.0f));
     output = lerp(output, pow(output, 1.0f / 2.2f), 0.4f);
 
     return float4(output + ambientLighting, 1.0f);
+    //return float4(output, 1.0f);
 }
 
 #endif // PBR_PIXEL_TEST_HLSL

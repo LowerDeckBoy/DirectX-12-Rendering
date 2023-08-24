@@ -26,20 +26,15 @@ cbuffer cbLights : register(b1, space1)
     float  lightsPadding[32];
 }
 
-struct MaterialIndices
-{
-    int BaseColorIndex;
-    int NormalIndex;
-    int MetallicRoughnessIndex;
-    int EmissiveIndex;
-};
-
 ConstantBuffer<MaterialIndices> Indices : register(b0, space2);
-Texture2D<float4> TexturesTable[] : register(t0, space1);
-SamplerState texSampler : register(s0);
+Texture2D<float4> TexturesTable[]       : register(t0, space1);
+SamplerState texSampler                 : register(s0);
 
-TextureCube SkyTexture : register(t4, space0);
-TextureCube PrefilteredSkyTexture : register(t5, space0);
+//Texture2D<float4> DepthTexture : register(t4, space0);
+TextureCube SkyTexture                  : register(t5, space0);
+//TextureCube IrradianceTexture           : register(t6, space0);
+//TextureCube SpecularTexture             : register(t7, space0);
+//Texture2D<float4> SpecularBRDFTexture   : register(t8, space0);
 
 float4 main(PS_INPUT pin) : SV_TARGET
 {
@@ -48,11 +43,11 @@ float4 main(PS_INPUT pin) : SV_TARGET
     float4 baseColor = float4(0.5f, 0.5f, 0.5f, 1.0f);
     if (Indices.BaseColorIndex >= 0)
     {
-        float4 diffuse = TexturesTable[Indices.BaseColorIndex].Sample(texSampler, pin.TexCoord) * BaseColorFactor;
+        float4 diffuse = TexturesTable[Indices.BaseColorIndex].Sample(texSampler, pin.TexCoord);
         if (diffuse.a < AlphaCutoff)
             discard;
         
-        baseColor = pow(diffuse, 2.2f);
+        baseColor = pow(diffuse * BaseColorFactor, 2.2f);
     }
 
     output = baseColor.rgb;
@@ -109,10 +104,16 @@ float4 main(PS_INPUT pin) : SV_TARGET
         float3 specular = numerator / max(denominator, Epsilon);
 
         Lo += (kD * baseColor.rgb + sky / PI + specular) * radiance * NdotL;
+        //Lo += (kD * baseColor.rgb  / PI + specular) * radiance * NdotL;
     }
  
     float3 ambient = float3(0.03f, 0.03f, 0.03f) * baseColor.rgb * float3(1.0f, 1.0f, 1.0f);
     output = (ambient + Lo);
+    
+    float3 ambientLighting = float3(0.0f, 0.0f, 0.0f);
+    {
+        
+    }
 
     if (Indices.EmissiveIndex >= 0)
     {

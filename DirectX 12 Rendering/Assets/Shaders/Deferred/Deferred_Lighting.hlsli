@@ -40,14 +40,14 @@ static const float Epsilon = 0.00001f;
 // Constant normal incidence Fresnel factor for all dielectrics.
 static const float3 Fdielectric = 0.04f;
 
-float3 GetFresnelSchlick(float cosTheta, float3 F0)
+float3 GetFresnelSchlick(float NdotV, float3 F0)
 {
-    return F0 + (1.0f - F0) * pow(1.0f - cosTheta, 5.0f);
+    return F0 + (1.0f - F0) * pow(1.0f - NdotV, 5.0f);
 }
 
-float3 GetFresnelSchlickRoughness(float cosTheta, float3 F0, float Roughness)
+float3 GetFresnelSchlickRoughness(float NdotV, float3 F0, float Roughness)
 {
-    return F0 + (max(float3(1.0f - Roughness, 1.0f - Roughness, 1.0f - Roughness), F0) - F0) * pow(1.0f - cosTheta, 5.0f);
+    return F0 + (max(float3(1.0f - Roughness, 1.0f - Roughness, 1.0f - Roughness), F0) - F0) * pow(1.0f - NdotV, 5.0f);
 }
 
 // Normal Distribution
@@ -87,15 +87,13 @@ float GetGeometrySmith(float3 Normal, float3 V, float3 L, float Roughness)
 }
 
 //normal distribution
-float ndfGGX(float cosLh, float roughness)
+float ndfGGX(float NdotV, float roughness)
 {
     float alpha = roughness * roughness;
-    float sqAlpha = alpha * alpha;
+    float sqrtAlpha = alpha * alpha;
 
-    float denom = (cosLh * cosLh) * (sqAlpha - 1.0f) + 1.0f;
-    return sqAlpha / (PI * denom * denom);
+    float denom = (NdotV * NdotV) * (sqrtAlpha - 1.0f) + 1.0f;
+    return sqrtAlpha / (PI * denom * denom);
 }
-
-
 
 #endif //DEFERRED_PBR_HLSLI

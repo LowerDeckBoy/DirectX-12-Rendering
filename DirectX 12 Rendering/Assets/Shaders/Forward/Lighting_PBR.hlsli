@@ -15,6 +15,14 @@ struct PS_INPUT
     float3 Bitangent        : BITANGENT;
 };
 
+struct MaterialIndices
+{
+    int BaseColorIndex;
+    int NormalIndex;
+    int MetallicRoughnessIndex;
+    int EmissiveIndex;
+};
+
 static const float PI = 3.141592f;
 static const float TwoPI = PI * 2.0f;
 static const float Epsilon = 0.00001f;
