@@ -1,14 +1,13 @@
 #include "Engine.hpp"
-#include <imgui.h>
 #include "../Inputs/Inputs.hpp"
+#include <imgui_impl_win32.h>
 
 
 Engine::Engine(HINSTANCE hInstance) : Window(hInstance)
 {
-	//m_Timer = std::make_unique<Timer>();
-	m_Renderer = std::make_unique<Renderer>();
-	m_Camera = std::make_unique<Camera>();
-
+	m_Timer		= std::make_unique<Timer>();
+	m_Renderer	= std::make_unique<Renderer>();
+	m_Camera	= std::make_unique<Camera>();
 }
 
 Engine::~Engine()
@@ -23,9 +22,9 @@ void Engine::Initialize()
 
 	Window::Initialize();
 	m_Camera->Initialize(Window::GetDisplay().AspectRatio);
-	m_Camera->ResetCamera();
+
 	m_Renderer->Initialize(m_Camera.get());
-	Timer::Initialize();
+	m_Timer->Initialize();
 
 }
 
@@ -41,9 +40,10 @@ void Engine::Run()
 	// without ongoing frame rendering
 	//m_Timer->Start();
 
-	// Ensure Timer clean start
 	Inputs::Initialize();
-	Timer::Reset();
+	// Ensure Timer clean start
+	m_Timer->Reset();
+	m_Camera->ResetCamera();
 
 	MSG msg{};
 
@@ -55,14 +55,14 @@ void Engine::Run()
 			::DispatchMessage(&msg);
 		}
 
-		Timer::Tick();
-		Timer::GetFrameStats();
+		m_Timer->Tick();
+		m_Timer->GetFrameStats();
 
 		if (!bAppPaused)
 		{
-			Inputs::CameraInputs(m_Camera.get(), Timer::DeltaTime());
+			Inputs::CameraInputs(m_Camera.get(), m_Timer->DeltaTime());
 			m_Renderer->Update();
-			m_Renderer->Draw();
+			m_Renderer->Render();
 			m_Camera->Update();
 		}
 		else
@@ -79,7 +79,7 @@ void Engine::OnResize()
 
 void Engine::Release()
 {
-	Timer::Stop();
+	m_Timer->Stop();
 	m_Renderer->GetDeviceContext()->WaitForGPU();
 	Inputs::Release();
 }
@@ -147,11 +147,12 @@ LRESULT HitTest(POINT Cursor)
 	}
 }
 */
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	if (ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam))
-		return true;
+		return true; 
 
 	switch (Msg)
 	{
@@ -183,12 +184,12 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 		if (LOWORD(wParam) == WA_INACTIVE)
 		{
 			bAppPaused = true;
-			Timer::Stop();
+			m_Timer->Stop();
 		}
 		else
 		{
 			bAppPaused = false;
-			Timer::Start();
+			m_Timer->Start();
 		}
 		return 0;
 	}
@@ -222,22 +223,12 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 			{
 				bAppPaused = false;
 				bMinimized = false;
-				//OnResize();
 			}
 			else if (bMaximized)
 			{
 				bAppPaused = false;
 				bMaximized = false;
-				//OnResize();
 			}
-			else
-			{
-				//OnResize();
-			}
-			//else if (bIsResizing)
-			//{
-			//	//OnResize();
-			//}
 			OnResize();
 		}
 
@@ -247,7 +238,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 	{
 		bAppPaused = true;
 		bIsResizing = true;
-		Timer::Stop();
+		m_Timer->Stop();
 
 		return 0;
 	}
@@ -258,7 +249,7 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 		bIsResizing = false;
 
 		//OnResize();
-		Timer::Start();
+		m_Timer->Start();
 
 		return 0;
 	}

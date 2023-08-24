@@ -16,21 +16,22 @@ public:
 	void Run();
 
 private:
-	LRESULT WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
-	void OnResize() override;
+	LRESULT WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) final;
+	void OnResize() final;
 
 	void Release();
 
 private:
-	std::unique_ptr<Logger> m_Logger;
+	std::unique_ptr<Logger>   m_Logger;
+	std::unique_ptr<Timer>	  m_Timer;	
 	std::unique_ptr<Renderer> m_Renderer;
-	std::unique_ptr<Camera> m_Camera;
+	std::unique_ptr<Camera>   m_Camera;
 
 private:
 	// Window states for window moving and resizing
-	bool bAppPaused{ false };
-	bool bMinimized{ false };
-	bool bMaximized{ false };
+	bool bAppPaused { false };
+	bool bMinimized { false };
+	bool bMaximized { false };
 	bool bIsResizing{ false };
 
 };
