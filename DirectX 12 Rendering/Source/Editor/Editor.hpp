@@ -2,9 +2,6 @@
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx12.h>
-#include <wrl.h>
-
-#include <string>
 
 class DeviceContext;
 class Camera;
@@ -26,11 +23,9 @@ public:
 
 private:
 	DeviceContext* m_Device{ nullptr };
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_Heap;
+	Camera* m_Camera{ nullptr };
 	
 	ImFont* m_MainFont{ nullptr };
-
-	Camera* m_Camera{ nullptr };
 
 	bool bShowLogs{ false };
 
