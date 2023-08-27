@@ -1,4 +1,4 @@
-#include "../Graphics/Buffer.hpp"
+#include "../Graphics/Buffer/Buffer.hpp"
 #include "ScreenQuad.hpp"
 #include <array>
 

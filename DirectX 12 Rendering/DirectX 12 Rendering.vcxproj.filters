@@ -66,7 +66,7 @@
     <ClCompile Include="Source\Core\ComputePipelineState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Graphics\Buffer.cpp">
+    <ClCompile Include="Source\Graphics\Buffer\Buffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\Graphics\ImageBasedLighting.cpp">
@@ -102,6 +102,27 @@
     <ClCompile Include="Source\Rendering\DeferredContext.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Raytracing\AccelerationStructures.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Raytracing\RaytracingContext.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Raytracing\ShaderTable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Raytracing\StateObjectBuilder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Graphics\Buffer\BufferUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Rendering\Passes\GBufferPass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Rendering\Passes\LightPass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd-party\d3dx12.h">
@@ -131,10 +152,10 @@
     <ClInclude Include="Source\Engine\Engine.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Graphics\Buffer.hpp">
+    <ClInclude Include="Source\Graphics\Buffer\Buffer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Graphics\ConstantBuffer.hpp">
+    <ClInclude Include="Source\Graphics\Buffer\ConstantBuffer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Graphics\Shader.hpp">
@@ -143,7 +164,7 @@
     <ClInclude Include="Source\Graphics\Texture.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Graphics\Vertex.hpp">
+    <ClInclude Include="Source\Graphics\Buffer\Vertex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Inputs\Inputs.hpp">
@@ -212,10 +233,31 @@
     <ClInclude Include="Source\Graphics\TextureManager.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Graphics\ConstantTypes.hpp">
+    <ClInclude Include="Source\Graphics\Buffer\ConstantTypes.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\Rendering\DeferredContext.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Raytracing\AccelerationStructures.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Raytracing\RaytracingContext.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Raytracing\ShaderTable.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Raytracing\StateObjectBuilder.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Graphics\Buffer\BufferUtils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Rendering\Passes\GBufferPass.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Rendering\Passes\LightPass.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -252,6 +294,8 @@
     <FxCompile Include="Assets\Shaders\Forward\Shadows_PS.hlsl" />
     <FxCompile Include="Assets\Shaders\Forward\Point_Shadows_VS.hlsl" />
     <FxCompile Include="Assets\Shaders\Forward\Point_Shadows_PS.hlsl" />
+    <FxCompile Include="Assets\Shaders\TBDR\Frustrum_Grid.hlsl" />
+    <FxCompile Include="Assets\Shaders\Deferred\Simple_Shadows_PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="Assets\Fonts\CascadiaCode-Bold.ttf" />

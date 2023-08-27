@@ -141,7 +141,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <Optimization>MaxSpeed</Optimization>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <AdditionalIncludeDirectories>$(ProjectDir)3rd-party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)3rd-party;$(ProjectDir)Source/Utilities;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
     </ClCompile>
@@ -185,6 +185,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="3rd-party\D3D12MA\D3D12MemAlloc.cpp" />
+    <ClCompile Include="Source\Rendering\Passes\LightPass.cpp" />
+    <ClCompile Include="Source\Rendering\Passes\GBufferPass.cpp" />
+    <ClCompile Include="Source\Graphics\Buffer\BufferUtils.cpp" />
+    <ClCompile Include="Source\Raytracing\AccelerationStructures.cpp" />
+    <ClCompile Include="Source\Raytracing\RaytracingContext.cpp" />
+    <ClCompile Include="Source\Raytracing\ShaderTable.cpp" />
+    <ClCompile Include="Source\Raytracing\StateObjectBuilder.cpp" />
     <ClCompile Include="Source\Rendering\DeferredContext.cpp" />
     <ClCompile Include="Source\Rendering\RenderPass.cpp" />
     <ClCompile Include="Source\Graphics\Shader.cpp" />
@@ -192,7 +199,7 @@
     <ClCompile Include="Source\Rendering\ScreenQuad.cpp" />
     <ClCompile Include="Source\Graphics\ShaderManager.cpp" />
     <ClCompile Include="Source\Graphics\ImageBasedLighting.cpp" />
-    <ClCompile Include="Source\Graphics\Buffer.cpp" />
+    <ClCompile Include="Source\Graphics\Buffer\Buffer.cpp" />
     <ClCompile Include="Source\Core\ComputePipelineState.cpp" />
     <ClCompile Include="Source\Graphics\Skybox.cpp" />
     <ClCompile Include="Source\Graphics\TextureUtils.cpp" />
@@ -217,9 +224,16 @@
   <ItemGroup>
     <ClInclude Include="3rd-party\D3D12MA\D3D12MemAlloc.h" />
     <ClInclude Include="3rd-party\d3dx12.h" />
+    <ClInclude Include="Source\Rendering\Passes\LightPass.hpp" />
+    <ClInclude Include="Source\Rendering\Passes\GBufferPass.hpp" />
+    <ClInclude Include="Source\Graphics\Buffer\BufferUtils.hpp" />
+    <ClInclude Include="Source\Raytracing\AccelerationStructures.hpp" />
+    <ClInclude Include="Source\Raytracing\RaytracingContext.hpp" />
+    <ClInclude Include="Source\Raytracing\ShaderTable.hpp" />
+    <ClInclude Include="Source\Raytracing\StateObjectBuilder.hpp" />
     <ClInclude Include="Source\Rendering\DeferredContext.hpp" />
     <ClInclude Include="Source\Rendering\RenderPass.hpp" />
-    <ClInclude Include="Source\Graphics\ConstantTypes.hpp" />
+    <ClInclude Include="Source\Graphics\Buffer\ConstantTypes.hpp" />
     <ClInclude Include="Source\Utilities\Logger.hpp" />
     <ClInclude Include="Source\Rendering\ScreenQuad.hpp" />
     <ClInclude Include="Source\Graphics\ShaderManager.hpp" />
@@ -237,11 +251,11 @@
     <ClInclude Include="Source\Core\Window.hpp" />
     <ClInclude Include="Source\Editor\Editor.hpp" />
     <ClInclude Include="Source\Engine\Engine.hpp" />
-    <ClInclude Include="Source\Graphics\Buffer.hpp" />
-    <ClInclude Include="Source\Graphics\ConstantBuffer.hpp" />
+    <ClInclude Include="Source\Graphics\Buffer\Buffer.hpp" />
+    <ClInclude Include="Source\Graphics\Buffer\ConstantBuffer.hpp" />
     <ClInclude Include="Source\Graphics\Shader.hpp" />
     <ClInclude Include="Source\Graphics\Texture.hpp" />
-    <ClInclude Include="Source\Graphics\Vertex.hpp" />
+    <ClInclude Include="Source\Graphics\Buffer\Vertex.hpp" />
     <ClInclude Include="Source\Inputs\Inputs.hpp" />
     <ClInclude Include="Source\Rendering\Model\Mesh.hpp" />
     <ClInclude Include="Source\Rendering\Camera.hpp" />
@@ -365,6 +379,14 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
     </FxCompile>
+    <FxCompile Include="Assets\Shaders\Deferred\Simple_Shadows_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Assets\Shaders\Forward\Global_Vertex.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
@@ -457,6 +479,17 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\TBDR\Frustrum_Grid.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

@@ -22,10 +22,10 @@ public:
 
 	const XMMATRIX& GetView() const noexcept;
 	const XMMATRIX& GetProjection() const noexcept;
-	const XMMATRIX GetViewProjection() noexcept;
+	const XMMATRIX	GetViewProjection() noexcept;
 
 	const XMVECTOR& GetPosition() const noexcept;
-	const XMFLOAT4 GetPositionFloat() const noexcept;
+	const XMFLOAT4	GetPositionFloat() const noexcept;
 	const XMVECTOR& GetTarget() const noexcept;
 	const XMVECTOR& GetUp() const noexcept;
 
@@ -34,6 +34,14 @@ public:
 	// Required when window is resizing
 	// thus Render Targets change their aspect ratio
 	void OnAspectRatioChange(float NewAspectRatio) noexcept;
+
+	float GetCameraSpeed() const noexcept;
+	void SetCameraSpeed(float NewSpeed) noexcept;
+
+	void SetZNear(float NewZ) noexcept;
+	void SetZFar(float NewZ) noexcept;
+	float GetZNear() const noexcept;
+	float GetZFar() const noexcept;
 
 private:
 	XMMATRIX m_View			 { XMMATRIX() };
@@ -74,14 +82,6 @@ public:
 
 	float m_Pitch{ 0.0f };
 	float m_Yaw	 { 0.0f };
-
-	float GetCameraSpeed() const noexcept;
-	void SetCameraSpeed(float NewSpeed) noexcept;
-
-	void SetZNear(float NewZ) noexcept;
-	void SetZFar(float NewZ) noexcept;
-	inline float GetZNear() const noexcept;
-	inline float GetZFar() const noexcept;
 
 	// For GUI usage
 	std::array<float, 3> m_CameraSlider;
