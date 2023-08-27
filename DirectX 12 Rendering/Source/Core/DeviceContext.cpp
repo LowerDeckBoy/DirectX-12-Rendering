@@ -24,7 +24,7 @@ bool DeviceContext::Initialize()
 	CreateSwapChain();
 	CreateDescriptorHeaps();
 	CreateBackbuffer();
-	//CreateDepthStencil();
+	CreateDepthStencil();
 
 	return true;
 }
@@ -58,29 +58,6 @@ void DeviceContext::CreateDevice()
 		SAFE_RELEASE(adapter);
 		throw std::exception();
 	}
-	/*
-	for (uint32_t i = 0; i < static_cast<uint32_t>(m_Factory->EnumAdapters1(i, &adapter)); i++)
-	{
-		DXGI_ADAPTER_DESC1 desc{};
-		adapter->GetDesc1(&desc);
-
-		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-			continue;
-
-		if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
-		{
-			SAFE_RELEASE(adapter);
-			break;
-		}
-	}
-	*/
-	//if (!adapter)
-	//	throw std::exception();
-
-	// Get some debug data here
-	//DXGI_ADAPTER_DESC1 adapterInfo{};
-	//adapter->GetDesc1(&adapterInfo);
-	//adapterInfo.
 
 	ComPtr<ID3D12Device> device;
 	ThrowIfFailed(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(device.GetAddressOf())),
@@ -93,13 +70,12 @@ void DeviceContext::CreateDevice()
 #if defined (_DEBUG) | (DEBUG)
 	ThrowIfFailed(m_Device.Get()->QueryInterface(m_DebugDevice.GetAddressOf()), "Failed to Query D3D Debug Device!");
 
-
-	ComPtr<IDXGIDebug1> dxgiDebug;
+	IDXGIDebug1* dxgiDebug{ nullptr };
 	ThrowIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug)), "Failed to get DXGI Debug Interface!");
-	dxgiDebug.Get()->ReportLiveObjects(DXGI_DEBUG_DX, DXGI_DEBUG_RLO_SUMMARY);
-	dxgiDebug.Get()->DisableLeakTrackingForThread();
+	dxgiDebug->ReportLiveObjects(DXGI_DEBUG_DX, DXGI_DEBUG_RLO_SUMMARY);
+	dxgiDebug->DisableLeakTrackingForThread();
 
-	SAFE_RELEASE(dxgiDebug);
+	SAFE_DELETE(dxgiDebug);
 #endif
 
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
@@ -114,12 +90,12 @@ void DeviceContext::CreateDevice()
 	// Allocator
 	D3D12MA::ALLOCATOR_DESC allocatorDesc{};
 	allocatorDesc.pDevice = m_Device.Get();
-	allocatorDesc.pAdapter = adapter.Get();
-	D3D12MA::CreateAllocator(&allocatorDesc, m_Allocator.ReleaseAndGetAddressOf());
+	allocatorDesc.pAdapter = m_Adapter.Get();
+	TraceError(D3D12MA::CreateAllocator(&allocatorDesc, m_Allocator.ReleaseAndGetAddressOf()));
+	//ThrowIfFailed(D3D12MA::CreateAllocator(&allocatorDesc, m_Allocator.ReleaseAndGetAddressOf()), "Failed to create D3D12MA Allocator!");
 
 	SAFE_RELEASE(device);
 	SAFE_RELEASE(adapter);
-
 }
 
 void DeviceContext::CreateSwapChain()
@@ -134,7 +110,7 @@ void DeviceContext::CreateSwapChain()
 	desc.BufferCount = DeviceContext::FRAME_COUNT;
 	desc.Width  = static_cast<uint32_t>(m_Viewport.Width);
 	desc.Height = static_cast<uint32_t>(m_Viewport.Height);
-	desc.SampleDesc.Count = 1;
+	desc.SampleDesc = { 1, 0 };
 
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreenDesc{};
 	fullscreenDesc.Windowed = true;
@@ -143,15 +119,16 @@ void DeviceContext::CreateSwapChain()
 	fullscreenDesc.RefreshRate.Numerator = 0;
 	fullscreenDesc.RefreshRate.Denominator = 0;
 
-	ComPtr<IDXGISwapChain1> swapchain;
-	ThrowIfFailed(m_Factory.Get()->CreateSwapChainForHwnd(m_CommandQueue.Get(), Window::GetHWND(), &desc, &fullscreenDesc, nullptr, swapchain.GetAddressOf()), "Failed to create DXGI SwapChain!");
+	IDXGISwapChain1* swapchain{ nullptr };
+	ThrowIfFailed(m_Factory.Get()->CreateSwapChainForHwnd(m_CommandQueue.Get(), Window::GetHWND(), &desc, &fullscreenDesc, nullptr, &swapchain), 
+		"Failed to create DXGI SwapChain!");
 
 	// TODO:
 	//swapchain.Get()->SetFullscreenState(TRUE, NULL);
 	
 	ThrowIfFailed(m_Factory.Get()->MakeWindowAssociation(Window::GetHWND(), DXGI_MWA_NO_ALT_ENTER));
 
-	ThrowIfFailed(swapchain.As(&m_SwapChain), "Failed to cast DXGI SwapChain!");
+	m_SwapChain = static_cast<IDXGISwapChain3*>(swapchain);
 
 	FRAME_INDEX = m_SwapChain.Get()->GetCurrentBackBufferIndex();
 }
@@ -206,11 +183,17 @@ void DeviceContext::CreateDescriptorHeaps()
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	desc.NumDescriptors = 1;
 	ThrowIfFailed(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_DepthHeap.ReleaseAndGetAddressOf())), "Failed to create Depth Heap!");
+	m_DepthHeap.Get()->SetName(L"Depth Heap");
 }
 
 void DeviceContext::CreateCommandList(ID3D12PipelineState* pPipelineState)
 {
-	m_Device.Get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocators.at(FRAME_INDEX).Get(), pPipelineState, IID_PPV_ARGS(m_CommandList.GetAddressOf()));
+	m_Device.Get()->CreateCommandList(0, 
+		D3D12_COMMAND_LIST_TYPE_DIRECT, 
+		m_CommandAllocators.at(0).Get(), 
+		pPipelineState, 
+		IID_PPV_ARGS(m_CommandList.GetAddressOf()));
+
 	m_CommandList.Get()->SetName(L"Command List");
 }
 
@@ -231,7 +214,7 @@ void DeviceContext::CreateCommandQueue()
 void DeviceContext::CreateFences(D3D12_FENCE_FLAGS Flags)
 {
 	ThrowIfFailed(m_Device.Get()->CreateFence(0, Flags, IID_PPV_ARGS(m_Fence.GetAddressOf())), "Failed to create Fence object!");
-	m_FenceValues.at(FRAME_INDEX)++;
+	m_FenceValues.at(0)++;
 
 	m_FenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	assert(m_FenceEvent != nullptr);
@@ -239,16 +222,12 @@ void DeviceContext::CreateFences(D3D12_FENCE_FLAGS Flags)
 
 void DeviceContext::CreateDepthStencil()
 {
-	D3D12_DESCRIPTOR_HEAP_DESC dsHeap{};
-	dsHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	dsHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	dsHeap.NumDescriptors = 2;
-	ThrowIfFailed(m_Device.Get()->CreateDescriptorHeap(&dsHeap, IID_PPV_ARGS(m_DepthHeap.GetAddressOf())), "Failed to create Depth Stencil Heap!");
-	m_DepthHeap.Get()->SetName(L"Depth Heap");
+	if (m_DepthStencil.Get())
+		SAFE_RELEASE(m_DepthStencil);
 
 	D3D12_CLEAR_VALUE clearValue{};
 	clearValue.Format = m_DepthFormat;
-	clearValue.DepthStencil.Depth = 1.0f;
+	clearValue.DepthStencil.Depth = D3D12_MAX_DEPTH;
 	clearValue.DepthStencil.Stencil = 0;
 
 	const auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
@@ -258,15 +237,12 @@ void DeviceContext::CreateDepthStencil()
 													1, 0, 1, 0,
 													D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) };
 
-	if (m_DepthStencil.Get())
-		m_DepthStencil->Release();
-
 	ThrowIfFailed(m_Device.Get()->CreateCommittedResource(&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&heapDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&clearValue,
-		IID_PPV_ARGS(m_DepthStencil.ReleaseAndGetAddressOf())),
+		IID_PPV_ARGS(m_DepthStencil.GetAddressOf())),
 		"Failed to create DepthStencil!");
 	m_DepthStencil.Get()->SetName(L"Depth Stencil");
 
@@ -281,9 +257,12 @@ void DeviceContext::CreateDepthStencil()
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	if (m_DepthFormat == DXGI_FORMAT_D32_FLOAT)
+		srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	else if (m_DepthFormat == DXGI_FORMAT_D24_UNORM_S8_UINT)
+		srvDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 
 	m_MainHeap->Allocate(m_DepthDescriptor);
 	m_Device.Get()->CreateShaderResourceView(m_DepthStencil.Get(), &srvDesc, m_DepthDescriptor.GetCPU());
@@ -301,8 +280,8 @@ void DeviceContext::SetViewport()
 	m_Viewport.TopLeftY = 0.0f;
 	m_Viewport.Width	= static_cast<float>(Window::GetDisplay().Width);
 	m_Viewport.Height	= static_cast<float>(Window::GetDisplay().Height);
-	m_Viewport.MinDepth = 0.0f;
-	m_Viewport.MaxDepth = 1.0f;
+	m_Viewport.MinDepth = D3D12_MIN_DEPTH;
+	m_Viewport.MaxDepth = D3D12_MAX_DEPTH;
 }
 
 void DeviceContext::FlushGPU()
@@ -413,7 +392,7 @@ void DeviceContext::OnResize()
 	CreateBackbuffer();
 	CreateDepthStencil();
 
-	//ExecuteCommandList();
+	ExecuteCommandList(true);
 }
 
 void DeviceContext::Release()

@@ -46,7 +46,7 @@ public:
 			TargetDescriptor.SetCPU(GetCPUptr(m_Allocated));
 			TargetDescriptor.SetGPU(GetGPUptr(m_Allocated));
 			TargetDescriptor.m_Index = m_Allocated;
-			m_Allocated++;
+			++m_Allocated;
 		}
 	}
 
@@ -93,7 +93,7 @@ private:
 	D3D12_DESCRIPTOR_HEAP_TYPE m_Type;
 	uint32_t m_DescriptorSize{ 32 };
 	uint32_t m_NumDescriptors{ 0 };
-	uint32_t m_Allocated{ 0 };
+	uint32_t m_Allocated{ 1 };
 
 };
 
