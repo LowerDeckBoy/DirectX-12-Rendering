@@ -3,7 +3,6 @@
 #include "../Rendering/Camera.hpp"
 #include "../Core/DeviceContext.hpp"
 #include "Shader.hpp"
-//#include "Texture.hpp"
 #include "TextureUtils.hpp"
 #include <vector>
 
@@ -15,10 +14,23 @@ ImageBasedLighting::~ImageBasedLighting()
 
 void ImageBasedLighting::Create(DeviceContext* pDeviceCtx, const std::string_view& Filepath)
 {
-	CreateTextures(pDeviceCtx, Filepath);
 	CreateBuffers(pDeviceCtx);
+	CreateTextures(pDeviceCtx, Filepath);
 
 	assert(m_CommandList = pDeviceCtx->GetCommandList());
+
+	// Transition all resources to PIXEL_SHADER_RESOURCE
+	const auto toPixel = [&](ID3D12GraphicsCommandList4* pCommandList) {
+
+		std::array<D3D12_RESOURCE_BARRIER, 4> barriers{};
+		barriers.at(0) = CD3DX12_RESOURCE_BARRIER::Transition(m_IrradianceMap.Get(),	D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		barriers.at(1) = CD3DX12_RESOURCE_BARRIER::Transition(m_SpecularMap.Get(),		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		barriers.at(2) = CD3DX12_RESOURCE_BARRIER::Transition(m_SpecularBRDF_LUT.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		barriers.at(3) = CD3DX12_RESOURCE_BARRIER::Transition(m_OutputResource.Get(),	D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		pCommandList->ResourceBarrier(static_cast<uint32_t>(barriers.size()), barriers.data());
+		};
+	toPixel(pDeviceCtx->GetCommandList());
+
 }
 
 void ImageBasedLighting::CreateTextures(DeviceContext* pDeviceCtx, const std::string_view& Filepath)
@@ -36,6 +48,7 @@ void ImageBasedLighting::CreateTextures(DeviceContext* pDeviceCtx, const std::st
 		// UAV
 		parameters.at(1).InitAsDescriptorTable(1, &ranges.at(1));
 		parameters.at(2).InitAsConstants(1, 0);
+
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC signatureDesc{};
 		const CD3DX12_STATIC_SAMPLER_DESC computeSamplerDesc{ 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR };
 		signatureDesc.Init_1_1(static_cast<uint32_t>(parameters.size()), parameters.data(), 1, &computeSamplerDesc);
@@ -46,6 +59,9 @@ void ImageBasedLighting::CreateTextures(DeviceContext* pDeviceCtx, const std::st
 		ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&signatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_1, &signature, &error));
 		ThrowIfFailed(pDeviceCtx->GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&computeRootSignature)));
 		computeRootSignature->SetName(L"[Image Based Lighting] Compute Root Signature");
+
+		SAFE_RELEASE(signature);
+		SAFE_RELEASE(error);
 	}
 
 	CreateCubeTexture(pDeviceCtx, computeRootSignature, Filepath);
@@ -59,7 +75,7 @@ void ImageBasedLighting::CreateTextures(DeviceContext* pDeviceCtx, const std::st
 	SAFE_DELETE(computeRootSignature)
 }
 
-void ImageBasedLighting::CreateBuffers(DeviceContext* pDevice)
+void ImageBasedLighting::CreateBuffers(DeviceContext* pDeviceCtx)
 {
 	std::vector<SkyboxVertex>* vertices = new std::vector<SkyboxVertex>{
 		{ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
@@ -81,10 +97,17 @@ void ImageBasedLighting::CreateBuffers(DeviceContext* pDevice)
 		4, 0, 3, 4, 3, 7
 	};
 
-	m_VertexBuffer.Create(pDevice, BufferData(vertices->data(), vertices->size(), vertices->size() * sizeof(vertices->at(0)), sizeof(vertices->at(0))), BufferDesc());
-	m_IndexBuffer.Create(pDevice, BufferData(indices->data(), indices->size(), indices->size() * sizeof(indices->at(0)), sizeof(indices->at(0))), BufferDesc());
+	m_VertexBuffer.Create(
+		pDeviceCtx,
+		BufferData(vertices->data(), vertices->size(), vertices->size() * sizeof(vertices->at(0)), sizeof(vertices->at(0))), 
+		BufferDesc());
 
-	m_ConstBuffer.Create(pDevice, &m_cbData);
+	m_IndexBuffer.Create(
+		pDeviceCtx,
+		BufferData(indices->data(), indices->size(), indices->size() * sizeof(indices->at(0)), sizeof(indices->at(0))), 
+		BufferDesc());
+
+	m_ConstBuffer.Create(pDeviceCtx, &m_cbData);
 
 	delete vertices;
 	delete indices;
@@ -141,8 +164,6 @@ void ImageBasedLighting::CreateCubeTexture(DeviceContext* pDeviceCtx, ID3D12Root
 		};
 	dispatch(commandList);
 	
-	//commandList->Dispatch(1024 / 32, 1024 / 32, 6);
-
 	m_OutputResource = TextureUtils::CreateResource(pDeviceCtx->GetDevice(), TextureDesc(), { 1024, 1024, 6, DXGI_FORMAT_R16G16B16A16_FLOAT });
 	m_OutputResource.Get()->SetName(L"[Image Based Lighting] TextureCube Resource");
 
@@ -214,8 +235,6 @@ void ImageBasedLighting::CreateIrradiance(DeviceContext* pDeviceCtx, ID3D12RootS
 		};
 	dispatch(pDeviceCtx->GetCommandList());
 
-	
-
 	pDeviceCtx->ExecuteCommandList(true);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
@@ -270,6 +289,7 @@ void ImageBasedLighting::CreateSpecular(DeviceContext* pDeviceCtx, ID3D12RootSig
 	dispatch(pDeviceCtx->GetCommandList());
 	
 	pDeviceCtx->ExecuteCommandList(true);
+
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
@@ -278,7 +298,6 @@ void ImageBasedLighting::CreateSpecular(DeviceContext* pDeviceCtx, ID3D12RootSig
 	pDeviceCtx->GetDevice()->CreateShaderResourceView(m_SpecularMap.Get(), &srvDesc, m_SpecularDescriptor.GetCPU());
 
 	SAFE_DELETE(pipelineState);
-
 }
 
 void ImageBasedLighting::CreateSpecularBRDF(DeviceContext* pDeviceCtx, ID3D12RootSignature* pComputeRoot)
@@ -314,8 +333,8 @@ void ImageBasedLighting::CreateSpecularBRDF(DeviceContext* pDeviceCtx, ID3D12Roo
 		pCommandList->SetComputeRootDescriptorTable(1, m_SpBRDFDescriptor.GetGPU());
 		pCommandList->Dispatch(256 / 32, 256 / 32, 6);
 
-		const auto toGeneric{ CD3DX12_RESOURCE_BARRIER::Transition(m_SpecularBRDF_LUT.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_GENERIC_READ) };
-		pCommandList->ResourceBarrier(1, &toGeneric);
+		const auto toCommon{ CD3DX12_RESOURCE_BARRIER::Transition(m_SpecularBRDF_LUT.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON) };
+		pCommandList->ResourceBarrier(1, &toCommon);
 		};
 	dispatch(pDeviceCtx->GetCommandList());
 
@@ -329,7 +348,6 @@ void ImageBasedLighting::CreateSpecularBRDF(DeviceContext* pDeviceCtx, ID3D12Roo
 	pDeviceCtx->GetDevice()->CreateShaderResourceView(m_SpecularBRDF_LUT.Get(), &srvDesc, m_SpBRDFDescriptor.GetCPU());
 
 	SAFE_DELETE(pipelineState);
-
 }
 
 void ImageBasedLighting::Draw(Camera* pCamera, uint32_t FrameIndex)
@@ -349,9 +367,11 @@ void ImageBasedLighting::Draw(Camera* pCamera, uint32_t FrameIndex)
 void ImageBasedLighting::UpdateWorld(Camera* pCamera)
 {
 	m_WorldMatrix = XMMatrixIdentity();
-	m_Translation = XMVectorSet(DirectX::XMVectorGetX(pCamera->GetPosition()),
+	m_Translation = XMVectorSet(
+		DirectX::XMVectorGetX(pCamera->GetPosition()),
 		DirectX::XMVectorGetY(pCamera->GetPosition()),
-		DirectX::XMVectorGetZ(pCamera->GetPosition()), 0.0f);
+		DirectX::XMVectorGetZ(pCamera->GetPosition()), 
+		0.0f);
 
 	m_WorldMatrix = XMMatrixScalingFromVector(m_Scale) * XMMatrixTranslationFromVector(m_Translation);
 }
