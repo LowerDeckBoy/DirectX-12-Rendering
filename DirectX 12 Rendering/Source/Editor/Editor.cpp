@@ -44,7 +44,6 @@ void Editor::Initialize(DeviceContext* pDevice, Camera* pCamera)
 
 	constexpr float fontSize{ 16.0f };
 	m_MainFont = IO.Fonts->AddFontFromFileTTF("Assets/Fonts/CascadiaCode-Bold.ttf", fontSize);
-	//m_MainFont = IO.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\CascadiaCode.ttf", fontSize);
 
 }
 
@@ -53,7 +52,7 @@ void Editor::Begin()
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplDX12_NewFrame();
 	ImGui::NewFrame();
-	//ImGui::PushFont(m_MainFont);
+	ImGui::PushFont(m_MainFont);
 }
 
 void Editor::End(ID3D12GraphicsCommandList* pCommandList)
@@ -66,12 +65,6 @@ void Editor::End(ID3D12GraphicsCommandList* pCommandList)
 
 		ImGui::MenuItem("File");
 		ImGui::MenuItem("Window");
-		ImGui::MenuItem("Log", nullptr, &bShowLogs);
-		// TODO:
-		if (bShowLogs)
-		{
-			Logs();
-		}
 
 		const float rightSideAlignment { region.x - 430.f };
 		ImGui::SetCursorPosX(rightSideAlignment);
@@ -80,11 +73,6 @@ void Editor::End(ID3D12GraphicsCommandList* pCommandList)
 		ImGui::Text("FPS: %d ms: %.2f | Memory: %.3f MB | VRAM: %u MB", Timer::m_FPS, Timer::m_Miliseconds, MemoryUsage::MemoryInUse, VRAM);
 
 		ImGui::EndMainMenuBar();
-	}
-
-	// Main Window
-	{
-
 	}
 
 	// Side panel
@@ -104,24 +92,11 @@ void Editor::End(ID3D12GraphicsCommandList* pCommandList)
 		ImGui::End();
 	}
 
-	//ImGui::PopFont();
+	ImGui::PopFont();
 	ImGui::EndFrame();
 	ImGui::Render();
 
-	//if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-	//{
-	//	ImGui::UpdatePlatformWindows();
-	//	ImGui::RenderPlatformWindowsDefault();
-	//}
-
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
-}
-
-void Editor::Logs()
-{
-	ImGui::Begin("Logs");
-
-	ImGui::End();
 }
 
 void Editor::Release()
