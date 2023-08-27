@@ -1,8 +1,8 @@
 #pragma once
 #include "../Core/DeviceContext.hpp"
-#include "../Graphics/Buffer.hpp"
-#include "../Graphics/ConstantBuffer.hpp"
-#include "Vertex.hpp"
+#include "Buffer/Buffer.hpp"
+#include "Buffer/ConstantBuffer.hpp"
+#include "Buffer/Vertex.hpp"
 
 class Camera;
 class Texture;

@@ -47,9 +47,7 @@ void Model::Draw(Camera* pCamera)
 	for (size_t i = 0; i < m_Meshes.size(); i++)
 	{
 		const auto frameIndex{ m_Device->FRAME_INDEX };
-		// World transformations
-		//UpdateWorld();
-		// Constant buffers
+
 		m_cbPerObject->Update({ XMMatrixTranspose(m_Meshes.at(i)->Matrix * m_WorldMatrix * pCamera->GetViewProjection()),
 								XMMatrixTranspose(m_WorldMatrix) }, frameIndex);
 		m_Device->GetCommandList()->SetGraphicsRootConstantBufferView(0, m_cbPerObject->GetBuffer(frameIndex)->GetGPUVirtualAddress());
@@ -71,7 +69,7 @@ void Model::Draw(Camera* pCamera)
 											currentMaterial->NormalIndex, 
 											currentMaterial->MetallicRoughnessIndex, 
 											currentMaterial->EmissiveIndex };
-		m_Device->GetCommandList()->SetGraphicsRoot32BitConstants(5, sizeof(indices) / 4, &indices, 0);
+		m_Device->GetCommandList()->SetGraphicsRoot32BitConstants(5, sizeof(indices) / sizeof(int32_t), &indices, 0);
 
 		if (m_Meshes.at(i)->bHasIndices)
 		{

@@ -22,8 +22,7 @@ namespace files
 		}
 
 		inline std::string GetAbsolutePath(const std::string& Filename) {
-			auto _path = "../" + Filename;
-			return absolute(std::filesystem::path(_path)).string();
+			return absolute(std::filesystem::path("../" + Filename)).string();
 		}
 		//+ "/"
 		inline std::string GetTexturePath(const std::string& Filename, const std::string& TextureName) {

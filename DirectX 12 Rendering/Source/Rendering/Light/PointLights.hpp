@@ -1,6 +1,6 @@
 #pragma once
 #include "../../Core/DeviceContext.hpp"
-#include "../../Graphics/ConstantBuffer.hpp"
+#include "../../Graphics/Buffer/ConstantBuffer.hpp"
 
 
 struct cbLightShadows

@@ -1,7 +1,7 @@
 #pragma once
 #include "Importer.hpp"
-#include "../../Graphics/Buffer.hpp"
-#include "../../Graphics/ConstantBuffer.hpp"
+#include "../../Graphics/Buffer/Buffer.hpp"
+#include "../../Graphics/Buffer/ConstantBuffer.hpp"
 #include <memory>
 #include <array>
 

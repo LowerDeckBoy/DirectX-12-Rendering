@@ -99,7 +99,7 @@ void Texture::CreateFromWIC(DeviceContext* pDevice, const std::string_view& Text
 	auto finish{ upload.End(pDevice->GetCommandQueue()) };
 	finish.wait();
 
-	pDevice->ExecuteCommandList(true);
+	//pDevice->ExecuteCommandList(true);
 }
 
 void Texture::CreateFromDDS(DeviceContext* pDevice, const std::string_view& TexturePath)

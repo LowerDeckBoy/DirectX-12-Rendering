@@ -1,6 +1,6 @@
 #pragma once
 #include "../../Graphics/Texture.hpp"
-#include "../../Graphics/Vertex.hpp"
+#include "../../Graphics/Buffer/Vertex.hpp"
 #include <DirectXMath.h>
 using namespace DirectX;
 
@@ -47,8 +47,6 @@ namespace model
 		int32_t MetallicRoughnessIndex	{ -1 };
 		int32_t EmissiveIndex			{ -1 };
 	};
-
-	
 
 	struct Mesh
 	{

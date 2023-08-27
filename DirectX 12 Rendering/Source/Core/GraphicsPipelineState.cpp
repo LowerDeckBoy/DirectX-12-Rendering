@@ -1,7 +1,7 @@
 #include "../Graphics/Shader.hpp"
 #include "../Graphics/ShaderManager.hpp"
 #include "GraphicsPipelineState.hpp"
-#include "../Utilities/Utilities.hpp"
+#include "Utilities.hpp"
 #include "../Utilities/Logger.hpp"
 //#include "../Core/DeviceContext.hpp"
 
@@ -62,15 +62,13 @@ void PSOBuilder::Create(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignatu
 	desc.NumRenderTargets = 1;
 	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	//desc.PrimitiveTopologyType = (m_DomainShader ? D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH : D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	desc.PrimitiveTopologyType = (m_DomainShader ? D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH : D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	desc.SampleDesc = { 1, 0 };
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
 	rootDesc.Init_1_1(static_cast<uint32_t>(m_Parameters.size()), m_Parameters.data(), 1, &m_StaticSampler, m_RootFlags);
 
 	ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(ppTarget)), "Failed to create PipelineState!");
-	//ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&desc, __uuidof(ID3D12PipelineState), (void**)ppTarget.GetAddressOf()), "Failed to create PipelineState!");
 
 	if (DebugName)
 		(*ppTarget)->SetName(DebugName);
@@ -146,24 +144,24 @@ void PSOBuilder::AddShaders(const std::string_view& VertexPath, const std::strin
 	m_VertexShader = nullptr;
 	m_PixelShader = nullptr;
 	
-	m_VertexShader = m_ShaderManager->CreateDXIL(VertexPath, L"vs_6_0");
-	m_PixelShader = m_ShaderManager->CreateDXIL(PixelPath, L"ps_6_0");
+	m_VertexShader = m_ShaderManager->CreateDXIL(VertexPath, ShaderType::eVertex);
+	m_PixelShader = m_ShaderManager->CreateDXIL(PixelPath, ShaderType::ePixel);
 
 }
 
 void PSOBuilder::AddGeometryShader(const std::string_view& GeometryPath)
 {
-	m_GeometryShader = m_ShaderManager->CreateDXIL(GeometryPath, L"gs_6_0");
+	m_GeometryShader = m_ShaderManager->CreateDXIL(GeometryPath, ShaderType::eGeometry);
 }
 
 void PSOBuilder::AddDomainShader(const std::string_view& DomainPath)
 {
-	m_DomainShader = m_ShaderManager->CreateDXIL(DomainPath, L"ds_6_0");
+	m_DomainShader = m_ShaderManager->CreateDXIL(DomainPath, ShaderType::eDomain);
 }
 
 void PSOBuilder::AddHullShader(const std::string_view& HullPath)
 {
-	m_HullShader = m_ShaderManager->CreateDXIL(HullPath, L"ds_6_0");
+	m_HullShader = m_ShaderManager->CreateDXIL(HullPath, ShaderType::eHull);
 }
 
 void PSOBuilder::SetRasterizerState(CD3DX12_RASTERIZER_DESC RasterizerState)
