@@ -9,6 +9,7 @@
 bool Renderer::bVsync	  = true;
 bool Renderer::bDrawSky   = true;
 bool Renderer::bDeferred  = true;
+bool Renderer::bRaytrace  = false;
 
 Renderer::~Renderer()
 {
@@ -19,20 +20,22 @@ void Renderer::Initialize(Camera* pCamera)
 {
 	m_DeviceCtx = std::make_unique<DeviceContext>();
 	m_DeviceCtx->Initialize();
+
 	m_GUI = std::make_unique<Editor>();
 	m_GUI->Initialize(m_DeviceCtx.get(), pCamera);
 
 	assert(m_Camera = pCamera);
 
 	m_ShaderManager = std::make_shared<ShaderManager>();
-
-	CreateShadowMap();
+	
 	InitPipelines();
 
 	m_DeferredCtx = std::make_unique<DeferredContext>(m_DeviceCtx.get(), m_ShaderManager.get(), m_ModelRootSignature.Get());
 
 	PreRender();
 	LoadAssets();
+
+	//m_RaytracingContext = std::make_unique<RaytracingContext>(m_DeviceCtx.get(), m_ShaderManager.get(), m_Camera, m_Models);
 
 	m_DeviceCtx->ExecuteCommandList();
 
@@ -51,12 +54,13 @@ void Renderer::LoadAssets()
 	
 	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/sponza/Sponza.gltf", "Sponza"));
 	m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/damaged_helmet/scene.gltf", "Helmet"));
+	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/MetalRoughSpheres/MetalRoughSpheres.gltf", "Ligma"));
 
 	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/ice_cream_man/scene.gltf", "ice_cream_man"));
 	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/sponza/Sponza.gltf");
 	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/damaged_helmet/scene.gltf", "Helmet");
 
-	//m_Model = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/mathilda/scene.gltf");
+	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/mathilda/scene.gltf"));
 	//m_Model2 = std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/damaged_helmet/scene.gltf", "Sponza");
 
 	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/resto_ni_teo/scene.gltf", "resto_ni_teo"));
@@ -136,8 +140,10 @@ void Renderer::Forward()
 	ClearRenderTarget();
 	ClearDepthStencil();
 
-	m_DeviceCtx->GetCommandList()->SetPipelineState(SetPSO(m_SelectedPSO));
-	SwitchPSO();
+	SetPipelineState(m_IBLPipelineState.Get());
+	//SetRootSignature(m_ModelRootSignature.Get());
+	//m_DeviceCtx->GetCommandList()->SetPipelineState(SetPSO(m_SelectedPSO));
+	//SwitchPSO();
 
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_DeviceCtx->GetDepthDescriptor().GetGPU());
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(7, m_IBL->m_OutputDescriptor.GetGPU());
@@ -153,7 +159,7 @@ void Renderer::Forward()
 void Renderer::Deferred()
 {
 	const CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle(m_DeviceCtx->GetDepthHeap()->GetCPUDescriptorHandleForHeapStart());
-	m_DeviceCtx->GetCommandList()->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	m_DeviceCtx->GetCommandList()->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, D3D12_MAX_DEPTH, 0, 0, nullptr);
 	
 	m_DeferredCtx->PassGBuffer(m_Camera, m_cbCamera.get(), m_Models);
 	m_DeferredCtx->DrawDeferredTargets();
@@ -197,6 +203,9 @@ void Renderer::OnResize()
 {
 	m_DeviceCtx->OnResize();
 	m_DeferredCtx->OnResize();
+	
+	if (m_RaytracingContext.get())
+		m_RaytracingContext->OnResize();
 
 	m_DeviceCtx->WaitForGPU();
 	m_DeviceCtx->FlushGPU();
@@ -286,8 +295,6 @@ ID3D12PipelineState* Renderer::SetPSO(int32_t Selected) noexcept
 		return m_IBLPipelineState.Get();
 	case 1:
 		return m_PBRPipelineState.Get();
-	case 2:
-		return m_ShadowsPipelineState.Get();
 	default:
 		return m_IBLPipelineState.Get();
 	}
@@ -300,7 +307,6 @@ void Renderer::SwitchPSO()
 	const std::array<const char*, 3> PSOs{
 		"Image Based Lighting",
 		"PBR",
-		"Shadows - TEST"
 	};
 
 	ImGui::ListBox("PSO", &Renderer::m_SelectedPSO, PSOs.data(), static_cast<int32_t>(PSOs.size()));
@@ -339,16 +345,16 @@ void Renderer::InitPipelines()
 		params.at(2).InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 		params.at(3).InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 		// Bindless
-		params.at(4).InitAsDescriptorTable(1, &ranges.at(0), D3D12_SHADER_VISIBILITY_ALL);
+		params.at(4).InitAsDescriptorTable(1, &ranges.at(0), D3D12_SHADER_VISIBILITY_PIXEL);
 		// Material indices
 		params.at(5).InitAsConstants(4 * sizeof(int32_t), 0, 2);
 		// Depth Texture
 		params.at(6).InitAsDescriptorTable(1, &ranges.at(1));
 		// Sky Texture references
-		params.at(7).InitAsDescriptorTable(1, &ranges.at(2), D3D12_SHADER_VISIBILITY_ALL);
-		params.at(8).InitAsDescriptorTable(1, &ranges.at(3), D3D12_SHADER_VISIBILITY_ALL);
-		params.at(9).InitAsDescriptorTable(1, &ranges.at(4), D3D12_SHADER_VISIBILITY_ALL);
-		params.at(10).InitAsDescriptorTable(1, &ranges.at(5), D3D12_SHADER_VISIBILITY_ALL);
+		params.at(7).InitAsDescriptorTable(1, &ranges.at(2),  D3D12_SHADER_VISIBILITY_PIXEL);
+		params.at(8).InitAsDescriptorTable(1, &ranges.at(3),  D3D12_SHADER_VISIBILITY_PIXEL);
+		params.at(9).InitAsDescriptorTable(1, &ranges.at(4),  D3D12_SHADER_VISIBILITY_PIXEL);
+		params.at(10).InitAsDescriptorTable(1, &ranges.at(5), D3D12_SHADER_VISIBILITY_PIXEL);
 	}
 
 	auto layout{ PSOUtils::CreateInputLayout() };
@@ -363,6 +369,7 @@ void Renderer::InitPipelines()
 		builder->AddRootFlags(rootFlags);
 		builder->AddInputLayout(layout);
 		builder->AddSampler(0);
+		builder->SetCullMode(D3D12_CULL_MODE_BACK);
 
 		builder->CreateRootSignature(m_DeviceCtx->GetDevice(), m_ModelRootSignature.ReleaseAndGetAddressOf(), L"Model Root Signature");
 
@@ -397,60 +404,6 @@ void Renderer::InitPipelines()
 		builder->Reset();
 	}
 
-	// Deferred Root Signature
-	{
-		std::vector<CD3DX12_DESCRIPTOR_RANGE1> deferredRanges(10);
-		deferredRanges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-		deferredRanges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-		deferredRanges.at(2).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-		deferredRanges.at(3).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-		deferredRanges.at(4).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-		deferredRanges.at(5).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-		deferredRanges.at(6).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-		deferredRanges.at(7).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-		deferredRanges.at(8).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 8, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-		deferredRanges.at(9).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 9, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-
-		std::vector<CD3DX12_ROOT_PARAMETER1> deferredParams(12);
-		// GBuffer output textures
-		// Base Color
-		deferredParams.at(0).InitAsDescriptorTable(1, &deferredRanges.at(0), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Normal
-		deferredParams.at(1).InitAsDescriptorTable(1, &deferredRanges.at(1), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Metallic
-		deferredParams.at(2).InitAsDescriptorTable(1, &deferredRanges.at(2), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Emissive
-		deferredParams.at(3).InitAsDescriptorTable(1, &deferredRanges.at(3), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Positions
-		deferredParams.at(4).InitAsDescriptorTable(1, &deferredRanges.at(4), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Depth
-		deferredParams.at(5).InitAsDescriptorTable(1, &deferredRanges.at(5), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Skybox
-		deferredParams.at(6).InitAsDescriptorTable(1, &deferredRanges.at(6), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Image Based Lighting
-		deferredParams.at(7).InitAsDescriptorTable(1, &deferredRanges.at(7), D3D12_SHADER_VISIBILITY_PIXEL);
-		deferredParams.at(8).InitAsDescriptorTable(1, &deferredRanges.at(8), D3D12_SHADER_VISIBILITY_PIXEL);
-		deferredParams.at(9).InitAsDescriptorTable(1, &deferredRanges.at(9), D3D12_SHADER_VISIBILITY_PIXEL);
-		// CBVs
-		deferredParams.at(10).InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
-		deferredParams.at(11).InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
-
-		builder->AddRanges(deferredRanges);
-		builder->AddParameters(deferredParams);
-		builder->AddSampler(0);
-		//builder->CreateRootSignature(m_DeviceCtx->GetDevice(), m_DeferredRootSignature.GetAddressOf(), L"Deferred Root Signature");
-
-		// Light Matrices for Shadows
-		CD3DX12_ROOT_PARAMETER1 param{}; 
-		param.InitAsConstantBufferView(2, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
-		deferredParams.push_back(param);
-		builder->CreateRootSignature(m_DeviceCtx->GetDevice(), m_ShadowsRootSignature.ReleaseAndGetAddressOf(), L"Shadows Root Signature");
-
-		builder->Reset();
-		deferredRanges.clear();
-		deferredParams.clear();
-	}
-
 	builder->Reset();
 	builder = nullptr;
 	delete builder;
@@ -458,11 +411,6 @@ void Renderer::InitPipelines()
 
 void Renderer::Release()
 {
-	// Shadows - temporal
-	SAFE_RELEASE(m_ShadowMap);
-	SAFE_RELEASE(m_ShadowsPipelineState);
-	SAFE_RELEASE(m_ShadowsRootSignature);
-
 	// PSO
 	SAFE_RELEASE(m_SkyboxRootSignature);
 	SAFE_RELEASE(m_SkyboxPipelineState);
@@ -478,98 +426,8 @@ void Renderer::Release()
 	Logger::Log("Renderer released.");
 }
 
-void Renderer::PassShadows(Camera* pCamera)
-{
-
-	SetPipelineState(m_ShadowsPipelineState.Get());
-	SetRootSignature(m_ShadowsRootSignature.Get());
-
-	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(1, m_PointLights->m_cbLightData->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
-
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(0, m_RTSRVDescs.at(0).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(1, m_RTSRVDescs.at(1).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(2, m_RTSRVDescs.at(2).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(3, m_RTSRVDescs.at(3).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(4, m_RTSRVDescs.at(4).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(5, m_DeviceCtx->GetDepthDescriptor().GetGPU());
-	////m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(5, m_ShadowMapDescriptor.GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_IBL->m_OutputDescriptor.GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(7, m_IBL->m_IrradianceDescriptor.GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(8, m_IBL->m_SpecularDescriptor.GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(9, m_IBL->m_SpBRDFDescriptor.GetGPU());
-
-
-	//m_ScreenQuad->Draw(m_DeviceCtx->GetCommandList());
-
-
-}
-
 void Renderer::DrawGUI()
 {
 	m_PointLights->DrawGUI();
-
-}
-
-void Renderer::CreateShadowMap()
-{
-	D3D12_RESOURCE_DESC desc{};
-	desc.Width	= static_cast<uint64_t>(m_DeviceCtx->GetViewport().Width);
-	desc.Height = static_cast<uint32_t>(m_DeviceCtx->GetViewport().Height);
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	desc.Format = DXGI_FORMAT_R32_TYPELESS;
-	desc.DepthOrArraySize = 1;
-	desc.MipLevels = 1;
-	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	desc.SampleDesc = { 1, 0 };
-
-	D3D12_CLEAR_VALUE clearValue{};
-	clearValue.Format = DXGI_FORMAT_D32_FLOAT;
-	clearValue.DepthStencil.Depth = 1.0f;
-	clearValue.DepthStencil.Stencil = 0;
-
-	const auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
-	ThrowIfFailed(m_DeviceCtx->GetDevice()->CreateCommittedResource(
-		&heapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		&clearValue,
-		IID_PPV_ARGS(m_ShadowMap.ReleaseAndGetAddressOf())));
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
-	//https://www.gamedev.net/forums/topic/701041-shadow-mapping-with-directx-12/
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsView{};
-	dsView.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
-	dsView.Format = DXGI_FORMAT_D32_FLOAT;
-	dsView.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	dsView.Texture2D.MipSlice = 0;
-
-	m_DeviceCtx->GetMainHeap()->Allocate(m_ShadowMapDescriptor);
-	//
-	//CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_DeviceCtx->GetDepthHeap()->GetCPUDescriptorHandleForHeapStart(), 2, 32);
-	//handle.Offset(1, 32);
-	//m_DeviceCtx->GetDevice()->CreateDepthStencilView(m_ShadowMap.Get(), &dsView, handle);
-	m_DeviceCtx->GetDevice()->CreateDepthStencilView(m_ShadowMap.Get(), &dsView, m_DeviceCtx->GetDepthHeap()->GetCPUDescriptorHandleForHeapStart());
-
-	m_DeviceCtx->GetDevice()->CreateShaderResourceView(m_ShadowMap.Get(), &srvDesc, m_ShadowMapDescriptor.GetCPU());
-
-	//
-	m_ShadowScrissor.left	= 0L;
-	m_ShadowScrissor.top	= 0L;
-	m_ShadowScrissor.right	= static_cast<uint64_t>(m_DeviceCtx->GetViewport().Width);
-	m_ShadowScrissor.bottom = static_cast<uint64_t>(m_DeviceCtx->GetViewport().Height);
-
-	m_ShadowViewport.TopLeftX = 0.0f;
-	m_ShadowViewport.TopLeftY = 0.0f;
-	m_ShadowViewport.Width = static_cast<float>(Window::GetDisplay().Width);
-	m_ShadowViewport.Height = static_cast<float>(Window::GetDisplay().Height);
-	m_ShadowViewport.MinDepth = 0.0f;
-	m_ShadowViewport.MaxDepth = 1.0f;
 
 }

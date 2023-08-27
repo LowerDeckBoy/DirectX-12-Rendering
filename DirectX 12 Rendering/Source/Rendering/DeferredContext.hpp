@@ -1,6 +1,6 @@
 #pragma once
 #include <d3d12.h>
-#include "../Graphics/ConstantBuffer.hpp"
+#include "../Graphics/Buffer/ConstantBuffer.hpp"
 #include "ScreenQuad.hpp"
 
 class DeviceContext;
@@ -26,6 +26,7 @@ public:
 
 	void PassGBuffer(Camera* pCamera, ConstantBuffer<SceneConstData>* CameraCB, std::vector<std::unique_ptr<Model>>& Models);
 	void PassLight(Camera* pCamera, ConstantBuffer<SceneConstData>* CameraCB, ImageBasedLighting* pIBL, PointLights* pPointLights);
+	void PassShadows(Camera* pCamera, ConstantBuffer<SceneConstData>* CameraCB, PointLights* pPointLights);
 
 	// GUI
 	void DrawDeferredTargets();
@@ -39,6 +40,7 @@ public:
 
 	std::array<ComPtr<ID3D12Resource>, RenderTargetsCount> m_RenderTargets;
 	std::array<CD3DX12_CPU_DESCRIPTOR_HANDLE, RenderTargetsCount> m_RenderTargetDescriptors;
+	// Shader Resource Views
 	std::array<Descriptor, RenderTargetsCount> m_ShaderDescriptors;
 
 private:
@@ -54,6 +56,7 @@ private:
 	DXGI_FORMAT m_DepthFormat{ DXGI_FORMAT_D32_FLOAT };
 
 	ComPtr<ID3D12RootSignature> m_RootSignature;
+	ComPtr<ID3D12RootSignature> m_ShadowRootSignature;
 	ComPtr<ID3D12PipelineState> m_PipelineState;
 	ComPtr<ID3D12PipelineState> m_LightPipelineState;
 
@@ -65,4 +68,13 @@ private:
 		DXGI_FORMAT_R32G32B32A32_FLOAT,		// World Position
 		DXGI_FORMAT_R8G8B8A8_UNORM			// Depth
 	};
+
+	// TEST
+	
+	void CreateShadowMap();
+	ComPtr<ID3D12Resource> m_ShadowMap;
+	Descriptor m_ShadowMapDescriptor;
+	D3D12_VIEWPORT m_ShadowViewport{};
+	D3D12_RECT m_ShadowScrissor{};
+	
 };

@@ -2,11 +2,11 @@
 #include "DeviceContext.hpp"
 #include <memory>
 #include "../Graphics/ShaderManager.hpp"
-#include "../Graphics/ConstantBuffer.hpp"
+#include "../Graphics/Buffer/ConstantBuffer.hpp"
 #include "../Editor/Editor.hpp"
 #include "../Rendering/Model/Model.hpp"
 #include "../Rendering/DeferredContext.hpp"
-//#include "../Graphics/Skybox.hpp"
+#include "../Raytracing/RaytracingContext.hpp"
 #include "../Graphics/ImageBasedLighting.hpp"
 #include "../Rendering/Light/PointLights.hpp"
 
@@ -74,7 +74,7 @@ private:
 	static inline int m_SelectedPSO{ 0 };
 	
 	void SwitchPSO();
-	// TODO: Requires some cleanup
+
 	void InitPipelines();
 
 	std::vector<std::unique_ptr<Model>> m_Models;
@@ -91,7 +91,6 @@ private:
 	// Deferred Context
 	std::unique_ptr<DeferredContext> m_DeferredCtx;
 
-	void PassShadows(Camera* pCamera);
 	// Deferred CBVs
 	// Camera Scene data
 	std::unique_ptr<ConstantBuffer<SceneConstData>> m_cbCamera;
@@ -100,19 +99,14 @@ private:
 	void DrawGUI();
 
 	std::unique_ptr<PointLights> m_PointLights;
-	//TEST
-	ComPtr<ID3D12RootSignature> m_ShadowsRootSignature;
-	ComPtr<ID3D12PipelineState> m_ShadowsPipelineState;
 
-	void CreateShadowMap();
-	ComPtr<ID3D12Resource> m_ShadowMap;
-	Descriptor m_ShadowMapDescriptor;
-	D3D12_VIEWPORT m_ShadowViewport{};
-	D3D12_RECT m_ShadowScrissor{};
+	// TODO: RT
+	std::unique_ptr<RaytracingContext> m_RaytracingContext;
 
 public:
 	static bool bVsync;
 	static bool bDrawSky;
 	static bool bDeferred;
+	static bool bRaytrace;
 
 };
