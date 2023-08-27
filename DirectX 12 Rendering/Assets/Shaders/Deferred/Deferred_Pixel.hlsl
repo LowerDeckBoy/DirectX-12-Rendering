@@ -34,7 +34,7 @@ TextureCube IrradianceTexture           : register(t7, space2);
 TextureCube SpecularTexture             : register(t8, space2);
 Texture2D<float4> SpecularBRDFTexture   : register(t9, space2);
 
-SamplerState texSampler : register(s0);
+SamplerState texSampler : register(s0, space0);
 
 //https://learnopengl.com/Guest-Articles/2022/Area-Lights
 //https://learnopengl.com/Advanced-Lighting/SSAO
@@ -58,7 +58,7 @@ float4 main(ScreenQuadOutput pin) : SV_TARGET
     float3 metalRoughness = MetalRoughnessTexture.Load(int3(position, 0)).rgb;
     float3 emissive = EmissiveTexture.Load(int3(position, 0)).xyz;
     
-    float3 N = normalize(normal.rgb);
+    float3 N = normal.rgb;
     float3 V = normalize(CameraPosition.xyz - positions);
     
     float NdotV = saturate(max(dot(N, V), Epsilon));
@@ -98,23 +98,22 @@ float4 main(ScreenQuadOutput pin) : SV_TARGET
     }
 
     float3 ambient = float3(0.03f, 0.03f, 0.03f) * albedo.rgb * float3(1.0f, 1.0f, 1.0f);
-    float3 output = (ambient.rgb + Lo);
+    float3 output = ambient + Lo;
 
     float3 ambientLighting = float3(0.0f, 0.0f, 0.0f);
     {
-
         float3 F = GetFresnelSchlick(NdotV, F0);
         float3 kS = F;
         float3 kD = lerp(float3(1.0f, 1.0f, 1.0f) - kS, float3(0.0f, 0.0f, 0.0f), metalRoughness.b);
         kD *= (1.0f - metalRoughness.b);
         
         float3 irradiance = IrradianceTexture.Sample(texSampler, N).rgb;
-        float3 diffuseIBL = kD * albedo.rgb * irradiance;
+        float3 diffuseIBL = (kD * irradiance);
 
         float3 specular = SpecularTexture.SampleLevel(texSampler, Lr, metalRoughness.g).rgb;
         float2 specularBRDF = SpecularBRDFTexture.Sample(texSampler, float2(NdotV, metalRoughness.g)).rg;
         float3 specularIBL = (F0 * specularBRDF.x + specularBRDF.y) * specular;
-        
+
         ambientLighting = (diffuseIBL + specularIBL) * metalRoughness.b;
     }
    
@@ -124,7 +123,6 @@ float4 main(ScreenQuadOutput pin) : SV_TARGET
     }
 
     // Gamma correction
-    //output += ambientLighting;
     output = output / (output + float3(1.0f, 1.0f, 1.0f));
     output = lerp(output, pow(output, 1.0f / 2.2f), 0.4f);
 

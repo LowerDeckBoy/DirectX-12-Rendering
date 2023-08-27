@@ -29,8 +29,8 @@ GBuffer_Output main(DeferredOutput pin)
         if (output.Albedo.a < AlphaCutoff)
             discard;
         
-        clip(output.Albedo.a - 0.1f);
-        output.Albedo = output.Albedo * BaseColorFactor;
+        //clip(output.Albedo.a - 0.1f);
+        output.Albedo = output.Albedo;
     }
     else
     {
@@ -45,7 +45,11 @@ GBuffer_Output main(DeferredOutput pin)
         float3x3 texSpace = float3x3(tangent, bitangent, pin.Normal);
         output.Normal = float4(normalize(mul(normalMap.xyz, texSpace)), normalMap.w);
     }
-
+    else
+    {
+        output.Normal = float4(pin.Normal, 1.0f);
+    }
+    
     if (Indices.MetallicRoughnessIndex >= 0)
     {
         float4 metallic = bindless_textures[Indices.MetallicRoughnessIndex].Sample(texSampler, pin.TexCoord);
@@ -54,7 +58,7 @@ GBuffer_Output main(DeferredOutput pin)
         output.Metallic = metallic;
     }
     else
-        output.Metallic = float4(0.0f, 0.0f, 0.0f, 1.0f);
+        output.Metallic = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
     if (Indices.EmissiveIndex >= 0)
     {

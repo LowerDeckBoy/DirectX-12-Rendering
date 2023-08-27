@@ -1,5 +1,5 @@
-#ifndef SCREENQUAD_HLSL
-#define SCREENQUAD_HLSL
+#ifndef DEFERRED_VERTEX_HLSL
+#define DEFERRED_VERTEX_HLSL
 
 #include "Deferred_Lighting.hlsli"
 
@@ -13,4 +13,4 @@ ScreenQuadOutput main(ScreenQuadInput vin)
     return output;
 }
 
-#endif // SCREENQUAD_HLSL
+#endif // DEFERRED_VERTEX_HLSL

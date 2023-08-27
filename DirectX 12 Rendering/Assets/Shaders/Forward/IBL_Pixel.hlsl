@@ -23,7 +23,6 @@ cbuffer cbLights : register(b1, space1)
 {
     float4 LightPositions[4];
     float4 LightColors[4];
-    float lightsPadding[32];
 }
 
 ConstantBuffer<MaterialIndices> Indices : register(b0, space2);
@@ -39,8 +38,6 @@ Texture2D<float4> SpecularBRDFTexture   : register(t8, space0);
 
 float4 main(PS_INPUT pin) : SV_TARGET
 {
-    float3 output = float3(0.0f, 0.0f, 0.0f);
-
     float4 baseColor = BaseColorFactor;
     if (Indices.BaseColorIndex >= 0)
     {
@@ -48,10 +45,9 @@ float4 main(PS_INPUT pin) : SV_TARGET
         if (diffuse.a < AlphaCutoff)
             discard;
         
+        clip(diffuse.a - 0.1f);
         baseColor = pow(diffuse * BaseColorFactor, 2.2f);
     }
-
-    output = baseColor.rgb;
 
     float metalness = 0.0f;
     float roughness = 0.0f;
@@ -62,15 +58,20 @@ float4 main(PS_INPUT pin) : SV_TARGET
         roughness = TexturesTable[Indices.MetallicRoughnessIndex].Sample(texSampler, pin.TexCoord).g * RoughnessFactor;
     }
 
-    float3 normalMap = normalize(2.0f * TexturesTable[Indices.NormalIndex].Sample(texSampler, pin.TexCoord).rgb - 1.0f);
-    float3 tangent = normalize(pin.Tangent - dot(pin.Tangent, pin.Normal) * pin.Normal);
-    float3 bitangent = cross(pin.Normal, tangent);
-    float3x3 texSpace = float3x3(tangent, bitangent, pin.Normal);
-    pin.Normal = normalize(mul(normalMap.xyz, texSpace));
-
+    if (Indices.NormalIndex >= 0)
+    {
+        float3 normalMap = normalize(2.0f * TexturesTable[Indices.NormalIndex].Sample(texSampler, pin.TexCoord).rgb - 1.0f);
+        float3 tangent = normalize(pin.Tangent - dot(pin.Tangent, pin.Normal) * pin.Normal);
+        float3 bitangent = cross(pin.Normal, tangent);
+        float3x3 texSpace = float3x3(tangent, bitangent, pin.Normal);
+        
+        pin.Normal = normalize(mul(normalMap.xyz, texSpace));
+    }
+    
     float3 N = pin.Normal;
     float3 V = normalize(CameraPosition - pin.WorldPosition.xyz);
-    float NdotV = max(dot(N, V), 0.0f);
+    
+    float NdotV = saturate(max(dot(N, V), Epsilon));
 
     float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), baseColor.rgb, metalness);
 
@@ -103,52 +104,48 @@ float4 main(PS_INPUT pin) : SV_TARGET
         float denominator = 4.0f * NdotV * NdotL + Epsilon;
         float3 specular = numerator / max(denominator, Epsilon);
 
-        //Lo += (kD * baseColor.rgb / PI + specular) * radiance * NdotL;
-        Lo += (kD * baseColor.rgb + specular) * radiance * NdotL;
+        Lo += (kD * baseColor.rgb / PI + specular) * radiance * NdotL;
     }
  
     float3 ambient = float3(0.03f, 0.03f, 0.03f) * baseColor.rgb * float3(1.0f, 1.0f, 1.0f);
-    output = (ambient + Lo);
-
-    if (Indices.EmissiveIndex >= 0)
-    {
-        float3 emissive = TexturesTable[Indices.EmissiveIndex].Sample(texSampler, pin.TexCoord).rgb * EmissiveFactor.xyz;
-        output += emissive;
-        Lo += emissive;
-    }
-    
-    if (Indices.NormalIndex == -1)
-    {
-        output = baseColor.rgb * baseColor.rgb + Lo;
-        output = output / (output + float3(1.0f, 1.0f, 1.0f));
-        output = lerp(output, pow(output, 1.0f / 2.2f), 0.4f);
-        return float4(output.rgb, 1.0f);
-    }
+    float3 output = (ambient + Lo);
+ 
+    //if (Indices.NormalIndex == -1)
+    //{
+    //    output = baseColor.rgb + Lo;
+    //    output = output / (output + float3(1.0f, 1.0f, 1.0f));
+    //    output = lerp(output, pow(output, 1.0f / 2.2f), 0.4f);
+    //    return float4(output.rgb, 1.0f);
+    //}
     
     float3 ambientLighting = float3(0.0f, 0.0f, 0.0f);
     {
-        float3 irradiance = IrradianceTexture.Sample(texSampler, N).rgb;
-        
         float3 F = GetFresnelSchlick(NdotV, F0);
         float3 kS = F;
         float3 kD = lerp(float3(1.0f, 1.0f, 1.0f) - kS, float3(0.0f, 0.0f, 0.0f), metalness);
         kD *= (1.0f - metalness);
         
-        float3 specular = SpecularTexture.Sample(texSampler, reflection).rgb;
+        float3 irradiance = IrradianceTexture.Sample(texSampler, N).rgb;
+        float3 diffuseIBL = kD * irradiance;
+        
+        float3 specular = SpecularTexture.SampleLevel(texSampler, reflection, roughness).rgb;
         float2 specularBRDF = SpecularBRDFTexture.Sample(texSampler, float2(NdotV, roughness)).rg;
         float3 specularIBL = (F0 * specularBRDF.x + specularBRDF.y) * specular;
         
-        float3 diffuseIBL = kD * baseColor.rgb * irradiance;
         ambientLighting = (diffuseIBL + specularIBL) * metalness;
     }
     
+    if (Indices.EmissiveIndex >= 0)
+    {
+        float3 emissive = TexturesTable[Indices.EmissiveIndex].Sample(texSampler, pin.TexCoord).rgb * EmissiveFactor.xyz;
+        output += emissive;
+    }
+    
     // Gamma correction
-    //output += ambientLighting;
     output = output / (output + float3(1.0f, 1.0f, 1.0f));
     output = lerp(output, pow(output, 1.0f / 2.2f), 0.4f);
 
     return float4(output + ambientLighting, 1.0f);
-    //return float4(output, 1.0f);
 }
 
 #endif // PBR_PIXEL_TEST_HLSL

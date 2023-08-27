@@ -9,7 +9,6 @@ cbuffer cbPerObject : register(b0, space0)
     row_major float4x4 World;
 }
 
-
 DeferredOutput main(DeferredInput vin)
 {
     DeferredOutput output = (DeferredOutput) 0;
