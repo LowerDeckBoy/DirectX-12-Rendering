@@ -1,5 +1,5 @@
 #include "Buffer.hpp"
-#include "../Utilities/Utilities.hpp"
+#include "Utilities.hpp"
 
 
 Buffer::Buffer(DeviceContext* pDevice, BufferData Data, BufferDesc Desc, BufferType TypeOf, bool bSRV)

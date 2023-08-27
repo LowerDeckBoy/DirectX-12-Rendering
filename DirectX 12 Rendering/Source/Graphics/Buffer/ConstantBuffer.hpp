@@ -1,7 +1,6 @@
 #pragma once
-#include "../Core/DeviceContext.hpp"
-#include "../Utilities/Utilities.hpp"
-#include "../Core/DescriptorHeap.hpp"
+#include "../../Core/DeviceContext.hpp"
+#include "Utilities.hpp"
 #include <DirectXMath.h>
 
 using namespace DirectX;
@@ -23,7 +22,6 @@ public:
 
 		constexpr size_t structSize{ (sizeof(T) + 255) & ~255 };
 
-		//const auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD) };
 		auto bufferDesc{ CD3DX12_RESOURCE_DESC::Buffer(structSize) };
 
 		for (uint32_t i = 0; i < FRAME_COUNT; i++)
@@ -41,13 +39,10 @@ public:
 			bufferView.BufferLocation = Buffer.at(i).Get()->GetGPUVirtualAddress();
 			bufferView.SizeInBytes = static_cast<uint32_t>(structSize);
 
+			// Persistent mapping
 			const CD3DX12_RANGE readRange(0, 0);
 			ThrowIfFailed(Buffer.at(i).Get()->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin.at(i))));
 			std::memcpy(pDataBegin.at(i), &pData, sizeof(T));
-			//Buffer.at(i).Get()->Unmap(0, nullptr);
-
-			pDevice->GetMainHeap()->Allocate(m_Descriptors.at(i));
-			pDevice->GetDevice()->CreateConstantBufferView(&bufferView, m_Descriptors.at(i).GetCPU());
 
 			allocation->Release();
 		}
@@ -83,18 +78,11 @@ public:
 		return nullptr;
 	}
 
-	Descriptor GetDescriptor(uint32_t Index) const
-	{
-		return m_Descriptors.at(Index);
-	}
-
 	std::array<uint8_t*, FRAME_COUNT> pDataBegin{ };
 
 private:
-
 	std::array<ComPtr<ID3D12Resource>, FRAME_COUNT> Buffer;
 	std::array<T*, FRAME_COUNT> Data{ };
-	std::array<Descriptor, FRAME_COUNT> m_Descriptors;
 
 	bool bIsInitialized{ false };
 };
