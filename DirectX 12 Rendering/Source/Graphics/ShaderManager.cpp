@@ -30,7 +30,7 @@ void ShaderManager::Initialize()
 	ThrowIfFailed(m_Library.Get()->CreateIncludeHandler(m_IncludeHandler.ReleaseAndGetAddressOf()), "Failed to create Dxc Include Handler!");
 }
 
-IDxcBlob* ShaderManager::CreateDXIL(const std::string_view& Filepath, LPCWSTR Target, LPCWSTR EntryPoint)
+IDxcBlob* ShaderManager::CreateDXIL(const std::string_view& Filepath, ShaderType eType, LPCWSTR EntryPoint)
 {
 	std::ifstream shaderFile(Filepath.data());
 	if (!shaderFile.good())
@@ -47,7 +47,8 @@ IDxcBlob* ShaderManager::CreateDXIL(const std::string_view& Filepath, LPCWSTR Ta
 
 	std::wstring wstr{ std::wstring(Filepath.begin(), Filepath.end()) };
 	LPCWSTR filepath{ wstr.c_str() };
-	ThrowIfFailed(m_Compiler.Get()->Compile(textBlob, filepath, EntryPoint, Target, nullptr, 0, nullptr, 0, m_IncludeHandler.Get(), &result), "Failed to compile shader 6.x!");
+
+	ThrowIfFailed(m_Compiler.Get()->Compile(textBlob, filepath, EntryPoint, EnumToType(eType), nullptr, 0, nullptr, 0, m_IncludeHandler.Get(), &result), "Failed to compile shader 6.x!");
 
 	HRESULT resultCode{};
 	ThrowIfFailed(result->GetStatus(&resultCode), "Failed to get shader 6.x Status!");
@@ -56,23 +57,20 @@ IDxcBlob* ShaderManager::CreateDXIL(const std::string_view& Filepath, LPCWSTR Ta
 		IDxcBlobEncoding* error{};
 		HRESULT hResult{ result->GetErrorBuffer(&error) };
 		if (FAILED(hResult))
-		{
-			throw std::logic_error("Failed to get shader error code!");
-		}
+			throw std::runtime_error("Failed to get shader error code!");
 
 		std::vector<char> infoLog(error->GetBufferSize() + 1);
 		std::memcpy(infoLog.data(), error->GetBufferPointer(), error->GetBufferSize());
 		infoLog[error->GetBufferSize()] = 0;
 
-		std::string errorMsg{ "Shader Compiler error:\n" };
-		errorMsg.append(infoLog.data());
-
-		::OutputDebugStringA(errorMsg.c_str());
-		Logger::Log(errorMsg.c_str(), LogType::eError);
+		::OutputDebugStringA("Shader Compiler error:\n");
+		const auto errorMsg{ static_cast<char*>(error->GetBufferPointer()) };
+		::OutputDebugStringA(errorMsg);
+		Logger::Log(errorMsg, LogType::eError);
 
 		SAFE_DELETE(error);
 		::MessageBoxA(nullptr, "Failed to compile shader!", "ERROR", MB_OK);
-		throw std::exception();
+		throw std::runtime_error("Failed to compile shader");
 	}
 
 	IDxcBlob* blob{ nullptr };
@@ -82,6 +80,29 @@ IDxcBlob* ShaderManager::CreateDXIL(const std::string_view& Filepath, LPCWSTR Ta
 	SAFE_DELETE(textBlob);
 
 	return blob;
+}
+
+constexpr LPCWSTR ShaderManager::EnumToType(ShaderType TypeOf)
+{
+	switch (TypeOf)
+	{
+	case ShaderType::eVertex:
+		return L"vs_6_0";
+	case ShaderType::ePixel:
+		return L"ps_6_0";
+	case ShaderType::eCompute:
+		return L"cs_6_0";
+	case ShaderType::eLibrary:
+		return L"lib_6_3";
+	case ShaderType::eGeometry:
+		return L"gs_6_0";
+	case ShaderType::eHull:
+		return L"hs_6_0";
+	case ShaderType::eDomain:
+		return L"ds_6_0";
+	default:
+		throw std::invalid_argument("Invalid Shader Type!");
+	}
 }
 
 void ShaderManager::Release()
