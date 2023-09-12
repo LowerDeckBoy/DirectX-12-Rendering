@@ -43,14 +43,14 @@ void DeferredContext::Create(DeviceContext* pDeviceContext, ShaderManager* pShad
 	CreatePipelines(pShaderManager, pModelRootSignature);
 
 	CreateRenderTargets();
-	CreateShadowMap();
+
+	m_ShadowMap = std::make_unique<ShadowMap>(pDeviceContext, m_DeferredDepthHeap.Get(), 2048, 2048);
 
 }
 
 void DeferredContext::OnResize()
 {
 	CreateRenderTargets();
-	CreateShadowMap();
 }
 
 void DeferredContext::PassGBuffer(Camera* pCamera, ConstantBuffer<SceneConstData>* CameraCB, std::vector<std::unique_ptr<Model>>& Models)
@@ -118,7 +118,7 @@ void DeferredContext::PassLight(Camera* pCamera, ConstantBuffer<SceneConstData>*
 void DeferredContext::PassShadows(Camera* pCamera, ConstantBuffer<SceneConstData>* CameraCB, PointLights* pPointLights, ImageBasedLighting* pIBL, std::vector<std::unique_ptr<Model>>& Models)
 {
 	// TODO: Add private helper enums for root signature params across whole section
-	const auto shadowMapWriteToRead{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_READ)};
+	const auto shadowMapWriteToRead{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap->GetResource(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_READ)};
 	m_DeviceCtx->GetCommandList()->ResourceBarrier(1, &shadowMapWriteToRead);
 
 	const auto depthWriteToRead{ CD3DX12_RESOURCE_BARRIER::Transition(m_DeviceCtx->GetDepthStencil(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ) };
@@ -133,7 +133,7 @@ void DeferredContext::PassShadows(Camera* pCamera, ConstantBuffer<SceneConstData
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(3, m_ShaderDescriptors.at(3).GetGPU());
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(4, m_ShaderDescriptors.at(4).GetGPU());
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(5, m_DeviceCtx->GetDepthDescriptor().GetGPU());
-	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_ShadowMapDescriptor.GetGPU());	
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_ShadowMap->GetDescriptor().GetGPU());
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(7, pIBL->m_OutputDescriptor.GetGPU());
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(8, pIBL->m_IrradianceDescriptor.GetGPU());
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(9, pIBL->m_SpecularDescriptor.GetGPU());
@@ -146,7 +146,7 @@ void DeferredContext::PassShadows(Camera* pCamera, ConstantBuffer<SceneConstData
 
 	ScreenQuad::Draw(m_DeviceCtx->GetCommandList());
 
-	const auto shadowMapReadToWrite{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap.Get(), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ) };
+	const auto shadowMapReadToWrite{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap->GetResource(), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ) };
 	m_DeviceCtx->GetCommandList()->ResourceBarrier(1, &shadowMapReadToWrite);
 	const auto depthReadToWrite{ CD3DX12_RESOURCE_BARRIER::Transition(m_DeviceCtx->GetDepthStencil(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE) };
 	m_DeviceCtx->GetCommandList()->ResourceBarrier(1, &depthReadToWrite);
@@ -505,94 +505,30 @@ void DeferredContext::Release()
 	Logger::Log("DeferredContext released.");
 }
 
-void DeferredContext::CreateShadowMap()
-{
-	if (m_ShadowMap)
-		SAFE_RELEASE(m_ShadowMap);
-
-	D3D12_RESOURCE_DESC desc{};
-	desc.Width	= 2048;
-	desc.Height = 2048;
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	desc.Format = DXGI_FORMAT_R32_TYPELESS;
-	desc.DepthOrArraySize = 1;
-	desc.MipLevels = 1;
-	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	desc.SampleDesc = { 1, 0 };
-
-	D3D12_CLEAR_VALUE clearValue{};
-	clearValue.Format = DXGI_FORMAT_D32_FLOAT;
-	clearValue.DepthStencil.Depth = D3D12_MAX_DEPTH;
-	clearValue.DepthStencil.Stencil = 0;
-
-	const auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
-
-	ThrowIfFailed(m_DeviceCtx->GetDevice()->CreateCommittedResource(
-		&heapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		&clearValue,
-		IID_PPV_ARGS(m_ShadowMap.ReleaseAndGetAddressOf())));
-	m_ShadowMap.Get()->SetName(L"Shadow Map Resource");
-
-	//https://www.gamedev.net/forums/topic/701041-shadow-mapping-with-directx-12/
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsView{};
-	dsView.Flags = D3D12_DSV_FLAG_NONE;
-	dsView.Format = DXGI_FORMAT_D32_FLOAT;
-	dsView.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	dsView.Texture2D.MipSlice = 0;
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
-	m_DeviceCtx->GetDevice()->CreateDepthStencilView(m_ShadowMap.Get(), &dsView, m_DeferredDepthHeap.Get()->GetCPUDescriptorHandleForHeapStart());
-
-	m_DeviceCtx->GetMainHeap()->Allocate(m_ShadowMapDescriptor);
-	m_DeviceCtx->GetDevice()->CreateShaderResourceView(m_ShadowMap.Get(), &srvDesc, m_ShadowMapDescriptor.GetCPU());
-
-	m_ShadowScrissor.left		= 0L;
-	m_ShadowScrissor.top		= 0L;
-	m_ShadowScrissor.right		= 2048;
-	m_ShadowScrissor.bottom		= 2048;
-
-	m_ShadowViewport.TopLeftX	= 0.0f;
-	m_ShadowViewport.TopLeftY	= 0.0f;
-	m_ShadowViewport.Width		= static_cast<float>(m_ShadowScrissor.right);
-	m_ShadowViewport.Height		= static_cast<float>(m_ShadowScrissor.bottom);
-	m_ShadowViewport.MinDepth	= D3D12_MIN_DEPTH;
-	m_ShadowViewport.MaxDepth	= D3D12_MAX_DEPTH;
-	
-}
-
 void DeferredContext::DrawToShadowMap(Camera* pCamera, ConstantBuffer<SceneConstData>* CameraCB, PointLights* pPointLights, std::vector<std::unique_ptr<Model>>& Models, ID3D12RootSignature* pModelRootSignature)
 {
 	const auto commandList{ m_DeviceCtx->GetCommandList() };
 
-	const auto toDepthWrite{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE) };
+	const auto toDepthWrite{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap->GetResource(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE) };
 	commandList->ResourceBarrier(1, &toDepthWrite);
 
-	commandList->RSSetViewports(1, &m_ShadowViewport);
-	commandList->RSSetScissorRects(1, &m_ShadowScrissor);
+	commandList->RSSetViewports(1,    &m_ShadowMap->GetViewport());
+	commandList->RSSetScissorRects(1, &m_ShadowMap->GetScissor());
 
 	// Writing to DepthBuffer only
 	auto handle{ m_DeferredDepthHeap.Get()->GetCPUDescriptorHandleForHeapStart() };
-	commandList->ClearDepthStencilView(m_DeferredDepthHeap.Get()->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	commandList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH, D3D12_MAX_DEPTH, 0, 0, nullptr);
 	commandList->OMSetRenderTargets(0, nullptr, FALSE, &handle);
 
 	commandList->SetPipelineState(m_PreShadowPipelineState.Get());
 	commandList->SetGraphicsRootSignature(pModelRootSignature);
 	commandList->SetGraphicsRootConstantBufferView(3, pPointLights->m_cbLightData->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
-	commandList->SetGraphicsRootDescriptorTable(6, m_ShadowMapDescriptor.GetGPU());
+	commandList->SetGraphicsRootDescriptorTable(6, m_ShadowMap->GetDescriptor().GetGPU());
 
 	for (const auto& model : Models)
 		model->Draw(pCamera);
 
-	const auto toGenericRead{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ) };
+	const auto toGenericRead{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ) };
 	commandList->ResourceBarrier(1, &toGenericRead);
 
 }

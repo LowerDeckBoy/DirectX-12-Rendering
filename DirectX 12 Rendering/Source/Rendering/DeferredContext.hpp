@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d12.h>
 #include "../Graphics/Buffer/ConstantBuffer.hpp"
+#include "ShadowMap.hpp"
 #include "ScreenQuad.hpp"
 
 class DeviceContext;
@@ -45,13 +46,11 @@ public:
 	// Shader Resource Views
 	std::array<Descriptor, RenderTargetsCount> m_ShaderDescriptors;
 
-private:
-	//void BeginPass();
-	//void EndPass();
+	inline const ShadowMap& GetShadowMap() const { return *m_ShadowMap.get(); }
 
+private:
 	void Release();
 
-private:
 	DeviceContext* m_DeviceCtx{ nullptr };
 
 	std::array<float, 4> m_ClearColor{ 0.5f, 0.5f, 1.0f, 1.0f };
@@ -64,6 +63,7 @@ private:
 	ComPtr<ID3D12PipelineState> m_PipelineState;
 	// Post G-Buffer Lighting
 	ComPtr<ID3D12PipelineState> m_LightPipelineState;
+	//
 	ComPtr<ID3D12PipelineState> m_ShadowPipelineState;
 	// Writing to Depth Map and clipping alpha
 	ComPtr<ID3D12PipelineState> m_PreShadowPipelineState;
@@ -78,12 +78,6 @@ private:
 		DXGI_FORMAT_R8G8B8A8_UNORM			// Depth
 	};
 
-	// TEST
-	void CreateShadowMap();
-	//https://research.ncl.ac.uk/game/mastersdegree/graphicsforgames/shadowmapping/Tutorial%2014%20-%20Shadow%20Mapping.pdf
-	ComPtr<ID3D12Resource> m_ShadowMap;
-	Descriptor m_ShadowMapDescriptor;
-	D3D12_VIEWPORT m_ShadowViewport{};
-	D3D12_RECT m_ShadowScrissor{};
+	std::unique_ptr<ShadowMap> m_ShadowMap;
 	
 };
