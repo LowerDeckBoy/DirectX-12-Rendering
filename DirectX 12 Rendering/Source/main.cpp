@@ -23,5 +23,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	}
 
 	delete app;
+	//_CrtDumpMemoryLeaks();
 	return 0;
 }
