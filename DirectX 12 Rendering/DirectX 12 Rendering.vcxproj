@@ -185,7 +185,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="3rd-party\D3D12MA\D3D12MemAlloc.cpp" />
-    <ClCompile Include="FrameBuffer.cpp" />
+    <ClCompile Include="Source\Rendering\FrameBuffer.cpp" />
     <ClCompile Include="Source\Rendering\ShadowMap.cpp" />
     <ClCompile Include="Source\Rendering\Passes\LightPass.cpp" />
     <ClCompile Include="Source\Rendering\Passes\GBufferPass.cpp" />
@@ -226,7 +226,7 @@
   <ItemGroup>
     <ClInclude Include="3rd-party\D3D12MA\D3D12MemAlloc.h" />
     <ClInclude Include="3rd-party\d3dx12.h" />
-    <ClInclude Include="FrameBuffer.hpp" />
+    <ClInclude Include="Source\Rendering\FrameBuffer.hpp" />
     <ClInclude Include="Source\Rendering\ShadowMap.hpp" />
     <ClInclude Include="Source\Rendering\Passes\LightPass.hpp" />
     <ClInclude Include="Source\Rendering\Passes\GBufferPass.hpp" />
