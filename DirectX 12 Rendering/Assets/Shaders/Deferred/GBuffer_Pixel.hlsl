@@ -27,9 +27,8 @@ GBuffer_Output main(DeferredOutput pin)
         output.Albedo = bindless_textures[Indices.BaseColorIndex].Sample(texSampler, pin.TexCoord);
        
         if (output.Albedo.a < AlphaCutoff)
-            discard;
-        
-        //clip(output.Albedo.a - 0.1f);
+            clip(output.Albedo.a - AlphaCutoff);
+
         output.Albedo = output.Albedo;
     }
     else
@@ -58,26 +57,23 @@ GBuffer_Output main(DeferredOutput pin)
         output.Metallic = metallic;
     }
     else
+    {
         output.Metallic = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
 
     if (Indices.EmissiveIndex >= 0)
     {
         output.Emissive = bindless_textures[Indices.EmissiveIndex].Sample(texSampler, pin.TexCoord) * EmissiveFactor;
     }
+    else
+    {
+        output.Emissive = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
 
-    //output.WorldPosition = normalize(pin.WorldPosition);
     output.WorldPosition = pin.WorldPosition;
     
-    
-    //float depth = output.WorldPosition.z / output.WorldPosition.w;
-    output.DepthMap = pin.DepthMap;
-        
-    //float depth = DepthTexture.Sample(texSampler, pin.TexCoord).r;
-    ////float z = Projection._43 / (depth - Projection._33);
-    //output.DepthMap = float4(depth, depth, depth, 1.0f);
-    
-    
-    
+    float z = pin.Position.z / pin.Position.w;
+    output.DepthMap = float4(z, z, z, 1.0f);
 
 	return output;
 }

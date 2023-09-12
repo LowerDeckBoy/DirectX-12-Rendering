@@ -31,6 +31,12 @@ void DeferredContext::Create(DeviceContext* pDeviceContext, ShaderManager* pShad
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	heapDesc.NumDescriptors = RenderTargetsCount;
 	m_DeviceCtx->GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_DeferredHeap.ReleaseAndGetAddressOf()));
+	m_DeferredHeap.Get()->SetName(L"Deferred Render Target Heap");
+
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	heapDesc.NumDescriptors = 1;
+	m_DeviceCtx->GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_DeferredDepthHeap.ReleaseAndGetAddressOf()));
+	m_DeferredHeap.Get()->SetName(L"Deferred Depth Heap");
 
 	ScreenQuad::Create(pDeviceContext);
 
@@ -60,6 +66,7 @@ void DeferredContext::PassGBuffer(Camera* pCamera, ConstantBuffer<SceneConstData
 
 	m_DeviceCtx->GetCommandList()->SetPipelineState(m_PipelineState.Get());
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(1, CameraCB->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_DeviceCtx->GetDepthDescriptor().GetGPU());
 
 	const CD3DX12_CPU_DESCRIPTOR_HANDLE depthHandle(m_DeviceCtx->GetDepthHeap()->GetCPUDescriptorHandleForHeapStart());
 	m_DeviceCtx->GetCommandList()->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
@@ -100,53 +107,76 @@ void DeferredContext::PassLight(Camera* pCamera, ConstantBuffer<SceneConstData>*
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(10, CameraCB->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
 	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(11, pPointLights->m_cbPointLights->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
 
+	//test
 	ScreenQuad::Draw(m_DeviceCtx->GetCommandList());
 
 	const auto depthReadToWrite{ CD3DX12_RESOURCE_BARRIER::Transition(m_DeviceCtx->GetDepthStencil(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE) };
 	m_DeviceCtx->GetCommandList()->ResourceBarrier(1, &depthReadToWrite);
+
 }
 
-void DeferredContext::PassShadows(Camera* pCamera, ConstantBuffer<SceneConstData>* CameraCB, PointLights* pPointLights)
+void DeferredContext::PassShadows(Camera* pCamera, ConstantBuffer<SceneConstData>* CameraCB, PointLights* pPointLights, ImageBasedLighting* pIBL, std::vector<std::unique_ptr<Model>>& Models)
 {
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootSignature(m_ShadowRootSignature.Get());
-	//m_DeviceCtx->GetCommandList()->(m_ShadowsRootSignature.Get());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(1, pPointLights->m_cbLightData->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
+	// TODO: Add private helper enums for root signature params across whole section
+	const auto shadowMapWriteToRead{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_READ)};
+	m_DeviceCtx->GetCommandList()->ResourceBarrier(1, &shadowMapWriteToRead);
 
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(0, m_ShaderDescriptors.at(0).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(1, m_ShaderDescriptors.at(1).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(2, m_ShaderDescriptors.at(2).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(3, m_ShaderDescriptors.at(3).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(4, m_ShaderDescriptors.at(4).GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(5, m_DeviceCtx->GetDepthDescriptor().GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(5, m_ShadowMapDescriptor.GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_IBL->m_OutputDescriptor.GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(7, m_IBL->m_IrradianceDescriptor.GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(8, m_IBL->m_SpecularDescriptor.GetGPU());
-	//m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(9, m_IBL->m_SpBRDFDescriptor.GetGPU());
+	const auto depthWriteToRead{ CD3DX12_RESOURCE_BARRIER::Transition(m_DeviceCtx->GetDepthStencil(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ) };
+	m_DeviceCtx->GetCommandList()->ResourceBarrier(1, &depthWriteToRead);
+
+	m_DeviceCtx->GetCommandList()->SetPipelineState(m_ShadowPipelineState.Get());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootSignature(m_ShadowRootSignature.Get());
+
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(0, m_ShaderDescriptors.at(0).GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(1, m_ShaderDescriptors.at(1).GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(2, m_ShaderDescriptors.at(2).GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(3, m_ShaderDescriptors.at(3).GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(4, m_ShaderDescriptors.at(4).GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(5, m_DeviceCtx->GetDepthDescriptor().GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(6, m_ShadowMapDescriptor.GetGPU());	
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(7, pIBL->m_OutputDescriptor.GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(8, pIBL->m_IrradianceDescriptor.GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(9, pIBL->m_SpecularDescriptor.GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootDescriptorTable(10, pIBL->m_SpBRDFDescriptor.GetGPU());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(11, CameraCB->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootConstantBufferView(12, pPointLights->m_cbLightData->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
+
+	//const auto& depth = m_ShadowMapDescriptor.GetGPU().ptr;
+	//ImGui::Image(reinterpret_cast<ImTextureID>(depth), { 800, 600 });
+
+	ScreenQuad::Draw(m_DeviceCtx->GetCommandList());
+
+	const auto shadowMapReadToWrite{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap.Get(), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ) };
+	m_DeviceCtx->GetCommandList()->ResourceBarrier(1, &shadowMapReadToWrite);
+	const auto depthReadToWrite{ CD3DX12_RESOURCE_BARRIER::Transition(m_DeviceCtx->GetDepthStencil(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE) };
+	m_DeviceCtx->GetCommandList()->ResourceBarrier(1, &depthReadToWrite);
 }
 
 void DeferredContext::DrawDeferredTargets()
 {
 	ImGui::Begin("Render Targets");
 
-	const auto& rtv0 = m_ShaderDescriptors.at(0).GetGPU().ptr;
-	const auto& rtv1 = m_ShaderDescriptors.at(1).GetGPU().ptr;
-	const auto& rtv2 = m_ShaderDescriptors.at(2).GetGPU().ptr;
-	const auto& rtv3 = m_ShaderDescriptors.at(3).GetGPU().ptr;
-	const auto& rtv4 = m_ShaderDescriptors.at(4).GetGPU().ptr;
-	const auto& depth = m_DeviceCtx->GetDepthDescriptor().GetGPU().ptr;
+	const auto& baseColor		{ m_ShaderDescriptors.at(0).GetGPU().ptr };
+	const auto& normal			{ m_ShaderDescriptors.at(1).GetGPU().ptr };
+	const auto& metalRoughness	{ m_ShaderDescriptors.at(2).GetGPU().ptr };
+	const auto& emissive		{ m_ShaderDescriptors.at(3).GetGPU().ptr };
+	const auto& worldPosition	{ m_ShaderDescriptors.at(4).GetGPU().ptr };
+	const auto& depth			{ m_ShaderDescriptors.at(5).GetGPU().ptr };
+	//const auto& depth = m_DeviceCtx->GetDepthDescriptor().GetGPU().ptr;
+	//const auto& depth = m_ShadowMapDescriptor.GetGPU().ptr;
 
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv0), { 500, 350 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(depth),			{ 500, 350 });
 	ImGui::SameLine();
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv1), { 500, 350 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(baseColor),		{ 500, 350 });
 	ImGui::SameLine();
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv2), { 500, 350 });
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv3), { 500, 350 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(normal),			{ 500, 350 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(metalRoughness), { 500, 350 });
 	ImGui::SameLine();
-	ImGui::Image(reinterpret_cast<ImTextureID>(rtv4), { 500, 350 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(emissive),		{ 500, 350 });
 	ImGui::SameLine();
-	if (m_DeviceCtx->GetDepthDescriptor().bIsValid())
-		ImGui::Image(reinterpret_cast<ImTextureID>(depth), { 500, 350 });
+	ImGui::Image(reinterpret_cast<ImTextureID>(worldPosition),	{ 500, 350 });
+	//ImGui::SameLine();
+	//if (m_DeviceCtx->GetDepthDescriptor().bIsValid())
 
 	ImGui::End();
 }
@@ -259,6 +289,7 @@ void DeferredContext::CreatePipelines(ShaderManager* pShaderManager, ID3D12RootS
 		builder->AddRanges(deferredRanges);
 		builder->AddParameters(deferredParams);
 		builder->AddSampler(0);
+		builder->AddSampler(1, 0, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_COMPARISON_FUNC_LESS);
 		builder->CreateRootSignature(m_DeviceCtx->GetDevice(), m_RootSignature.GetAddressOf(), L"Deferred Root Signature");
 
 		builder->Reset();
@@ -267,10 +298,9 @@ void DeferredContext::CreatePipelines(ShaderManager* pShaderManager, ID3D12RootS
 		deferredRanges.clear();
 	}
 
-	
 	// Shadows Root Signature
 	{
-		std::vector<CD3DX12_DESCRIPTOR_RANGE1> shadowRanges(10);
+		std::vector<CD3DX12_DESCRIPTOR_RANGE1> shadowRanges(11);
 		shadowRanges.at(0).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 		shadowRanges.at(1).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 		shadowRanges.at(2).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
@@ -281,8 +311,9 @@ void DeferredContext::CreatePipelines(ShaderManager* pShaderManager, ID3D12RootS
 		shadowRanges.at(7).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 7, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 		shadowRanges.at(8).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 8, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 		shadowRanges.at(9).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 9, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+		shadowRanges.at(10).Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 10, 2, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
 
-		std::vector<CD3DX12_ROOT_PARAMETER1> shadowParams(12);
+		std::vector<CD3DX12_ROOT_PARAMETER1> shadowParams(13);
 		// GBuffer output textures
 		// Base Color
 		shadowParams.at(0).InitAsDescriptorTable(1, &shadowRanges.at(0), D3D12_SHADER_VISIBILITY_PIXEL);
@@ -294,27 +325,31 @@ void DeferredContext::CreatePipelines(ShaderManager* pShaderManager, ID3D12RootS
 		shadowParams.at(3).InitAsDescriptorTable(1, &shadowRanges.at(3), D3D12_SHADER_VISIBILITY_PIXEL);
 		// Positions
 		shadowParams.at(4).InitAsDescriptorTable(1, &shadowRanges.at(4), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Depth
+		// Scene Depth
 		shadowParams.at(5).InitAsDescriptorTable(1, &shadowRanges.at(5), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Skybox
+		// Shadow Map
 		shadowParams.at(6).InitAsDescriptorTable(1, &shadowRanges.at(6), D3D12_SHADER_VISIBILITY_PIXEL);
-		// Image Based Lighting
+		// Skybox
 		shadowParams.at(7).InitAsDescriptorTable(1, &shadowRanges.at(7), D3D12_SHADER_VISIBILITY_PIXEL);
+		// Image Based Lighting
 		shadowParams.at(8).InitAsDescriptorTable(1, &shadowRanges.at(8), D3D12_SHADER_VISIBILITY_PIXEL);
 		shadowParams.at(9).InitAsDescriptorTable(1, &shadowRanges.at(9), D3D12_SHADER_VISIBILITY_PIXEL);
+		shadowParams.at(10).InitAsDescriptorTable(1, &shadowRanges.at(10), D3D12_SHADER_VISIBILITY_PIXEL);
 		// CBVs
-		shadowParams.at(10).InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
-		shadowParams.at(11).InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
+		shadowParams.at(11).InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
+		shadowParams.at(12).InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
 
 		builder->AddRanges(shadowRanges);
 		builder->AddParameters(shadowParams);
 		builder->AddSampler(0);
+		builder->AddSampler(1, 0, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_COMPARISON_FUNC_LESS);
+		//builder->AddSampler(0);
 		//builder->CreateRootSignature(m_DeviceCtx->GetDevice(), m_DeferredRootSignature.GetAddressOf(), L"Deferred Root Signature");
 
 		// Light Matrices for Shadows
-		CD3DX12_ROOT_PARAMETER1 param{};
-		param.InitAsConstantBufferView(2, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
-		shadowParams.push_back(param);
+		//CD3DX12_ROOT_PARAMETER1 param{};
+		//param.InitAsConstantBufferView(2, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
+		//shadowParams.push_back(param);
 		builder->CreateRootSignature(m_DeviceCtx->GetDevice(), m_ShadowRootSignature.ReleaseAndGetAddressOf(), L"Shadows Root Signature");
 
 		//builder->Reset();
@@ -336,9 +371,9 @@ void DeferredContext::CreatePipelines(ShaderManager* pShaderManager, ID3D12RootS
 		//
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredDesc{};
 		deferredDesc.pRootSignature = pModelRootSignature;
-		deferredDesc.InputLayout = { layout.data(), static_cast<uint32_t>(layout.size()) };
 		deferredDesc.VS = CD3DX12_SHADER_BYTECODE(deferredVertex->GetBufferPointer(), deferredVertex->GetBufferSize());
 		deferredDesc.PS = CD3DX12_SHADER_BYTECODE(deferredPixel->GetBufferPointer(), deferredPixel->GetBufferSize());
+		deferredDesc.InputLayout = { layout.data(), static_cast<uint32_t>(layout.size()) };
 		deferredDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		deferredDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		deferredDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -375,6 +410,7 @@ void DeferredContext::CreatePipelines(ShaderManager* pShaderManager, ID3D12RootS
 		lightDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		lightDesc.RasterizerState.DepthClipEnable = false;
 		lightDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+		lightDesc.RasterizerState.AntialiasedLineEnable = TRUE;
 		lightDesc.SampleMask = UINT_MAX;
 		lightDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		lightDesc.NumRenderTargets = 1;
@@ -385,12 +421,77 @@ void DeferredContext::CreatePipelines(ShaderManager* pShaderManager, ID3D12RootS
 		m_DeviceCtx->GetDevice()->CreateGraphicsPipelineState(&lightDesc, IID_PPV_ARGS(m_LightPipelineState.ReleaseAndGetAddressOf()));
 		m_LightPipelineState.Get()->SetName(L"Light Pass Pipeline State");
 	}
+
+	// Pre-shadow PSO
+	{
+		IDxcBlob* const shadowsVertex = pShaderManager->CreateDXIL("Assets/Shaders/Deferred/Shadows_Clip_VS.hlsl", ShaderType::eVertex);
+		IDxcBlob* const shadowsPixel  = pShaderManager->CreateDXIL("Assets/Shaders/Deferred/Shadows_Clip_PS.hlsl", ShaderType::ePixel);
+
+		auto modelLayout{ PSOUtils::CreateInputLayout() };
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC preShadowDesc{};
+		preShadowDesc.pRootSignature = pModelRootSignature;
+		preShadowDesc.VS = CD3DX12_SHADER_BYTECODE(shadowsVertex->GetBufferPointer(), shadowsVertex->GetBufferSize());
+		preShadowDesc.PS = CD3DX12_SHADER_BYTECODE(shadowsPixel->GetBufferPointer(), shadowsPixel->GetBufferSize());
+		preShadowDesc.InputLayout = { modelLayout.data(), static_cast<uint32_t>(modelLayout.size()) };
+		preShadowDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+		preShadowDesc.DepthStencilState.DepthEnable = TRUE;
+		preShadowDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+		preShadowDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+		preShadowDesc.RasterizerState.DepthClipEnable = TRUE;
+		preShadowDesc.RasterizerState.DepthBias = 10000;
+		preShadowDesc.RasterizerState.DepthBiasClamp = 0.0f;
+		preShadowDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
+		preShadowDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		preShadowDesc.SampleMask = UINT_MAX;
+		preShadowDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		preShadowDesc.NumRenderTargets = 0;
+		preShadowDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+		preShadowDesc.DSVFormat = m_DeviceCtx->GetDepthFormat();
+		preShadowDesc.SampleDesc = { 1, 0 };
+
+		m_DeviceCtx->GetDevice()->CreateGraphicsPipelineState(&preShadowDesc, IID_PPV_ARGS(m_PreShadowPipelineState.ReleaseAndGetAddressOf()));
+		m_PreShadowPipelineState.Get()->SetName(L"Pre-Shadow Pass Pipeline State");
+	}
+
+	// Shadows PSO
+	{
+		IDxcBlob* const shadowsVertex = pShaderManager->CreateDXIL("Assets/Shaders/Deferred/Simple_Shadows_VS.hlsl", ShaderType::eVertex);
+		IDxcBlob* const shadowsPixel = pShaderManager->CreateDXIL("Assets/Shaders/Deferred/Simple_Shadows_PS.hlsl", ShaderType::ePixel);
+
+		auto screenQuadLayout{ PSOUtils::CreateScreenQuadLayout() };
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowDesc{};
+		//shadowDesc.pRootSignature = m_RootSignature.Get();
+		shadowDesc.pRootSignature = m_ShadowRootSignature.Get();
+		shadowDesc.VS = CD3DX12_SHADER_BYTECODE(shadowsVertex->GetBufferPointer(), shadowsVertex->GetBufferSize());
+		shadowDesc.PS = CD3DX12_SHADER_BYTECODE(shadowsPixel->GetBufferPointer(), shadowsPixel->GetBufferSize());
+		shadowDesc.InputLayout = { screenQuadLayout.data(), static_cast<uint32_t>(screenQuadLayout.size()) };
+		shadowDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+		shadowDesc.DepthStencilState.DepthEnable = false;
+		shadowDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+		shadowDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+		shadowDesc.RasterizerState.DepthClipEnable = false;
+		shadowDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		shadowDesc.SampleMask = UINT_MAX;
+		shadowDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		shadowDesc.NumRenderTargets = 1;
+		shadowDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		shadowDesc.DSVFormat = m_DeviceCtx->GetDepthFormat();
+		shadowDesc.SampleDesc = { 1, 0 };
+
+		m_DeviceCtx->GetDevice()->CreateGraphicsPipelineState(&shadowDesc, IID_PPV_ARGS(m_ShadowPipelineState.ReleaseAndGetAddressOf()));
+		m_ShadowPipelineState.Get()->SetName(L"Shadow Pass Pipeline State");
+	}
 	
 	m_DeviceCtx->ExecuteCommandList(true);
+
 }
 
 void DeferredContext::Release()
 {
+	SAFE_RELEASE(m_ShadowPipelineState);
+	SAFE_RELEASE(m_PreShadowPipelineState);
 	SAFE_RELEASE(m_PipelineState);
 	SAFE_RELEASE(m_LightPipelineState);
 	SAFE_RELEASE(m_RootSignature);
@@ -398,6 +499,7 @@ void DeferredContext::Release()
 	for (auto& target : m_RenderTargets)
 		SAFE_RELEASE(target);
 
+	SAFE_RELEASE(m_DeferredDepthHeap);
 	SAFE_RELEASE(m_DeferredHeap);
 
 	Logger::Log("DeferredContext released.");
@@ -409,8 +511,8 @@ void DeferredContext::CreateShadowMap()
 		SAFE_RELEASE(m_ShadowMap);
 
 	D3D12_RESOURCE_DESC desc{};
-	desc.Width = static_cast<uint64_t>(m_DeviceCtx->GetViewport().Width);
-	desc.Height = static_cast<uint32_t>(m_DeviceCtx->GetViewport().Height);
+	desc.Width	= 2048;
+	desc.Height = 2048;
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	desc.Format = DXGI_FORMAT_R32_TYPELESS;
 	desc.DepthOrArraySize = 1;
@@ -420,10 +522,11 @@ void DeferredContext::CreateShadowMap()
 
 	D3D12_CLEAR_VALUE clearValue{};
 	clearValue.Format = DXGI_FORMAT_D32_FLOAT;
-	clearValue.DepthStencil.Depth = 1.0f;
+	clearValue.DepthStencil.Depth = D3D12_MAX_DEPTH;
 	clearValue.DepthStencil.Stencil = 0;
 
 	const auto heapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT) };
+
 	ThrowIfFailed(m_DeviceCtx->GetDevice()->CreateCommittedResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
@@ -431,6 +534,14 @@ void DeferredContext::CreateShadowMap()
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		&clearValue,
 		IID_PPV_ARGS(m_ShadowMap.ReleaseAndGetAddressOf())));
+	m_ShadowMap.Get()->SetName(L"Shadow Map Resource");
+
+	//https://www.gamedev.net/forums/topic/701041-shadow-mapping-with-directx-12/
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsView{};
+	dsView.Flags = D3D12_DSV_FLAG_NONE;
+	dsView.Format = DXGI_FORMAT_D32_FLOAT;
+	dsView.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsView.Texture2D.MipSlice = 0;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Texture2D.MipLevels = 1;
@@ -439,34 +550,49 @@ void DeferredContext::CreateShadowMap()
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-	//https://www.gamedev.net/forums/topic/701041-shadow-mapping-with-directx-12/
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsView{};
-	dsView.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
-	dsView.Format = DXGI_FORMAT_D32_FLOAT;
-	dsView.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	dsView.Texture2D.MipSlice = 0;
+	m_DeviceCtx->GetDevice()->CreateDepthStencilView(m_ShadowMap.Get(), &dsView, m_DeferredDepthHeap.Get()->GetCPUDescriptorHandleForHeapStart());
 
 	m_DeviceCtx->GetMainHeap()->Allocate(m_ShadowMapDescriptor);
-	//
-	//CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_DeviceCtx->GetDepthHeap()->GetCPUDescriptorHandleForHeapStart(), 2, 32);
-	//handle.Offset(1, 32);
-	//m_DeviceCtx->GetDevice()->CreateDepthStencilView(m_ShadowMap.Get(), &dsView, handle);
-	//m_DeviceCtx->GetDevice()->CreateDepthStencilView(m_ShadowMap.Get(), &dsView, m_DeviceCtx->GetDepthHeap()->GetCPUDescriptorHandleForHeapStart());
-
 	m_DeviceCtx->GetDevice()->CreateShaderResourceView(m_ShadowMap.Get(), &srvDesc, m_ShadowMapDescriptor.GetCPU());
 
-	//
-	
 	m_ShadowScrissor.left		= 0L;
 	m_ShadowScrissor.top		= 0L;
-	m_ShadowScrissor.right		= static_cast<uint64_t>(m_DeviceCtx->GetViewport().Width);
-	m_ShadowScrissor.bottom		= static_cast<uint64_t>(m_DeviceCtx->GetViewport().Height);
+	m_ShadowScrissor.right		= 2048;
+	m_ShadowScrissor.bottom		= 2048;
 
 	m_ShadowViewport.TopLeftX	= 0.0f;
 	m_ShadowViewport.TopLeftY	= 0.0f;
 	m_ShadowViewport.Width		= static_cast<float>(m_ShadowScrissor.right);
 	m_ShadowViewport.Height		= static_cast<float>(m_ShadowScrissor.bottom);
-	m_ShadowViewport.MinDepth	= 0.0f;
-	m_ShadowViewport.MaxDepth	= 1.0f;
+	m_ShadowViewport.MinDepth	= D3D12_MIN_DEPTH;
+	m_ShadowViewport.MaxDepth	= D3D12_MAX_DEPTH;
+	
+}
+
+void DeferredContext::DrawToShadowMap(Camera* pCamera, ConstantBuffer<SceneConstData>* CameraCB, PointLights* pPointLights, std::vector<std::unique_ptr<Model>>& Models, ID3D12RootSignature* pModelRootSignature)
+{
+	const auto commandList{ m_DeviceCtx->GetCommandList() };
+
+	const auto toDepthWrite{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE) };
+	commandList->ResourceBarrier(1, &toDepthWrite);
+
+	commandList->RSSetViewports(1, &m_ShadowViewport);
+	commandList->RSSetScissorRects(1, &m_ShadowScrissor);
+
+	// Writing to DepthBuffer only
+	auto handle{ m_DeferredDepthHeap.Get()->GetCPUDescriptorHandleForHeapStart() };
+	commandList->ClearDepthStencilView(m_DeferredDepthHeap.Get()->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	commandList->OMSetRenderTargets(0, nullptr, FALSE, &handle);
+
+	commandList->SetPipelineState(m_PreShadowPipelineState.Get());
+	commandList->SetGraphicsRootSignature(pModelRootSignature);
+	commandList->SetGraphicsRootConstantBufferView(3, pPointLights->m_cbLightData->GetBuffer(m_DeviceCtx->FRAME_INDEX)->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootDescriptorTable(6, m_ShadowMapDescriptor.GetGPU());
+
+	for (const auto& model : Models)
+		model->Draw(pCamera);
+
+	const auto toGenericRead{ CD3DX12_RESOURCE_BARRIER::Transition(m_ShadowMap.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ) };
+	commandList->ResourceBarrier(1, &toGenericRead);
 
 }

@@ -3,20 +3,21 @@
 #include "../../Graphics/Buffer/ConstantBuffer.hpp"
 
 
+/*
 struct cbLightShadows
 {
 	XMMATRIX ViewProjection{ XMMatrixIdentity() };
 	XMFLOAT4 LightPosition { XMFLOAT4(-9.0f, 0.0f, 10.0f, 0.0f) };
 	XMFLOAT4 LightColor    { XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) };
 };
-/*
+*/
+// Temporal
 struct cbLightShadows
 {
-	XMMATRIX ViewProjection[4];
-	XMVECTOR LightPosition[4];
-	XMVECTOR LightColor[4];
+	XMMATRIX ViewProjection;
+	XMFLOAT4 LightPosition[4];
+	XMFLOAT4 LightColor[4];
 };
-*/
 struct PointLight
 {
 	// xyz -> position, w -> light intensity

@@ -15,7 +15,6 @@ struct DeferredOutput
 {
     float4 Position         : SV_POSITION;
     float4 WorldPosition    : WORLD_POSITION;
-    float4 DepthMap         : DEPTH_MAP;
     float2 TexCoord         : TEXCOORD;
     float3 Normal           : NORMAL;
     float3 Tangent          : TANGENT;
@@ -44,7 +43,6 @@ struct MaterialIndices
 ConstantBuffer<MaterialIndices> Indices : register(b0, space2);
 Texture2D<float4> bindless_textures[] : register(t0, space1);
 Texture2D<float4> DepthTexture : register(t4, space0);
-//Texture2D<float4> LightDepthTexture : register(t4, space0);
 
 SamplerState texSampler : register(s0);
 

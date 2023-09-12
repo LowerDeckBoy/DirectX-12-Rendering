@@ -12,16 +12,6 @@ cbuffer cbLights : register(b1, space1)
     uint   LightsCount;
 }
 
-struct RenderTargets
-{
-    int BaseColorIndex;
-    int NormalIndex;
-    int MetalRoughnessIndex;
-    int EmissiveIndex;
-    int PositionIndex;
-    int DepthIndex;
-};
-
 Texture2D<float4> BaseColorTexture      : register(t0, space2);
 Texture2D<float4> NormalTexture         : register(t1, space2);
 Texture2D<float4> MetalRoughnessTexture : register(t2, space2);
@@ -43,7 +33,7 @@ SamplerState texSampler : register(s0, space0);
 float4 main(ScreenQuadOutput pin) : SV_TARGET
 {
     float2 position = pin.Position.xy;
-    float z = DepthTexture.Load(float3(position.xy, 0)).x;
+    float z = DepthTexture.Load(float3(position.xy, 0)).r;
     
     // Get Position
     //float depth = Projection._43 / (z - Projection._33);
@@ -83,12 +73,12 @@ float4 main(ScreenQuadOutput pin) : SV_TARGET
 
         // Cook-Torrance BRDF
         float NDF = GetDistributionGGX(N, H, metalRoughness.g);
-        float G = GetGeometrySmith(N, V, L, metalRoughness.g);
-        float3 F = GetFresnelSchlick(max(dot(H, V), 0.0f), F0);
+        float G   = GetGeometrySmith(N, V, L, metalRoughness.g);
+        float3 F  = GetFresnelSchlick(max(dot(H, V), 0.0f), F0);
 
         float3 kS = F;
         float3 kD = lerp(float3(1.0f, 1.0f, 1.0f) - kS, float3(0.0f, 0.0f, 0.0f), metalRoughness.b);
-        kD *= (1.0f - metalRoughness.b);
+        kD *= ((1.0f - metalRoughness.b) * normal.a);
         
         float3 numerator = NDF * G * F;
         float denominator = 4.0f * NdotV * NdotL;
@@ -105,7 +95,7 @@ float4 main(ScreenQuadOutput pin) : SV_TARGET
         float3 F = GetFresnelSchlick(NdotV, F0);
         float3 kS = F;
         float3 kD = lerp(float3(1.0f, 1.0f, 1.0f) - kS, float3(0.0f, 0.0f, 0.0f), metalRoughness.b);
-        kD *= (1.0f - metalRoughness.b);
+        kD *= (1.0f - metalRoughness.b) * normal.a;
         
         float3 irradiance = IrradianceTexture.Sample(texSampler, N).rgb;
         float3 diffuseIBL = (kD * irradiance);
@@ -113,7 +103,8 @@ float4 main(ScreenQuadOutput pin) : SV_TARGET
         float3 specular = SpecularTexture.SampleLevel(texSampler, Lr, metalRoughness.g).rgb;
         float2 specularBRDF = SpecularBRDFTexture.Sample(texSampler, float2(NdotV, metalRoughness.g)).rg;
         float3 specularIBL = (F0 * specularBRDF.x + specularBRDF.y) * specular;
-
+        // 
+        //
         ambientLighting = (diffuseIBL + specularIBL) * metalRoughness.b;
     }
    

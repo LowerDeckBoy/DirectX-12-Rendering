@@ -54,16 +54,57 @@ void PointLights::UpdateLights()
 
 	m_cbPointLights->Update(m_cbPointLightsData, m_DeviceCtx->FRAME_INDEX);
 	
-	const auto& l{ m_cbPointLightsData.LightPositions.at(0) };
-	m_Position = XMVectorSet(l.x, l.y, l.z, 0.0f);
-	XMVECTOR target{ XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f) };
-	m_View = XMMatrixLookAtLH(m_Position, m_Position - target, m_Up);
-	m_Projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), 1.0f, 0.1f, 100.0f);
+	const auto& lPos{ m_cbPointLightsData.LightPositions.at(0) };
+	m_Position = XMVectorSet(lPos.x, lPos.y, lPos.z, 0.0f);
 
-	m_cbShadowsData.ViewProjection = XMMatrixTranspose(m_View * m_Projection);
-	m_cbShadowsData.LightPosition = m_cbPointLightsData.LightPositions.at(0);
-	m_cbShadowsData.LightColor = m_cbPointLightsData.LightColors.at(0);
+	XMVECTOR target{ XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f) };
+	//m_View = XMMatrixLookAtLH(m_Position, m_Position - target, m_Up);
+	m_View = XMMatrixLookAtLH(m_Position, target, m_Up);
+	m_Projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), 1.0f, 0.1f, 25.0f);
+
+	// https://stackoverflow.com/questions/68939246/shadow-mapping-directx12-shadow-map-does-not-render-properly
+	XMVECTOR centerVec{ XMVector3TransformCoord(target, m_View) };
+	XMFLOAT3 center{ XMVectorGetX(centerVec), XMVectorGetY(centerVec), XMVectorGetZ(centerVec) };
+	// Ortho frustum in light space encloses scene.
+	const float l = center.x - 500.0f;
+	const float b = center.y - 500.0f;
+	const float n = center.z - 500.0f;
+	const float r = center.x + 500.0f;
+	const float t = center.y + 500.0f;
+	const float f = center.z + 500.0f;
+
+	//XMMATRIX lightProj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+	//m_Projection = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+
+	// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+	XMMATRIX T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f);
+
+	//Pre-transpose
+	XMMATRIX T2(
+		0.5f, 0.0f, 0.0f, 0.5f,
+		0.0f, 0.5f, 0.0f, 0.5f,
+		0.0f, 0.0f, 0.5f, 0.5f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
+
+	//  
+	m_cbShadowsData.ViewProjection = XMMatrixTranspose(XMMatrixIdentity() * m_View * m_Projection) * T2;
+	//m_cbShadowsData.ViewProjection = XMMatrixTranspose(m_View * m_Projection) * T2;
+	//m_cbShadowsData.LightPosition = m_cbPointLightsData.LightPositions.at(0);
+	//m_cbShadowsData.LightColor = m_cbPointLightsData.LightColors.at(0);
+
+	for (size_t i = 0; i < 4; i++)
+	{
+		m_cbShadowsData.LightPosition[i] = XMFLOAT4(m_LightPositionsFloat.at(i).at(0), m_LightPositionsFloat.at(i).at(1), m_LightPositionsFloat.at(i).at(2), m_LightPositionsFloat.at(i).at(3));
+
+		m_cbShadowsData.LightColor[i] = XMFLOAT4(m_LightColorsFloat.at(i).at(0), m_LightColorsFloat.at(i).at(1), m_LightColorsFloat.at(i).at(2), m_LightColorsFloat.at(i).at(3));
+	}
 	m_cbLightData->Update(m_cbShadowsData, m_DeviceCtx->FRAME_INDEX);
+
 
 	//TEST
 	/*

@@ -32,6 +32,15 @@ struct ScreenQuadOutput
     float2 TexCoord : TEXCOORD;
 };
 
+struct MaterialData
+{
+    float4 Albedo;
+    float4 Normal;
+    float4 MetalRoughness;
+    float4 Emissive;
+    float4 Positions;
+};
+
 // Helper file to share functions across pixel shaders
 static const float PI = 3.141592f;
 static const float TwoPI = PI * 2.0f;
@@ -87,13 +96,54 @@ float GetGeometrySmith(float3 Normal, float3 V, float3 L, float Roughness)
 }
 
 //normal distribution
-float ndfGGX(float NdotV, float roughness)
+float ndfGGX(float NdotV, float Roughness)
 {
-    float alpha = roughness * roughness;
+    float alpha = Roughness * Roughness;
     float sqrtAlpha = alpha * alpha;
 
     float denom = (NdotV * NdotV) * (sqrtAlpha - 1.0f) + 1.0f;
     return sqrtAlpha / (PI * denom * denom);
 }
+
+// Lo output
+float3 CalculateLighting(uint LightCount, in MaterialData Material, float3 V, in float4 LightPositions[4], in float4 LightColors[4])
+{
+    float NdotV = max(dot(Material.Normal.rgb, V), 0.0f);
+    float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), Material.Albedo.rgb, Material.MetalRoughness.b);
+    
+    float3 Lo = float3(0.0f, 0.0f, 0.0f);
+    
+    for (int i = 0; i < LightCount; ++i)
+    {
+        float3 L = normalize(LightPositions[i].xyz - Material.Positions.xyz);
+        float3 H = normalize(V + L);
+
+        float distance = length(LightPositions[i].xyz - Material.Positions.xyz);
+        float attenuation = 1.0f / (distance * distance);
+        float3 radiance = LightColors[i].rgb * (attenuation * LightPositions[i].w);
+        
+        float NdotH = max(dot(Material.Normal.rgb, H), 0.0f);
+        float NdotL = max(dot(Material.Normal.rgb, L), 0.0f);
+        ;
+        
+        // Cook-Torrance BRDF
+        float NDF = GetDistributionGGX(Material.Normal.rgb, H, Material.MetalRoughness.g);
+        float G = GetGeometrySmith(Material.Normal.rgb, V, L, Material.MetalRoughness.g);
+        float3 F = GetFresnelSchlick(max(dot(H, V), 0.0f), F0);
+
+        float3 kS = F;
+        float3 kD = lerp(float3(1.0f, 1.0f, 1.0f) - kS, float3(0.0f, 0.0f, 0.0f), Material.MetalRoughness.b);
+        kD *= ((1.0f - Material.MetalRoughness.b) * Material.Normal.a);
+        
+        float3 numerator = NDF * G * F;
+        float denominator = 4.0f * NdotV * NdotL;
+        float3 specular = numerator / max(denominator, Epsilon);
+        
+        Lo += (kD * Material.Albedo.rgb / PI + specular) * radiance * NdotL;
+    }
+    
+    return Lo;
+}
+
 
 #endif //DEFERRED_PBR_HLSLI
