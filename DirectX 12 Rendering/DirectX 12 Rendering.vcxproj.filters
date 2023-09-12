@@ -123,6 +123,12 @@
     <ClCompile Include="Source\Rendering\Passes\LightPass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Rendering\ShadowMap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FrameBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd-party\d3dx12.h">
@@ -260,6 +266,12 @@
     <ClInclude Include="Source\Rendering\Passes\LightPass.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Rendering\ShadowMap.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FrameBuffer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\Forward\Common.hlsli" />
@@ -296,6 +308,9 @@
     <FxCompile Include="Assets\Shaders\Forward\Point_Shadows_PS.hlsl" />
     <FxCompile Include="Assets\Shaders\TBDR\Frustrum_Grid.hlsl" />
     <FxCompile Include="Assets\Shaders\Deferred\Simple_Shadows_PS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Deferred\Simple_Shadows_VS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Deferred\Shadows_Clip_VS.hlsl" />
+    <FxCompile Include="Assets\Shaders\Deferred\Shadows_Clip_PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="Assets\Fonts\CascadiaCode-Bold.ttf" />

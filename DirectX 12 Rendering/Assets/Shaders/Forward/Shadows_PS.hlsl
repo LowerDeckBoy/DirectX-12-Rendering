@@ -64,6 +64,7 @@ Texture2D<float4> DepthTexture : register(t4, space0);
 // https://rastertek.com/dx11tut40.html
 // https://rastertek.com/dx11tut41.html
 // https://github.com/CHCTW/DirectX12-Framework-/blob/master/GraphicsTechniques/ShadowMap/ShadowMap.cpp
+
 float4 main(PS_INPUT pin) : SV_TARGET
 {
     float bias = 0.001f;

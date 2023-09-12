@@ -43,7 +43,7 @@ float4 main(PS_INPUT pin) : SV_TARGET
     {
         float4 diffuse = TexturesTable[Indices.BaseColorIndex].Sample(texSampler, pin.TexCoord);
         if (diffuse.a < AlphaCutoff)
-            discard;
+            clip(diffuse.a - AlphaCutoff);
         
         clip(diffuse.a - 0.1f);
         baseColor = pow(diffuse * BaseColorFactor, 2.2f);
