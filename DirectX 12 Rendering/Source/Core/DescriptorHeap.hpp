@@ -10,6 +10,13 @@ private:
 	D3D12_GPU_DESCRIPTOR_HANDLE m_gpuHandle{};
 	
 public:
+	~Descriptor()
+	{
+		m_cpuHandle.ptr = 0;
+		m_gpuHandle.ptr = 0;
+		m_Index = -1;
+	}
+
 	// Setter for CPU descriptor  handle
 	[[maybe_unused]] void SetCPU(D3D12_CPU_DESCRIPTOR_HANDLE Handle) noexcept { m_cpuHandle = Handle; }
 	// Setter for GPU descriptor  handle
@@ -31,7 +38,7 @@ class DescriptorHeap
 public:
 	~DescriptorHeap() noexcept(false)
 	{
-		m_Heap.Reset();
+		m_Heap->Release();
 		m_Heap = nullptr;
 	}
 
@@ -43,10 +50,10 @@ public:
 		}
 		else
 		{
+			++m_Allocated;
 			TargetDescriptor.SetCPU(GetCPUptr(m_Allocated));
 			TargetDescriptor.SetGPU(GetGPUptr(m_Allocated));
 			TargetDescriptor.m_Index = m_Allocated;
-			++m_Allocated;
 		}
 	}
 
@@ -93,7 +100,7 @@ private:
 	D3D12_DESCRIPTOR_HEAP_TYPE m_Type;
 	uint32_t m_DescriptorSize{ 32 };
 	uint32_t m_NumDescriptors{ 0 };
-	uint32_t m_Allocated{ 1 };
+	uint32_t m_Allocated{ 0 };
 
 };
 

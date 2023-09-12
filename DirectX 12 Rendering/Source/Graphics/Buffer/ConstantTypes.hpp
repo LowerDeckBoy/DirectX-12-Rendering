@@ -13,14 +13,15 @@ struct cbCamera
 	alignas(16) XMFLOAT3 CameraPosition;
 };
 
+// Scene per frame buffer
 struct SceneConstData
 {
-	XMVECTOR Position;
-	XMMATRIX View;
-	XMMATRIX Projection;
-	XMMATRIX InversedView;
-	XMMATRIX InversedProjection;
-	XMFLOAT2 ScreenDimension;
+	DirectX::XMVECTOR CameraPosition;
+	DirectX::XMMATRIX View;
+	DirectX::XMMATRIX Projection;
+	DirectX::XMMATRIX InversedView;
+	DirectX::XMMATRIX InversedProjection;
+	DirectX::XMFLOAT2 ScreenDimension;
 };
 
 // Mainly for glTF model purposes

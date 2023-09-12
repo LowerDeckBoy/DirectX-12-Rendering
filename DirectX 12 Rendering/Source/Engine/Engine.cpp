@@ -54,21 +54,22 @@ void Engine::Run()
 			::TranslateMessage(&msg);
 			::DispatchMessage(&msg);
 		}
-
-		m_Timer->Tick();
-		m_Timer->GetFrameStats();
-
-		if (!bAppPaused)
-		{
-			Inputs::CameraInputs(m_Camera.get(), m_Timer->DeltaTime());
-			m_Renderer->Update();
-			m_Renderer->Render();
-			m_Camera->Update();
-		}
 		else
-			::Sleep(100);
-	}
+		{
+			m_Timer->Tick();
+			m_Timer->GetFrameStats();
 
+			if (!bAppPaused)
+			{
+				Inputs::CameraInputs(m_Camera.get(), m_Timer->DeltaTime());
+				m_Renderer->Update();
+				m_Renderer->Render();
+				m_Camera->Update();
+			}
+			else
+				::Sleep(100);
+		}
+	}
 }
 
 void Engine::OnResize()
@@ -84,70 +85,6 @@ void Engine::Release()
 	Inputs::Release();
 }
 
-//test
-/*
-void AdjustRect(RECT& Rect)
-{
-	auto monitor = ::MonitorFromWindow(Window::m_hWnd, MONITOR_DEFAULTTONULL);
-	if (!monitor) {
-		return;
-	}
-
-	MONITORINFO monitor_info{};
-	monitor_info.cbSize = sizeof(monitor_info);
-	if (!::GetMonitorInfoW(monitor, &monitor_info)) {
-		return;
-	}
-
-	// when maximized, make the client area fill just the monitor (without task bar) rect,
-	// not the whole window rect which extends beyond the monitor.
-	Rect = monitor_info.rcWork;
-}
-
-LRESULT HitTest(POINT Cursor)
-{
-	const POINT border{
-		::GetSystemMetrics(SM_CXFRAME) + ::GetSystemMetrics(SM_CXPADDEDBORDER),
-		::GetSystemMetrics(SM_CYFRAME) + ::GetSystemMetrics(SM_CXPADDEDBORDER)
-	};
-	RECT window;
-	if (!::GetWindowRect(Window::m_hWnd, &window)) {
-		return HTNOWHERE;
-	}
-
-	auto borderless_drag = true;
-	const auto drag = borderless_drag ? HTCAPTION : HTCLIENT;
-
-	enum region_mask {
-		client = 0b0000,
-		left = 0b0001,
-		right = 0b0010,
-		top = 0b0100,
-		bottom = 0b1000,
-	};
-
-	const auto result =
-		left * (Cursor.x < (window.left + border.x)) |
-		right * (Cursor.x >= (window.right - border.x)) |
-		top * (Cursor.y < (window.top + border.y)) |
-		bottom * (Cursor.y >= (window.bottom - border.y));
-
-	auto borderless_resize = true;
-	switch (result) {
-	case left: return borderless_resize ? HTLEFT : drag;
-	case right: return borderless_resize ? HTRIGHT : drag;
-	case top: return borderless_resize ? HTTOP : drag;
-	case bottom: return borderless_resize ? HTBOTTOM : drag;
-	case top | left: return borderless_resize ? HTTOPLEFT : drag;
-	case top | right: return borderless_resize ? HTTOPRIGHT : drag;
-	case bottom | left: return borderless_resize ? HTBOTTOMLEFT : drag;
-	case bottom | right: return borderless_resize ? HTBOTTOMRIGHT : drag;
-	case client: return drag;
-	default: return HTNOWHERE;
-	}
-}
-*/
-
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
@@ -156,29 +93,6 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 	switch (Msg)
 	{
-		/*
-	case WM_NCCREATE:
-	{
-		auto userdata = reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams;
-		// store window instance pointer in window user data
-		::SetWindowLongPtrW(m_hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(userdata));
-	}
-	case WM_NCCALCSIZE: {
-		if (wParam == TRUE) {
-			auto& params = *reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
-			AdjustRect(params.rgrc[0]);
-			return 0;
-		}
-		break;
-	}
-	case WM_NCHITTEST: {
-		// When we have no border or title bar, we need to perform our
-		// own hit testing to allow resizing and moving.
-		//return HitTest(POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
-
-		break;
-	}
-	*/
 	case WM_ACTIVATE:
 	{
 		if (LOWORD(wParam) == WA_INACTIVE)
@@ -242,7 +156,6 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 		return 0;
 	}
-
 	case WM_EXITSIZEMOVE:
 	{
 		bAppPaused = false;
@@ -253,7 +166,6 @@ LRESULT Engine::WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 		return 0;
 	}
-	
 	case WM_CLOSE:
 	case WM_DESTROY:
 	{

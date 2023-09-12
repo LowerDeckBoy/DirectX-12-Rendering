@@ -84,14 +84,29 @@ void PSOBuilder::CreateRootSignature(ID3D12Device* pDevice, ID3D12RootSignature*
 	}
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
-	rootDesc.Init_1_1(static_cast<uint32_t>(m_Parameters.size()), m_Parameters.data(), 1, &m_StaticSampler, m_RootFlags);
+	//rootDesc.Init_1_1(static_cast<uint32_t>(m_Parameters.size()), m_Parameters.data(), 1, &m_StaticSampler, m_RootFlags);
+	rootDesc.Init_1_1(
+		static_cast<uint32_t>(m_Parameters.size()), m_Parameters.data(), 
+		static_cast<uint32_t>(m_StaticSamplers.size()), m_StaticSamplers.data(), 
+		m_RootFlags);
 
 	ComPtr<ID3DBlob> signature;
 	ComPtr<ID3DBlob> error;
 
-	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1_1, signature.GetAddressOf(), error.GetAddressOf()));
+	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(
+		&rootDesc, 
+		D3D_ROOT_SIGNATURE_VERSION_1_1, 
+		signature.GetAddressOf(), 
+		error.GetAddressOf()),
+		"Failed to Serialize Root Signature!");
 
-	ThrowIfFailed(pDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(ppTarget)), "Failed to create ID3D12RootSignature!");
+	ThrowIfFailed(pDevice->CreateRootSignature(
+		0, 
+		signature->GetBufferPointer(), 
+		signature->GetBufferSize(), 
+		IID_PPV_ARGS(ppTarget)), 
+		"Failed to create ID3D12RootSignature!");
+
 	if (DebugName)
 		(*ppTarget)->SetName(DebugName);
 
@@ -117,32 +132,45 @@ void PSOBuilder::AddInputLayout(const std::span<D3D12_INPUT_ELEMENT_DESC>& Layou
 
 void PSOBuilder::AddSampler(uint32_t ShaderRegister, uint32_t RegisterSpace, D3D12_FILTER Filter, D3D12_TEXTURE_ADDRESS_MODE AddressMode, D3D12_COMPARISON_FUNC ComparsionFunc)
 {
-	//D3D12_STATIC_SAMPLER_DESC desc{};
+	D3D12_STATIC_SAMPLER_DESC desc{};
+	desc.AddressU = AddressMode;
+	desc.AddressV = AddressMode;
+	desc.AddressW = AddressMode;
+	desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	desc.ComparisonFunc = ComparsionFunc;
+	desc.Filter = Filter;
+	desc.MaxAnisotropy = D3D12_MAX_MAXANISOTROPY;
+	desc.MinLOD = 0.0f;
+	desc.MaxLOD = static_cast<float>(UINT32_MAX);
+	desc.ShaderRegister = ShaderRegister;
+	desc.RegisterSpace = RegisterSpace;
+	desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	m_StaticSamplers.emplace_back(desc);
+
+	/*
 	m_StaticSampler.AddressU = AddressMode;
 	m_StaticSampler.AddressV = AddressMode;
 	m_StaticSampler.AddressW = AddressMode;
 	m_StaticSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
 	m_StaticSampler.ComparisonFunc = ComparsionFunc;
 	m_StaticSampler.Filter = Filter;
-	m_StaticSampler.MaxAnisotropy = 0;
+	m_StaticSampler.MaxAnisotropy = D3D12_MAX_MAXANISOTROPY;
 	m_StaticSampler.MinLOD = 0.0f;
 	m_StaticSampler.MaxLOD = static_cast<float>(UINT32_MAX);
 	m_StaticSampler.ShaderRegister = ShaderRegister;
 	m_StaticSampler.RegisterSpace = RegisterSpace;
 	m_StaticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	*/
 
 }
 
 void PSOBuilder::AddShaders(const std::string_view& VertexPath, const std::string_view& PixelPath)
 {
-	//m_VertexShader.Reset();
-	//m_PixelShader.Reset();
-
-	//m_VertexShader.Create(VertexPath.data(), "vs_5_1");
-	//m_PixelShader.Create(PixelPath.data(), "ps_5_1");
-
-	m_VertexShader = nullptr;
-	m_PixelShader = nullptr;
+	if (m_VertexShader)
+		m_VertexShader = nullptr;
+	if (m_PixelShader)
+		m_PixelShader = nullptr;
 	
 	m_VertexShader = m_ShaderManager->CreateDXIL(VertexPath, ShaderType::eVertex);
 	m_PixelShader = m_ShaderManager->CreateDXIL(PixelPath, ShaderType::ePixel);
@@ -189,6 +217,12 @@ void PSOBuilder::AddDepthStencil(CD3DX12_DEPTH_STENCIL_DESC DepthDesc)
 	m_DepthDesc = DepthDesc;
 }
 
+void PSOBuilder::ResetSamplers()
+{
+	m_StaticSamplers.clear();
+	m_StaticSamplers.shrink_to_fit();
+}
+
 void PSOBuilder::Reset()
 {
 	m_Ranges.clear();
@@ -196,6 +230,7 @@ void PSOBuilder::Reset()
 	m_InputLayout = {};
 
 	m_StaticSampler = {};
+	ResetSamplers();
 	m_RootFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	
 	m_RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -280,11 +315,11 @@ D3D12_ROOT_SIGNATURE_FLAGS PSOUtils::SetRootFlags(D3D12_ROOT_SIGNATURE_FLAGS Fla
 std::array<D3D12_INPUT_ELEMENT_DESC, 5> PSOUtils::CreateInputLayout()
 {
 	std::array<D3D12_INPUT_ELEMENT_DESC, 5> layout{
-		D3D12_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			D3D12_INPUT_ELEMENT_DESC{ "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			D3D12_INPUT_ELEMENT_DESC{ "TANGENT",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			D3D12_INPUT_ELEMENT_DESC{ "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		D3D12_INPUT_ELEMENT_DESC{ "POSITION",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		D3D12_INPUT_ELEMENT_DESC{ "TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		D3D12_INPUT_ELEMENT_DESC{ "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		D3D12_INPUT_ELEMENT_DESC{ "TANGENT",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		D3D12_INPUT_ELEMENT_DESC{ "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 	return layout;
 }

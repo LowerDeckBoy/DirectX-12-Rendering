@@ -54,6 +54,8 @@ void Renderer::LoadAssets()
 	
 	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/sponza/Sponza.gltf", "Sponza"));
 	m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/damaged_helmet/scene.gltf", "Helmet"));
+	m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/ground/scene.gltf", "Ground"));
+	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/suzanne/Suzanne.gltf", "Suzanne"));
 	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/MetalRoughSpheres/MetalRoughSpheres.gltf", "Ligma"));
 
 	//m_Models.emplace_back(std::make_unique<Model>(m_DeviceCtx.get(), "Assets/glTF/ice_cream_man/scene.gltf", "ice_cream_man"));
@@ -162,14 +164,17 @@ void Renderer::Deferred()
 	m_DeviceCtx->GetCommandList()->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, D3D12_MAX_DEPTH, 0, 0, nullptr);
 	
 	m_DeferredCtx->PassGBuffer(m_Camera, m_cbCamera.get(), m_Models);
-	m_DeferredCtx->DrawDeferredTargets();
 
+	m_DeferredCtx->DrawToShadowMap(m_Camera, m_cbCamera.get(), m_PointLights.get(), m_Models, m_ModelRootSignature.Get());
+
+	SetViewport();
 	SetRenderTarget();
 	ClearRenderTarget();
 
-	m_DeferredCtx->PassLight(m_Camera, m_cbCamera.get(), m_IBL.get(), m_PointLights.get());
+	m_DeferredCtx->PassShadows(m_Camera, m_cbCamera.get(), m_PointLights.get(), m_IBL.get(), m_Models);
+	//m_DeferredCtx->PassLight(m_Camera, m_cbCamera.get(), m_IBL.get(), m_PointLights.get());
 
-	//PassShadows(m_Camera);
+	m_DeferredCtx->DrawDeferredTargets();
 
 }
 
@@ -227,6 +232,12 @@ void Renderer::SetPipelineState(ID3D12PipelineState* pPipelineState)
 	m_DeviceCtx->GetCommandList()->SetPipelineState(pPipelineState);
 }
 
+void Renderer::SetViewport()
+{
+	m_DeviceCtx->GetCommandList()->RSSetViewports(1, &m_DeviceCtx->GetViewport());
+	m_DeviceCtx->GetCommandList()->RSSetScissorRects(1, &m_DeviceCtx->GetScissor());
+}
+
 void Renderer::SetRenderTarget()
 {
 	const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_DeviceCtx->GetRenderTargetHeap()->GetCPUDescriptorHandleForHeapStart(), m_DeviceCtx->FRAME_INDEX, m_DeviceCtx->GetDescriptorSize());
@@ -266,14 +277,11 @@ void Renderer::BeginFrame()
 {
 	m_DeviceCtx->ResetCommandList();
 
-	const auto viewport{ m_DeviceCtx->GetViewport() };
-	const auto scissor{ m_DeviceCtx->GetScissor() };
-	m_DeviceCtx->GetCommandList()->RSSetViewports(1, &viewport);
-	m_DeviceCtx->GetCommandList()->RSSetScissorRects(1, &scissor);
-
-	m_DeviceCtx->GetCommandList()->SetGraphicsRootSignature(m_ModelRootSignature.Get());
+	SetViewport();
 
 	m_GUI->Begin();
+
+	m_DeviceCtx->GetCommandList()->SetGraphicsRootSignature(m_ModelRootSignature.Get());
 
 	TransitToRender();
 }
@@ -343,7 +351,7 @@ void Renderer::InitPipelines()
 		params.at(1).InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
 		// Pixel Constant Buffer
 		params.at(2).InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-		params.at(3).InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+		params.at(3).InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
 		// Bindless
 		params.at(4).InitAsDescriptorTable(1, &ranges.at(0), D3D12_SHADER_VISIBILITY_PIXEL);
 		// Material indices
@@ -369,8 +377,9 @@ void Renderer::InitPipelines()
 		builder->AddRootFlags(rootFlags);
 		builder->AddInputLayout(layout);
 		builder->AddSampler(0);
+		builder->AddSampler(1, 0, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_COMPARISON_FUNC_LESS);
 		builder->SetCullMode(D3D12_CULL_MODE_BACK);
-
+		
 		builder->CreateRootSignature(m_DeviceCtx->GetDevice(), m_ModelRootSignature.ReleaseAndGetAddressOf(), L"Model Root Signature");
 
 		builder->AddShaders("Assets/Shaders/Forward/Global_Vertex.hlsl", "Assets/Shaders/Forward/PBR_Pixel.hlsl");
@@ -411,6 +420,9 @@ void Renderer::InitPipelines()
 
 void Renderer::Release()
 {
+	m_DeviceCtx->WaitForGPU();
+	m_DeviceCtx->FlushGPU();
+
 	// PSO
 	SAFE_RELEASE(m_SkyboxRootSignature);
 	SAFE_RELEASE(m_SkyboxPipelineState);
@@ -418,8 +430,6 @@ void Renderer::Release()
 	SAFE_RELEASE(m_ModelRootSignature);
 	SAFE_RELEASE(m_PBRPipelineState);
 	SAFE_RELEASE(m_IBLPipelineState);
-
-	m_DeviceCtx->WaitForGPU();
 
 	::CloseHandle(m_DeviceCtx->GetFenceEvent());
 
@@ -429,5 +439,8 @@ void Renderer::Release()
 void Renderer::DrawGUI()
 {
 	m_PointLights->DrawGUI();
+
+	for (const auto& model : m_Models)
+		model->DrawGUI();
 
 }

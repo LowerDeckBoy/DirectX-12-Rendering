@@ -84,7 +84,7 @@ void Model::Draw(Camera* pCamera)
 		}
 	}
 
-	DrawGUI();
+	//DrawGUI();
 }
 
 void Model::DrawGUI()
@@ -136,6 +136,9 @@ void Model::Release()
 
 	for (auto& material : m_Materials)
 		delete material;
+
+	for (auto& texture : m_Textures)
+		delete texture;
 }
 
 void Model::UpdateWorld() noexcept

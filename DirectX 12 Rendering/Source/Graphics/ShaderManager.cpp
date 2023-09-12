@@ -93,6 +93,8 @@ constexpr LPCWSTR ShaderManager::EnumToType(ShaderType TypeOf)
 	case ShaderType::eCompute:
 		return L"cs_6_0";
 	case ShaderType::eLibrary:
+		return L"lib_6_0";
+	case ShaderType::eRayTracing:
 		return L"lib_6_3";
 	case ShaderType::eGeometry:
 		return L"gs_6_0";

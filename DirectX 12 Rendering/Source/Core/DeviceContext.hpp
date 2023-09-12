@@ -4,11 +4,14 @@
 #include <d3d12sdklayers.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
+
+#if defined (_DEBUG)
+#include <dxgidebug.h>
+#endif
+
 #include <cstdint>
 #include <array>
-
 #include "DescriptorHeap.hpp"
-
 #include <D3D12MA/D3D12MemAlloc.h>
 
 class Window;
@@ -76,9 +79,10 @@ public:
 	ID3D12DescriptorHeap* GetRenderTargetHeap() const noexcept;
 	uint32_t GetDescriptorSize() const  noexcept;
 
-	D3D12_VIEWPORT GetViewport() const noexcept;
-	D3D12_RECT GetScissor() const noexcept;
+	const D3D12_VIEWPORT& GetViewport() const noexcept;
+	const D3D12_RECT& GetScissor() const noexcept;
 
+	//DescriptorHeap* GetDepthHeap();
 	ID3D12DescriptorHeap* GetDepthHeap() noexcept;
 	ID3D12Resource* GetDepthStencil() const noexcept;
 	DXGI_FORMAT GetDepthFormat() const noexcept;
@@ -98,7 +102,12 @@ public:
 private:
 	ComPtr<IDXGIFactory6> m_Factory;
 	ComPtr<ID3D12Device5> m_Device;
+
+#if defined (_DEBUG)
 	ComPtr<ID3D12DebugDevice> m_DebugDevice;
+	ComPtr<ID3D12Debug1> m_D3DDebug;
+	ComPtr<IDXGIDebug1> m_DXGIDebug;
+#endif
 
 	std::array<ComPtr<ID3D12CommandAllocator>, FRAME_COUNT> m_CommandAllocators;
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
@@ -122,6 +131,8 @@ private:
 	D3D12_VIEWPORT m_Viewport{};
 	D3D12_RECT m_ViewportRect{};
 
+	//std::unique_ptr<DescriptorHeap> m_DepthHeap;
+	//Descriptor m_DepthDesc;
 	ComPtr<ID3D12DescriptorHeap> m_DepthHeap;
 	ComPtr<ID3D12Resource> m_DepthStencil;
 	DXGI_FORMAT m_DepthFormat{ DXGI_FORMAT_D32_FLOAT };

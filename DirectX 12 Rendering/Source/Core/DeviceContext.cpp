@@ -3,10 +3,6 @@
 #include "../Utilities/Logger.hpp"
 #include "Window.hpp"
 
-#if defined (_DEBUG) || (DEBUG)
-#include <dxgidebug.h>
-#endif
-
 ComPtr<IDXGIAdapter3> DeviceContext::m_Adapter = nullptr;
 uint32_t DeviceContext::FRAME_INDEX = 0;
 
@@ -34,12 +30,9 @@ void DeviceContext::CreateDevice()
 	UINT dxgiFactoryFlags = 0;
 
 #if defined (_DEBUG) || (DEBUG)
-	ComPtr<ID3D12Debug1> debugController;
-
-	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)), "Failed to create Debug Interface!");
-	debugController.Get()->EnableDebugLayer();
+	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&m_D3DDebug)), "Failed to create Debug Interface!");
+	m_D3DDebug.Get()->EnableDebugLayer();
 	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-	SAFE_RELEASE(debugController);
 
 	ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
 	ThrowIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(dxgiInfoQueue.GetAddressOf())));
@@ -69,13 +62,8 @@ void DeviceContext::CreateDevice()
 
 #if defined (_DEBUG) | (DEBUG)
 	ThrowIfFailed(m_Device.Get()->QueryInterface(m_DebugDevice.GetAddressOf()), "Failed to Query D3D Debug Device!");
-
-	IDXGIDebug1* dxgiDebug{ nullptr };
-	ThrowIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug)), "Failed to get DXGI Debug Interface!");
-	dxgiDebug->ReportLiveObjects(DXGI_DEBUG_DX, DXGI_DEBUG_RLO_SUMMARY);
-	dxgiDebug->DisableLeakTrackingForThread();
-
-	SAFE_DELETE(dxgiDebug);
+	
+	ThrowIfFailed(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&m_DXGIDebug)), "Failed to get DXGI Debug Interface!");
 #endif
 
 	for (uint32_t i = 0; i < FRAME_COUNT; i++)
@@ -91,8 +79,7 @@ void DeviceContext::CreateDevice()
 	D3D12MA::ALLOCATOR_DESC allocatorDesc{};
 	allocatorDesc.pDevice = m_Device.Get();
 	allocatorDesc.pAdapter = m_Adapter.Get();
-	TraceError(D3D12MA::CreateAllocator(&allocatorDesc, m_Allocator.ReleaseAndGetAddressOf()));
-	//ThrowIfFailed(D3D12MA::CreateAllocator(&allocatorDesc, m_Allocator.ReleaseAndGetAddressOf()), "Failed to create D3D12MA Allocator!");
+	ThrowIfFailed(D3D12MA::CreateAllocator(&allocatorDesc, m_Allocator.ReleaseAndGetAddressOf()));
 
 	SAFE_RELEASE(device);
 	SAFE_RELEASE(adapter);
@@ -169,9 +156,8 @@ void DeviceContext::CreateDescriptorHeaps()
 	D3D12_DESCRIPTOR_HEAP_DESC desc{};
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	desc.NumDescriptors = FRAME_COUNT;
-
 	desc.NumDescriptors = 1024;
+
 	m_MainHeap = std::make_unique<DescriptorHeap>();
 	ThrowIfFailed(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_MainHeap->GetHeapAddressOf())), "Failed to create Main Descriptor Heap!");
 	m_MainHeap->SetDescriptorSize(m_Device.Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
@@ -181,7 +167,8 @@ void DeviceContext::CreateDescriptorHeaps()
 	// Depth Heap
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	desc.NumDescriptors = 1;
+	desc.NumDescriptors = 3;
+
 	ThrowIfFailed(m_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_DepthHeap.ReleaseAndGetAddressOf())), "Failed to create Depth Heap!");
 	m_DepthHeap.Get()->SetName(L"Depth Heap");
 }
@@ -408,18 +395,23 @@ void DeviceContext::Release()
 	SAFE_RELEASE(m_RenderTargetHeap);
 	SAFE_RELEASE(m_SwapChain);
 
-	SAFE_RELEASE(m_CommandList);
-
 	SAFE_RELEASE(m_ComputeQueue);
 	SAFE_RELEASE(m_CommandQueue);
+
+	SAFE_RELEASE(m_CommandList);
 
 	for (auto& allocator : m_CommandAllocators)
 		SAFE_RELEASE(allocator);
 
 	SAFE_RELEASE(m_Allocator);
 
+	m_DebugDevice->ReportLiveDeviceObjects(D3D12_RLDO_IGNORE_INTERNAL);
 	SAFE_RELEASE(m_DebugDevice);
+	SAFE_RELEASE(m_D3DDebug);
+	m_DXGIDebug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_IGNORE_INTERNAL);
+	SAFE_RELEASE(m_DXGIDebug);
 	SAFE_RELEASE(m_Device);
+	SAFE_RELEASE(m_Adapter);
 	SAFE_RELEASE(m_Factory);
 
 	Logger::Log("DeviceContext released.");
@@ -490,12 +482,12 @@ uint32_t DeviceContext::GetDescriptorSize() const noexcept
 	return m_DescriptorSize;
 }
 
-D3D12_VIEWPORT DeviceContext::GetViewport() const noexcept
+const D3D12_VIEWPORT& DeviceContext::GetViewport() const noexcept
 {
 	return m_Viewport;
 }
 
-D3D12_RECT DeviceContext::GetScissor() const noexcept
+const D3D12_RECT& DeviceContext::GetScissor() const noexcept
 {
 	return m_ViewportRect;
 }

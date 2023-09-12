@@ -11,7 +11,7 @@ class Importer
 public:
 	Importer() = default;
 	Importer(DeviceContext* pDevice, std::string_view Filepath);
-	virtual ~Importer() {};
+	virtual ~Importer() {}
 
 	bool Import(DeviceContext* pDevice, std::string_view Filepath);
 

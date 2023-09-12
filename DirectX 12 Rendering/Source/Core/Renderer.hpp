@@ -46,6 +46,8 @@ protected:
 	void SetRootSignature(ID3D12RootSignature* pRootSignature);
 	void SetPipelineState(ID3D12PipelineState* pPipelineState);
 
+	void SetViewport();
+
 	void SetRenderTarget();
 	void ClearRenderTarget();
 	void ClearDepthStencil();

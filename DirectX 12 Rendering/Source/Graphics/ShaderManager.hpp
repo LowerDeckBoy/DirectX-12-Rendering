@@ -9,6 +9,7 @@ enum class ShaderType : uint8_t
 	ePixel,
 	eCompute,
 	eLibrary,
+	eRayTracing,
 	eGeometry,
 	eHull,
 	eDomain

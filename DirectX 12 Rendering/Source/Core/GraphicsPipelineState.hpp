@@ -38,6 +38,8 @@ public:
 	void SetCullMode(D3D12_CULL_MODE CullMode);
 	void AddRootFlags(D3D12_ROOT_SIGNATURE_FLAGS Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	void AddDepthStencil(CD3DX12_DEPTH_STENCIL_DESC DepthDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+
+	void ResetSamplers();
 	void Reset();
 	
 
@@ -53,7 +55,10 @@ private:
 	IDxcBlob* m_GeometryShader{ nullptr };
 
 	D3D12_STATIC_SAMPLER_DESC m_StaticSampler{};
+	std::vector<D3D12_STATIC_SAMPLER_DESC> m_StaticSamplers;
+
 	D3D12_ROOT_SIGNATURE_FLAGS m_RootFlags{ D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT };
+
 	D3D12_CULL_MODE m_CullMode{ D3D12_CULL_MODE_BACK };
 	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_SOLID };
 
@@ -80,11 +85,15 @@ public:
 		D3D12_TEXTURE_ADDRESS_MODE AddressMode = D3D12_TEXTURE_ADDRESS_MODE_WRAP, 
 		D3D12_COMPARISON_FUNC ComparsionFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL);
 
-	// Defaults to allowing INPUT_ASSEMBLER_INPUT_LAYOUT only
+	/// Defaults to allowing INPUT_ASSEMBLER_INPUT_LAYOUT only
 	static D3D12_ROOT_SIGNATURE_FLAGS SetRootFlags(D3D12_ROOT_SIGNATURE_FLAGS Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-	// Default layout contains 3D model format:
-	// Position, TexCoord, Normal,Tangent, Bitangent
+	/// Default layout contains 3D model format:
+	/// XMFLOAT3 Position, 
+	/// XMFLOAT2 TexCoord, 
+	/// XMFLOAT3 Normal,
+	/// XMFLOAT3 Tangent, 
+	/// XMFLOAT3 Bitangent
 	static std::array<D3D12_INPUT_ELEMENT_DESC, 5> CreateInputLayout();
 
 	//static std::array<D3D12_INPUT_ELEMENT_DESC, 5> CreateGBufferLayout();
